@@ -578,7 +578,13 @@ export default function CustomerDashboard() {
                                       : "No docs submitted yet."}
                                   </p>
                                   <div className="mt-2">
-                                    <Button variant="outline" size="sm" onClick={() => openDocsDialog(activeThread.vin)}>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        if (activeThread.vin) openDocsDialog(activeThread.vin);
+                                      }}
+                                    >
                                       <Upload className="h-3.5 w-3.5" />
                                       Upload docs
                                     </Button>
