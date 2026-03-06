@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -37,6 +37,25 @@ function parsePositiveNumber(value: string | null, fallback: number): number {
 }
 
 export default function LeaseSpecialsPage() {
+  return (
+    <Suspense fallback={<LeaseSpecialsPageFallback />}>
+      <LeaseSpecialsPageContent />
+    </Suspense>
+  );
+}
+
+function LeaseSpecialsPageFallback() {
+  return (
+    <div className="app-page min-h-screen">
+      <SiteHeader />
+      <main className="app-main">
+        <DealSearchLoader />
+      </main>
+    </div>
+  );
+}
+
+function LeaseSpecialsPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

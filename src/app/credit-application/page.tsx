@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
@@ -36,6 +36,31 @@ function randomCaptcha() {
 }
 
 export default function CreditApplicationPage() {
+  return (
+    <Suspense fallback={<CreditApplicationPageFallback />}>
+      <CreditApplicationPageContent />
+    </Suspense>
+  );
+}
+
+function CreditApplicationPageFallback() {
+  return (
+    <div className="app-page min-h-screen">
+      <SiteHeader />
+      <main className="app-main space-y-6">
+        <section className="w-full border-b border-ink-200 bg-white py-6">
+          <p className="market-kicker">Secure Application</p>
+          <h1 className="market-heading text-3xl sm:text-4xl">Credit Application</h1>
+        </section>
+        <Card className="border-ink-200 bg-white">
+          <CardContent className="py-10 text-center text-sm text-ink-600">Loading application...</CardContent>
+        </Card>
+      </main>
+    </div>
+  );
+}
+
+function CreditApplicationPageContent() {
   const { user, loading } = useAuth();
   const searchParams = useSearchParams();
   const initialVin = useMemo(() => searchParams.get("vin") ?? "", [searchParams]);

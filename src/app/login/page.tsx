@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import SiteHeader from "@/components/site-header";
@@ -15,6 +15,29 @@ import { z } from "zod";
 const emailSchema = z.string().email();
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageFallback() {
+  return (
+    <div className="app-page min-h-screen">
+      <SiteHeader />
+      <main className="w-full py-8 sm:py-12">
+        <div className="container-wide flex justify-center">
+          <Card className="market-panel w-full max-w-xl bg-white">
+            <CardContent className="py-10 text-center text-sm text-ink-600">Loading sign in...</CardContent>
+          </Card>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") || "/lease-specials";

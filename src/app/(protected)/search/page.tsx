@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import SiteHeader from "@/components/site-header";
@@ -44,6 +44,25 @@ function parsePositiveNumber(value: string | null, fallback: number): number {
 }
 
 export default function SearchPage() {
+  return (
+    <Suspense fallback={<SearchPageFallback />}>
+      <SearchPageContent />
+    </Suspense>
+  );
+}
+
+function SearchPageFallback() {
+  return (
+    <div className="app-page min-h-screen">
+      <SiteHeader />
+      <main className="app-main">
+        <DealSearchLoader />
+      </main>
+    </div>
+  );
+}
+
+function SearchPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
