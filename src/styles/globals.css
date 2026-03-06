@@ -1,0 +1,205 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --font-display: "Trebuchet MS";
+  --font-body: "Segoe UI";
+  --tc-bg: #ffffff;
+  --tc-surface: #fafafa;
+  --tc-line: #e4e4e7;
+  --tc-text: #18181b;
+  --tc-muted: #71717a;
+  --tc-primary: #2563eb;
+  --tc-primary-strong: #1d4ed8;
+  --tc-accent: #2563eb;
+}
+
+* {
+  border-color: theme(colors.ink.200);
+}
+
+body {
+  @apply text-ink-900 font-body;
+  background: var(--tc-bg);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  @apply font-display;
+}
+
+.bg-grid {
+  background-image: radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.06) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.app-page {
+  @apply min-h-screen;
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+}
+
+.hero-dark {
+  background: linear-gradient(180deg, #18181b 0%, #27272a 50%, #18181b 100%);
+}
+
+/* Wide layout: content uses full width with generous max and padding */
+.container-wide {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+@media (min-width: 640px) {
+  .container-wide {
+    padding-inline: 1.25rem;
+  }
+}
+@media (min-width: 1024px) {
+  .container-wide {
+    padding-inline: 2rem;
+  }
+}
+
+.app-main {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+  padding-top: 1rem;
+  padding-bottom: 2rem;
+}
+@media (min-width: 640px) {
+  .app-main {
+    padding-inline: 1.25rem;
+    padding-top: 1.5rem;
+    padding-bottom: 2.5rem;
+  }
+}
+@media (min-width: 1024px) {
+  .app-main {
+    padding-inline: 2rem;
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+  }
+}
+
+.market-shell {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding: 1.5rem;
+}
+@media (min-width: 1024px) {
+  .market-shell {
+    padding-inline: 2rem;
+  }
+}
+
+.market-panel {
+  @apply rounded-2xl border border-ink-200 bg-white shadow-card;
+}
+
+.premium-panel {
+  @apply rounded-3xl border border-ink-200 bg-white shadow-soft;
+}
+
+.aurora-bg {
+  background:
+    radial-gradient(35rem 22rem at 10% 10%, rgba(37, 99, 235, 0.14), transparent 65%),
+    radial-gradient(32rem 20rem at 92% 16%, rgba(24, 24, 27, 0.07), transparent 65%),
+    radial-gradient(28rem 20rem at 30% 90%, rgba(37, 99, 235, 0.08), transparent 65%);
+}
+
+.float-card {
+  animation: floatCard 6s ease-in-out infinite;
+}
+
+.hero-car-image {
+  animation: heroImageBreath 14s ease-in-out infinite;
+}
+
+.market-kicker {
+  @apply text-xs font-semibold uppercase tracking-widest text-ink-500;
+}
+
+.market-heading {
+  @apply font-display font-semibold leading-tight text-ink-900;
+}
+
+.tc-surface {
+  @apply rounded-xl border border-ink-200 bg-white shadow-sm;
+}
+
+.tc-fade-up {
+  animation: tcFadeUp 0.28s ease both;
+}
+
+.tc-fade-up-delay {
+  animation: tcFadeUp 0.32s ease 0.06s both;
+}
+
+.search-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 420px;
+}
+
+@keyframes tcFadeUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes floatCard {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes heroImageBreath {
+  0%,
+  100% {
+    transform: scale(1.02);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@media (max-width: 1024px) {
+  .float-card,
+  .hero-car-image {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .tc-fade-up,
+  .tc-fade-up-delay,
+  .float-card,
+  .hero-car-image {
+    animation: none !important;
+  }
+}

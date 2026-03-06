@@ -1,0 +1,30 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC" />
+      <stop offset="1" stop-color="#E2E8F0" />
+    </linearGradient>
+    <linearGradient id="accent" x1="300" y1="520" x2="1310" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563EB" />
+      <stop offset="1" stop-color="#1D4ED8" />
+    </linearGradient>
+    <filter id="shadow" x="250" y="320" width="1120" height="360" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#0F172A" flood-opacity="0.2" />
+    </filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)" />
+  <circle cx="240" cy="170" r="180" fill="#93C5FD" fill-opacity="0.35" />
+  <circle cx="1410" cy="210" r="220" fill="#CBD5E1" fill-opacity="0.5" />
+  <g filter="url(#shadow)">
+    <path d="M405 560C430 472 503 411 596 411H950C1014 411 1075 438 1115 486L1192 579H1240C1273 579 1300 606 1300 639V645H300V628C300 590 331 560 369 560H405Z" fill="url(#accent)" />
+    <rect x="580" y="445" width="355" height="95" rx="26" fill="#DBEAFE" fill-opacity="0.7" />
+    <rect x="948" y="454" width="141" height="80" rx="22" fill="#DBEAFE" fill-opacity="0.55" />
+    <circle cx="510" cy="645" r="74" fill="#0F172A" />
+    <circle cx="510" cy="645" r="36" fill="#F8FAFC" />
+    <circle cx="1084" cy="645" r="74" fill="#0F172A" />
+    <circle cx="1084" cy="645" r="36" fill="#F8FAFC" />
+  </g>
+  <text x="800" y="786" text-anchor="middle" fill="#475569" font-family="Arial, sans-serif" font-size="40" font-weight="700">
+    Premium Vehicle Image Coming Soon
+  </text>
+</svg>

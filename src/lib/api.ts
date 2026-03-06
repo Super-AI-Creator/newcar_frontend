@@ -1,0 +1,1007 @@
+import { env } from "@/lib/env";
+import { authStore } from "@/lib/auth-store";
+
+export type ApiError = {
+  status: number;
+  message: string;
+  details?: unknown;
+};
+
+async function parseJson(response: Response) {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+function toNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+function toBoolean(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "yes", "active", "enabled"].includes(normalized)) return true;
+    if (["false", "0", "no", "inactive", "disabled"].includes(normalized)) return false;
+  }
+  return undefined;
+}
+
+function normalizeImageUrl(url: unknown): string | undefined {
+  if (typeof url !== "string" || !url.trim()) return undefined;
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;
+  const base = env.apiBaseUrl || "";
+  if (!base) return url;
+  const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+  const cleanPath = url.startsWith("/") ? url : `/${url}`;
+  return `${cleanBase}${cleanPath}`;
+}
+
+function normalizeVehicle(raw: any): Vehicle {
+  const photosRaw = Array.isArray(raw?.photos)
+    ? raw.photos
+    : Array.isArray(raw?.photo_urls)
+      ? raw.photo_urls
+      : Array.isArray(raw?.images)
+        ? raw.images
+        : [];
+  const photos = photosRaw.map((item: unknown) => normalizeImageUrl(item)).filter(Boolean) as string[];
+  const photo =
+    normalizeImageUrl(raw?.photo) ??
+    normalizeImageUrl(raw?.image) ??
+    normalizeImageUrl(raw?.photo_url) ??
+    photos[0];
+
+  const details =
+    raw?.details && typeof raw.details === "string"
+      ? (() => {
+          try {
+            return JSON.parse(raw.details);
+          } catch {
+            return undefined;
+          }
+        })()
+      : raw?.details;
+
+  return {
+    vin: raw?.vin ?? "",
+    year: toNumber(raw?.year),
+    make: raw?.make ?? undefined,
+    model: raw?.model ?? undefined,
+    trim: raw?.trim ?? undefined,
+    photo,
+    photos,
+    vehicle_type: raw?.vehicle_type ?? raw?.type ?? null,
+    listed_price: toNumber(raw?.listed_price ?? raw?.price) ?? null,
+    mileage: toNumber(raw?.mileage) ?? null,
+    condition: raw?.condition ?? null,
+    msrp: toNumber(raw?.msrp),
+    down: toNumber(raw?.down ?? raw?.offer?.down ?? raw?.offer?.down_payment),
+    monthly: toNumber(raw?.monthly ?? raw?.offer?.monthly ?? raw?.offer?.monthly_payment),
+    discounted: toNumber(raw?.discounted ?? raw?.offer?.discounted ?? raw?.offer?.discounted_price),
+    term_months: toNumber(raw?.term_months ?? raw?.termMonths ?? raw?.offer?.term_months ?? raw?.offer?.termMonths),
+    miles_per_year: toNumber(raw?.miles_per_year ?? raw?.milesPerYear ?? raw?.offer?.miles_per_year ?? raw?.offer?.milesPerYear),
+    details: details && typeof details === "object" ? details : undefined,
+    city: raw?.city ?? raw?.dealer_city ?? raw?.location?.city ?? undefined,
+    state: raw?.state ?? raw?.dealer_state ?? raw?.location?.state ?? undefined,
+    distance_miles: toNumber(raw?.distance_miles ?? raw?.distance ?? raw?.miles_away ?? raw?.distanceMiles) ?? null,
+    dealer_phone: raw?.dealer_phone ?? raw?.phone ?? raw?.dealer?.phone ?? null,
+    dealer_name: raw?.dealer_name ?? raw?.dealer ?? raw?.dealer?.name ?? null,
+    updatedAt: raw?.updatedAt ?? raw?.updated_at ?? raw?.last_seen_at ?? undefined,
+    vehicle_history_url:
+      raw?.vehicle_history_url ??
+      raw?.vehicleHistoryUrl ??
+      raw?.carfax_url ??
+      details?.carfax_url ??
+      null,
+    history_url: raw?.history_url ?? raw?.historyUrl ?? raw?.carfax_url ?? details?.carfax_url ?? null,
+    listing_url: raw?.listing_url ?? raw?.listingUrl ?? undefined,
+    dealer: raw?.dealer ?? undefined
+  };
+}
+
+function scoreTotal(raw: any): number {
+  const modelScores = raw?.model_scores ?? raw?.modelScores;
+  if (!modelScores || typeof modelScores !== "object") return 0;
+  return (
+    (toNumber(modelScores.design) ?? 0) +
+    (toNumber(modelScores.performance) ?? 0) +
+    (toNumber(modelScores.technology) ?? 0) +
+    (toNumber(modelScores.practicality) ?? 0) +
+    (toNumber(modelScores.future_value ?? modelScores.futureValue) ?? 0)
+  );
+}
+
+export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const url = `${env.apiBaseUrl}${path}`;
+  const token = authStore.getToken();
+  const headers = new Headers(options.headers ?? {});
+
+  if (options.body !== undefined && !headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+    credentials: "include"
+  });
+
+  if (!response.ok) {
+    const data = await parseJson(response);
+    const message =
+      typeof data === "string"
+        ? data
+        : typeof data?.detail === "string"
+          ? data.detail
+          : data?.message ?? "Request failed";
+    const error: ApiError = { status: response.status, message, details: data };
+    throw error;
+  }
+
+  return (await parseJson(response)) as T;
+}
+
+export const api = {
+  authWithGoogle: async (idToken: string) => {
+    const data = await apiFetch<{
+      token?: string;
+      jwt?: string;
+      access_token?: string;
+      refresh_token?: string;
+      token_type?: string;
+      verification_required?: boolean;
+      requiresVerification?: boolean;
+      status?: string;
+      user?: { id: string; name?: string; email?: string; role?: string };
+    }>("/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ id_token: idToken })
+    });
+    return {
+      ...data,
+      token: data.token ?? data.jwt ?? data.access_token,
+      jwt: data.jwt ?? data.token ?? data.access_token
+    };
+  },
+  requestOtp: async (payload: { email: string; name: string; password: string; phone?: string; channel?: "email" | "sms" }) => {
+    try {
+      return await apiFetch<{ sent: boolean; delivery?: string; dev_code?: string }>("/auth/otp/request", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError?.status !== 404) throw error;
+      return apiFetch<{ sent: boolean; delivery?: string; dev_code?: string }>("/auth/request-otp", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+    }
+  },
+  verifyOtp: async (email: string, code: string, channel: "email" | "sms" = "email") => {
+    try {
+      return await apiFetch<{ registered: boolean; message?: string }>("/auth/otp/verify", {
+        method: "POST",
+        body: JSON.stringify({ email, code, channel })
+      });
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError?.status !== 404) throw error;
+      return apiFetch<{ registered: boolean; message?: string }>("/auth/verify-otp", {
+        method: "POST",
+        body: JSON.stringify({ email, code, channel })
+      });
+    }
+  },
+  login: async (email: string, password: string) => {
+    try {
+      const data = await apiFetch<{ access_token?: string; refresh_token?: string; token_type?: string }>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password })
+      });
+      return {
+        ...data,
+        token: data.access_token
+      };
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError?.status !== 404) throw error;
+      const data = await apiFetch<{ access_token?: string; refresh_token?: string; token_type?: string }>("/auth/signin", {
+        method: "POST",
+        body: JSON.stringify({ email, password })
+      });
+      return {
+        ...data,
+        token: data.access_token
+      };
+    }
+  },
+  me: async () => {
+    try {
+      return await apiFetch<{ id: string; name?: string; email?: string; role?: string }>("/me");
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError?.status !== 404) throw error;
+      return apiFetch<{ id: string; name?: string; email?: string; role?: string }>("/auth/me");
+    }
+  },
+  search: async (params: Record<string, string | number | boolean | undefined>) => {
+    const query = new URLSearchParams();
+    const normalizedSort =
+      params.sort === "msrp_low_high"
+        ? "price_asc"
+        : params.sort === "price_high_low"
+          ? "price_desc"
+          : params.sort;
+    const requestedPage = Math.max(1, Number(params.page ?? 1) || 1);
+    const requestedPageSize = Math.max(1, Number(params.page_size ?? 20) || 20);
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === "") return;
+      const finalValue = key === "sort" ? normalizedSort : value;
+      query.set(key, String(finalValue));
+    });
+
+    if (normalizedSort === "score_high_low") {
+      // Backend inventory endpoint does not natively sort by score, so rank client-side.
+      query.set("page", "1");
+      query.set("page_size", "500");
+
+      let raw: any;
+      try {
+        raw = await apiFetch<any>(`/inventory/search?${query.toString()}`);
+      } catch (inventoryError) {
+        try {
+          raw = await apiFetch<any>(`/search?${query.toString()}`);
+        } catch (searchError) {
+          const apiError = searchError as ApiError;
+          if (apiError?.status) throw searchError;
+          throw inventoryError;
+        }
+      }
+
+      const rawResults = Array.isArray(raw?.results)
+        ? raw.results
+        : Array.isArray(raw?.items)
+          ? raw.items
+          : Array.isArray(raw)
+            ? raw
+            : [];
+      rawResults.sort((a: any, b: any) => scoreTotal(b) - scoreTotal(a));
+      const start = (requestedPage - 1) * requestedPageSize;
+      const paged = rawResults.slice(start, start + requestedPageSize);
+      const results = paged.map((item: any) => normalizeVehicle(item));
+      return { results, total: rawResults.length } as { results: Vehicle[]; total: number };
+    }
+
+    let raw: any;
+    try {
+      raw = await apiFetch<any>(`/inventory/search?${query.toString()}`);
+    } catch (inventoryError) {
+      try {
+        raw = await apiFetch<any>(`/search?${query.toString()}`);
+      } catch (searchError) {
+        const apiError = searchError as ApiError;
+        if (apiError?.status) throw searchError;
+        throw inventoryError;
+      }
+    }
+    const rawResults = Array.isArray(raw?.results)
+      ? raw.results
+      : Array.isArray(raw?.items)
+        ? raw.items
+        : Array.isArray(raw)
+          ? raw
+          : [];
+    const results = rawResults.map((item: any) => normalizeVehicle(item));
+    const total = typeof raw?.total === "number" ? raw.total : results.length;
+    return { results, total } as { results: Vehicle[]; total: number };
+  },
+  getFilters: async () => {
+    try {
+      return await apiFetch<{
+        makes?: string[];
+        models?: string[];
+        trims?: string[];
+        models_by_make?: Record<string, string[]>;
+        trims_by_make_model?: Record<string, string[]>;
+      }>("/vehicles/filters");
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError?.status !== 404) throw error;
+      const data = await apiFetch<any>("/inventory/search?page=1&page_size=200");
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const makes = [...new Set(items.map((i: any) => i?.make).filter((v: unknown) => typeof v === "string"))] as string[];
+      const models = [...new Set(items.map((i: any) => i?.model).filter((v: unknown) => typeof v === "string"))] as string[];
+      const trims = [...new Set(items.map((i: any) => i?.trim).filter((v: unknown) => typeof v === "string"))] as string[];
+      return { makes, models, trims };
+    }
+  },
+  getVehicle: async (vin: string) => {
+    try {
+      const data = await apiFetch<any>(`/vehicles/${vin}`);
+      return normalizeVehicle(data);
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError?.status !== 404) throw error;
+      const data = await apiFetch<any>(`/inventory/${vin}`);
+      return normalizeVehicle(data);
+    }
+  },
+  estimatePayment: async (payload: Record<string, unknown>) => {
+    const query = new URLSearchParams();
+    if (payload.vin) query.set("vin", String(payload.vin));
+    if (payload.apr !== undefined) query.set("apr", String(payload.apr));
+    if (payload.term !== undefined) query.set("term", String(payload.term));
+    if (payload.down !== undefined) query.set("down", String(payload.down));
+    const data = await apiFetch<{
+      estimated_monthly?: number;
+      down?: number;
+      vehicle_price?: number;
+      total?: number;
+    }>(`/payments/estimate?${query.toString()}`);
+    return {
+      monthly: toNumber(data.estimated_monthly),
+      down: toNumber(data.down),
+      total: toNumber(data.total ?? data.vehicle_price)
+    };
+  },
+  favorites: async () => {
+    const rows = await apiFetch<Array<{ vin: string }>>("/favorites");
+    const vehicles = await Promise.all(
+      (rows ?? []).map(async (item) => {
+        try {
+          return await api.getVehicle(item.vin);
+        } catch {
+          return normalizeVehicle({ vin: item.vin });
+        }
+      })
+    );
+    return { items: vehicles };
+  },
+  toggleFavorite: async (vin: string) => {
+    const data = await apiFetch<{ status?: string }>(`/favorites/${vin}`, { method: "POST" });
+    return { saved: data.status === "added" || data.status === "exists" };
+  },
+  getRecommendations: async (params: {
+    fun?: number;
+    styling?: number;
+    performance?: number;
+    practical?: number;
+    value?: number;
+    vehicle_type?: "new" | "used" | "all";
+    max_price?: number;
+    max_payment?: number;
+    limit?: number;
+  }) => {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined) return;
+      query.set(key, String(value));
+    });
+    const data = await apiFetch<{
+      items: Array<{
+        vin: string;
+        make?: string;
+        model?: string;
+        trim?: string;
+        vehicle_type?: string;
+        photo?: string;
+        photos?: string[];
+        score: number;
+        explanation?: Record<string, number>;
+      }>;
+    }>(`/recommendations/best?${query.toString()}`);
+    return {
+      items: (data.items ?? []).map((item) => {
+        const photos = (Array.isArray(item.photos) ? item.photos : [])
+          .map((url) => normalizeImageUrl(url))
+          .filter(Boolean) as string[];
+        const photo = normalizeImageUrl(item.photo) ?? photos[0];
+        return { ...item, photo, photos };
+      })
+    };
+  },
+  messages: () => apiFetch<{ items: Message[] }>("/messages"),
+  sendMessage: async (payload: { vin?: string; message: string }) => {
+    const data = await apiFetch<{ status?: string }>("/broker/message", {
+      method: "POST",
+      body: JSON.stringify({
+        vin: payload.vin,
+        message_text: payload.message
+      })
+    });
+    return { sent: data.status === "sent" };
+  },
+  sendBrokerReply: async (payload: { customer_user_id: number; vin?: string; message: string }) => {
+    const data = await apiFetch<{ status?: string }>("/broker/reply", {
+      method: "POST",
+      body: JSON.stringify({
+        customer_user_id: payload.customer_user_id,
+        vin: payload.vin,
+        message_text: payload.message
+      })
+    });
+    return { sent: data.status === "sent" };
+  },
+  createDeal: async (payload: { vin: string; customer_note?: string }) => {
+    return apiFetch<Deal>("/deals", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+  },
+  myDeals: async () => {
+    const data = await apiFetch<{ items?: Deal[] }>("/deals/mine");
+    return { items: data.items ?? [] };
+  },
+  allDeals: async () => {
+    const data = await apiFetch<{ items?: Deal[] }>("/deals");
+    return { items: data.items ?? [] };
+  },
+  brokerQueue: async () => {
+    const data = await apiFetch<{ items?: Deal[] }>("/deals/queue");
+    return { items: data.items ?? [] };
+  },
+  updateDeal: async (
+    dealId: number,
+    payload: {
+      status?: Deal["status"];
+      broker_note?: string;
+      assigned_broker_user_id?: number;
+      assigned_broker_email?: string;
+      delivery_scheduled_at?: string;
+      delivery_address?: string;
+      delivery_city?: string;
+      delivery_state?: string;
+      delivery_zip?: string;
+      delivery_notes?: string;
+    }
+  ) => {
+    return apiFetch<Deal>(`/deals/${dealId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    });
+  },
+  dealEvents: async (dealId: number) => {
+    const data = await apiFetch<{ items?: DealEvent[] }>(`/deals/${dealId}/events`);
+    return { items: data.items ?? [] };
+  },
+  prequal: async (payload: { credit_score: number; gross_monthly_income: number; vehicle_type?: "new" | "used"; down_payment?: number }) => {
+    const query = new URLSearchParams();
+    query.set("credit_score", String(payload.credit_score));
+    query.set("gross_monthly_income", String(payload.gross_monthly_income));
+    query.set("vehicle_type", payload.vehicle_type ?? "new");
+    if (payload.down_payment !== undefined) query.set("down_payment", String(payload.down_payment));
+    return apiFetch<{
+      tier: string;
+      apr: number;
+      max_term_months: number;
+      target_payment: number;
+      estimated_budget: number;
+    }>(`/credit/prequal?${query.toString()}`);
+  },
+  lenderOptions: async (payload: { credit_score: number; vehicle_type?: "new" | "used"; vin?: string; down_payment?: number; term_months?: number }) => {
+    const query = new URLSearchParams();
+    query.set("credit_score", String(payload.credit_score));
+    query.set("vehicle_type", payload.vehicle_type ?? "new");
+    if (payload.vin) query.set("vin", payload.vin);
+    if (payload.down_payment !== undefined) query.set("down_payment", String(payload.down_payment));
+    if (payload.term_months !== undefined) query.set("term_months", String(payload.term_months));
+    return apiFetch<{
+      tier: string;
+      vehicle_type: string;
+      vin?: string | null;
+      vehicle_price?: number | null;
+      items: Array<{
+        lender_name: string;
+        credit_tier: string;
+        vehicle_type: string;
+        apr: number;
+        max_term_months: number;
+        effective_term_months: number;
+        estimated_monthly?: number | null;
+      }>;
+    }>(`/credit/lender-options?${query.toString()}`);
+  },
+  lenderRates: async () => {
+    const data = await apiFetch<{ items?: LenderRate[] }>("/lenders/rates");
+    return { items: data.items ?? [] };
+  },
+  createLenderRate: async (payload: Omit<LenderRate, "id" | "created_at" | "updated_at">) => {
+    return apiFetch<LenderRate>("/lenders/rates", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+  },
+  updateLenderRate: async (rateId: number, payload: Omit<LenderRate, "id" | "created_at" | "updated_at">) => {
+    return apiFetch<LenderRate>(`/lenders/rates/${rateId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+  },
+  deleteLenderRate: async (rateId: number) => {
+    return apiFetch<{ deleted: boolean }>(`/lenders/rates/${rateId}`, {
+      method: "DELETE"
+    });
+  },
+  creditApplication: async (payload: Record<string, unknown>) => {
+    try {
+      const data = await apiFetch<{ submitted?: boolean }>("/credit-applications", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      return { submitted: !!data.submitted };
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError?.status !== 404) throw error;
+      const data = await apiFetch<{ status?: string }>("/credit/apply", {
+        method: "POST",
+        body: JSON.stringify({
+          vin: typeof payload.vin === "string" ? payload.vin : undefined,
+          payload_json: payload
+        })
+      });
+      return { submitted: data.status === "received" };
+    }
+  },
+  publicCreditApplication: async (payload: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    birth_date?: string;
+    ssn?: string;
+    drivers_license_number?: string;
+    street_address?: string;
+    city?: string;
+    state?: string;
+    zip_code?: string;
+    time_at_current_address?: string;
+    home_phone?: string;
+    previous_street_address?: string;
+    previous_city?: string;
+    previous_state?: string;
+    previous_zip_code?: string;
+    time_at_previous_address?: string;
+    employment_status?: string;
+    occupation_title?: string;
+    employer_name?: string;
+    work_phone?: string;
+    time_at_current_job?: string;
+    work_street_address?: string;
+    work_city?: string;
+    work_state?: string;
+    work_zip_code?: string;
+    previous_employer?: string;
+    time_at_previous_employer?: string;
+    gross_monthly_income?: number;
+    housing_status?: string;
+    monthly_housing_payment?: number;
+    salesperson_name?: string;
+    electronic_signature?: string;
+    agreed_to_terms: boolean;
+    vin?: string;
+    vehicle_make?: string;
+    vehicle_model?: string;
+    vehicle_trim?: string;
+    notes?: string;
+  }) => {
+    const data = await apiFetch<{ status?: string }>("/credit/public-apply", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    return { submitted: data.status === "received" };
+  },
+  dealerInventory: async (params?: { page?: number; page_size?: number; include_total?: boolean }) => {
+    const query = new URLSearchParams();
+    if (params?.page != null) query.set("page", String(params.page));
+    if (params?.page_size != null) query.set("page_size", String(params.page_size));
+    if (params?.include_total != null) query.set("include_total", String(params.include_total));
+    const qs = query.toString();
+    try {
+      const data = await apiFetch<{ items?: any[]; total?: number | null; has_more?: boolean; page?: number; page_size?: number }>(
+        `/dealer/inventory${qs ? `?${qs}` : ""}`
+      );
+      return {
+        items: (data.items ?? []).map((item) => normalizeVehicle(item)),
+        total: data.total ?? null,
+        has_more: !!data.has_more,
+        page: data.page ?? 1,
+        page_size: data.page_size ?? 50
+      };
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError?.status !== 404) throw error;
+      const data = await apiFetch<any>("/inventory/search?vehicle_type=new&page=1&page_size=50");
+      const items = Array.isArray(data?.items) ? data.items : [];
+      return { items: items.map((item: any) => normalizeVehicle(item)), total: items.length, has_more: false, page: 1, page_size: 50 };
+    }
+  },
+  updateOffer: (
+    vin: string,
+    payload: { down?: number | null; monthly?: number | null; discounted?: number | null; term_months?: number | null; miles_per_year?: number | null }
+  ) =>
+    apiFetch<{ updated: boolean }>(`/dealer/offers/${vin}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        down_payment: payload.down,
+        monthly_payment: payload.monthly,
+        discounted_price: payload.discounted,
+        term_months: payload.term_months,
+        miles_per_year: payload.miles_per_year
+      })
+    }),
+  updateOfferByYmm: (
+    payload: {
+      year: number;
+      make: string;
+      model: string;
+      vehicle_type?: "all" | "new" | "used";
+      down?: number | null;
+      monthly?: number | null;
+      discounted?: number | null;
+      term_months?: number | null;
+      miles_per_year?: number | null;
+    }
+  ) =>
+    apiFetch<{ status: string; updated_count: number; year: number; make: string; model: string; vins: string[] }>(
+      "/dealer/offers-by-ymm",
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          year: payload.year,
+          make: payload.make,
+          model: payload.model,
+          vehicle_type: payload.vehicle_type ?? "all",
+          down_payment: payload.down,
+          monthly_payment: payload.monthly,
+          discounted_price: payload.discounted,
+          term_months: payload.term_months,
+          miles_per_year: payload.miles_per_year
+        })
+      }
+    ),
+  syncSheets: async () => {
+    await apiFetch<unknown>("/admin/sync-sheets", { method: "POST" });
+    return { ok: true };
+  },
+  adminSources: async () => {
+    const data = await apiFetch<{ sources?: AdminSource[]; items?: any[] }>("/admin/sources");
+    const sources = Array.isArray(data.sources)
+      ? data.sources
+      : (data.items ?? []).map((item: any) => ({
+          id: String(item.id),
+          name: item.name ?? item.dealer_name ?? item.source_name ?? `Source ${item.id}`,
+          status:
+            item.status ??
+            item.source_status ??
+            (() => {
+              const activeValue = toBoolean(item.is_active ?? item.active);
+              if (activeValue === true) return "active";
+              if (activeValue === false) return "inactive";
+              return "active";
+            })(),
+          lastSyncedAt:
+            item.last_synced_at ??
+            item.lastSyncedAt ??
+            item.updated_at ??
+            item.updatedAt ??
+            item.last_imported_at ??
+            item.lastImportedAt
+        }));
+    return { sources };
+  },
+  syncStatus: async () => {
+    const data = await apiFetch<{
+      items?: Array<{
+        sheet_name?: string;
+        sheet_id?: string;
+        tab_name?: string;
+        last_synced_at?: string;
+        last_row_hash?: string;
+        last_error?: string | null;
+      }>;
+      counts?: { offer_overrides?: number; model_scores?: number };
+    }>("/admin/sync-status");
+    return {
+      items: data.items ?? [],
+      counts: {
+        offer_overrides: data.counts?.offer_overrides ?? 0,
+        model_scores: data.counts?.model_scores ?? 0
+      }
+    };
+  },
+  adminOfferOverrides: async (params?: { source?: "sheet" | "dealer" | "broker"; q?: string; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.source) query.set("source", params.source);
+    if (params?.q) query.set("q", params.q);
+    if (params?.limit) query.set("limit", String(params.limit));
+    const qs = query.toString();
+    const data = await apiFetch<{ items?: OfferOverrideRecord[] }>(`/admin/offer-overrides${qs ? `?${qs}` : ""}`);
+    return { items: data.items ?? [] };
+  },
+  upsertAdminOfferOverride: async (
+    vin: string,
+    payload: {
+      down_payment?: number | null;
+      monthly_payment?: number | null;
+      discounted_price?: number | null;
+      term_months?: number | null;
+      miles_per_year?: number | null;
+    }
+  ) => {
+    return apiFetch<OfferOverrideRecord>(`/admin/offer-overrides/${encodeURIComponent(vin)}`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+  },
+  upsertAdminOfferOverrideByYmm: async (payload: {
+    year: number;
+    make: string;
+    model: string;
+    vehicle_type?: "all" | "new" | "used";
+    down_payment?: number | null;
+    monthly_payment?: number | null;
+    discounted_price?: number | null;
+    term_months?: number | null;
+    miles_per_year?: number | null;
+  }) => {
+    return apiFetch<{ status: string; updated_count: number; year: number; make: string; model: string; vins: string[] }>(
+      "/admin/offer-overrides-by-ymm",
+      {
+        method: "PUT",
+        body: JSON.stringify(payload)
+      }
+    );
+  },
+  deleteAdminOfferOverride: async (vin: string) => {
+    return apiFetch<{ deleted: boolean; vin: string }>(`/admin/offer-overrides/${encodeURIComponent(vin)}`, {
+      method: "DELETE"
+    });
+  },
+  getTestimonials: async () => {
+    const data = await apiFetch<Array<{ id: string; title?: string; quote: string; author: string }>>("/testimonials");
+    return Array.isArray(data) ? data : [];
+  },
+  forwardDocs: async (formData: FormData) => {
+    const data = await apiFetch<{ status?: string; id?: number }>("/docs/forward", {
+      method: "POST",
+      body: formData
+    });
+    return { sent: data.status === "stored" || data.status === "sent", id: data.id };
+  },
+  brokerCreditApplications: async (params?: { status?: string; q?: string; page?: number; page_size?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.status) query.set("status", params.status);
+    if (params?.q) query.set("q", params.q);
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.page_size) query.set("page_size", String(params.page_size));
+    const qs = query.toString();
+    const data = await apiFetch<{ items?: CreditApplicationRecord[]; total?: number }>(
+      `/credit/applications${qs ? `?${qs}` : ""}`
+    );
+    return { items: data.items ?? [], total: data.total ?? (data.items ?? []).length };
+  },
+  updateBrokerCreditApplication: async (applicationId: number, payload: { status?: string; broker_note?: string }) => {
+    return apiFetch<CreditApplicationRecord>(`/credit/applications/${applicationId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    });
+  },
+  brokerDocSubmissions: async (params?: { status?: string; q?: string; page?: number; page_size?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.status) query.set("status", params.status);
+    if (params?.q) query.set("q", params.q);
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.page_size) query.set("page_size", String(params.page_size));
+    const qs = query.toString();
+    const data = await apiFetch<{ items?: DocumentSubmissionRecord[]; total?: number }>(
+      `/docs/submissions${qs ? `?${qs}` : ""}`
+    );
+    return { items: data.items ?? [], total: data.total ?? (data.items ?? []).length };
+  },
+  updateBrokerDocSubmission: async (submissionId: number, payload: { status?: string; broker_note?: string }) => {
+    return apiFetch<DocumentSubmissionRecord>(`/docs/submissions/${submissionId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    });
+  },
+  myDocSubmissions: async (params?: { vin?: string; page?: number; page_size?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.vin) query.set("vin", params.vin);
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.page_size) query.set("page_size", String(params.page_size));
+    const qs = query.toString();
+    const data = await apiFetch<{ items?: DocumentSubmissionRecord[]; total?: number }>(
+      `/docs/mine${qs ? `?${qs}` : ""}`
+    );
+    return { items: data.items ?? [], total: data.total ?? (data.items ?? []).length };
+  },
+  myCreditApplications: async (params?: { vin?: string; page?: number; page_size?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.vin) query.set("vin", params.vin);
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.page_size) query.set("page_size", String(params.page_size));
+    const qs = query.toString();
+    const data = await apiFetch<{ items?: CreditApplicationRecord[]; total?: number }>(
+      `/credit/mine${qs ? `?${qs}` : ""}`
+    );
+    return { items: data.items ?? [], total: data.total ?? (data.items ?? []).length };
+  },
+  brokerDocDownload: async (submissionId: number, kind: "drivers_license" | "insurance") => {
+    const token = authStore.getToken();
+    const response = await fetch(`${env.apiBaseUrl}/docs/submissions/${submissionId}/file/${kind}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      credentials: "include"
+    });
+    if (!response.ok) {
+      const data = await parseJson(response);
+      const message =
+        typeof data === "string" ? data : typeof data?.detail === "string" ? data.detail : data?.message ?? "Download failed";
+      const error: ApiError = { status: response.status, message, details: data };
+      throw error;
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const match = disposition.match(/filename=\"?([^\";]+)\"?/i);
+    const filename = match?.[1] ?? `${kind}-${submissionId}`;
+    return { blob, filename };
+  }
+};
+
+export type Vehicle = {
+  vin: string;
+  year?: number;
+  make?: string;
+  model?: string;
+  trim?: string;
+  photo?: string;
+  photos?: string[];
+  vehicle_type?: "new" | "used" | "all" | null;
+  listed_price?: number | null;
+  mileage?: number | null;
+  condition?: "used" | "cpo" | "all" | string | null;
+  vehicle_history_url?: string | null;
+  history_url?: string | null;
+  msrp?: number;
+  down?: number;
+  monthly?: number;
+  discounted?: number;
+  term_months?: number;
+  miles_per_year?: number;
+  details?: Record<string, unknown>;
+  city?: string;
+  state?: string;
+  distance_miles?: number | null;
+  dealer_phone?: string | null;
+  dealer_name?: string | null;
+  updatedAt?: string;
+  listing_url?: string | null;
+  dealer?: string;
+};
+
+export type Message = {
+  id: string;
+  vin?: string;
+  body: string;
+  createdAt?: string;
+  from?: string;
+  senderType?: "customer" | "broker" | string;
+  userId?: string;
+  customerName?: string | null;
+  customerEmail?: string | null;
+  brokerAdminUserId?: string | null;
+  brokerAdminEmail?: string | null;
+};
+
+export type Deal = {
+  id: number;
+  user_id: number;
+  vin: string;
+  status: "inquiry" | "broker_review" | "offer_ready" | "locked" | "docs_pending" | "delivered" | "cancelled" | string;
+  customer_note?: string | null;
+  broker_note?: string | null;
+  assigned_broker_user_id?: number | null;
+  assigned_broker_email?: string | null;
+  assigned_broker_name?: string | null;
+  delivery_scheduled_at?: string | null;
+  delivery_address?: string | null;
+  delivery_city?: string | null;
+  delivery_state?: string | null;
+  delivery_zip?: string | null;
+  delivery_notes?: string | null;
+  locked_at?: string | null;
+  delivered_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  customer_name?: string | null;
+  customer_email?: string | null;
+  customer_phone?: string | null;
+};
+
+export type DealEvent = {
+  id: number;
+  deal_id: number;
+  actor_user_id?: number | null;
+  event_type: string;
+  message?: string | null;
+  created_at?: string | null;
+};
+
+export type AdminSource = {
+  id: string;
+  name: string;
+  status: string;
+  lastSyncedAt?: string;
+};
+
+export type LenderRate = {
+  id: number;
+  lender_name: string;
+  credit_tier: string;
+  vehicle_type: string;
+  apr: number;
+  max_term_months: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type CreditApplicationRecord = {
+  id: number;
+  user_id?: number | null;
+  vin?: string | null;
+  source?: string | null;
+  status?: string | null;
+  broker_note?: string | null;
+  reviewed_by_user_id?: number | null;
+  reviewed_by_name?: string | null;
+  reviewed_at?: string | null;
+  payload_json?: Record<string, unknown> | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  customer_name?: string | null;
+  customer_email?: string | null;
+  customer_phone?: string | null;
+};
+
+export type DocumentSubmissionRecord = {
+  id: number;
+  user_id: number;
+  vin?: string | null;
+  status?: string | null;
+  broker_note?: string | null;
+  reviewed_by_user_id?: number | null;
+  reviewed_by_name?: string | null;
+  reviewed_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  customer_name?: string | null;
+  customer_email?: string | null;
+  customer_phone?: string | null;
+  drivers_license_filename?: string | null;
+  insurance_filename?: string | null;
+};
+
+export type OfferOverrideRecord = {
+  vin: string;
+  source?: "sheet" | "dealer" | "broker" | string | null;
+  down_payment?: number | null;
+  monthly_payment?: number | null;
+  discounted_price?: number | null;
+  term_months?: number | null;
+  miles_per_year?: number | null;
+  updated_at?: string | null;
+};
