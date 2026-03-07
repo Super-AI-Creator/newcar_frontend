@@ -22,8 +22,8 @@ export default function HomeHeroSearch() {
   const [model, setModel] = useState("");
   const [maxPrice, setMaxPrice] = useState(45000);
 
-  const filtersQuery = useQuery({
-    queryKey: ["home-hero-filters"],
+  const filtersQuery = useQuery<Awaited<ReturnType<typeof api.getFilters>>>({
+    queryKey: ["home-hero-filters"] as const,
     queryFn: () => api.getFilters(),
     staleTime: 60_000,
     refetchOnWindowFocus: false

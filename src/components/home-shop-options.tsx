@@ -24,8 +24,8 @@ export default function HomeShopOptions() {
   const [model, setModel] = useState("");
   const [zipCode, setZipCode] = useState("");
 
-  const filtersQuery = useQuery({
-    queryKey: ["home-shop-options-filters"],
+  const filtersQuery = useQuery<Awaited<ReturnType<typeof api.getFilters>>>({
+    queryKey: ["home-shop-options-filters"] as const,
     queryFn: () => api.getFilters(),
     staleTime: 60_000,
     refetchOnWindowFocus: false
