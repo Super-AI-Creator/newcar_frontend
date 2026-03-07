@@ -26,7 +26,7 @@ export default function HomeShopOptions() {
 
   const filtersQuery = useQuery({
     queryKey: ["home-shop-options-filters"],
-    queryFn: api.getFilters,
+    queryFn: () => api.getFilters(),
     staleTime: 60_000,
     refetchOnWindowFocus: false
   });

@@ -24,7 +24,7 @@ export default function HomeHeroSearch() {
 
   const filtersQuery = useQuery({
     queryKey: ["home-hero-filters"],
-    queryFn: api.getFilters,
+    queryFn: () => api.getFilters(),
     staleTime: 60_000,
     refetchOnWindowFocus: false
   });
