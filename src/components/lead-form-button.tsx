@@ -3,7 +3,6 @@
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button, type ButtonProps } from "@/components/ui/button";
-import { buildLeadFormUrl } from "@/lib/lead-form";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,7 +41,8 @@ export default function LeadFormButton({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
-  const [leadUrl, setLeadUrl] = useState<string | null>(null);
+  const [submittedLeadId, setSubmittedLeadId] = useState<number | null>(null);
+  const [submittedDealId, setSubmittedDealId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const vehicleLabel = useMemo(
     () => [year, make, model, trim].filter(Boolean).join(" "),
@@ -55,55 +55,65 @@ export default function LeadFormButton({
     setEmail(user?.email ?? "");
     setPhone("");
     setNotes("");
-    setLeadUrl(null);
+    setSubmittedLeadId(null);
+    setSubmittedDealId(null);
   }, [open, user?.name, user?.email]);
 
   async function handleContinue() {
     if (!name.trim() || !email.trim() || !phone.trim()) return;
     setSubmitting(true);
 
-    // Save an internal lead note for broker workflow when user is authenticated.
-    if (user && vin) {
-      try {
-        await api.createDeal({
-          vin,
-          customer_note: [
-            "Lead from Get Price",
-            `Name: ${name.trim()}`,
-            `Email: ${email.trim()}`,
-            `Phone: ${phone.trim()}`,
-            vehicleLabel ? `Vehicle: ${vehicleLabel}` : undefined,
-            notes.trim() ? `Notes: ${notes.trim()}` : undefined
-          ]
-            .filter(Boolean)
-            .join(" | ")
-        });
-      } catch {
-        toast({
-          variant: "error",
-          title: "Could not save lead in workspace",
-          description: "We will still continue to your lead form."
-        });
-      }
-    }
-
-    const url = new URL(
-      buildLeadFormUrl({
+    try {
+      const lead = await api.submitLead({
         vin,
+        year,
         make,
         model,
         trim,
-        year,
-        source
-      })
-    );
-    url.searchParams.set("name", name.trim());
-    url.searchParams.set("email", email.trim());
-    url.searchParams.set("phone", phone.trim());
-    if (notes.trim()) url.searchParams.set("notes", notes.trim());
-    if (vehicleLabel) url.searchParams.set("vehicle", vehicleLabel);
-    setLeadUrl(url.toString());
-    setSubmitting(false);
+        source,
+        vehicle: vehicleLabel || undefined,
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        notes: notes.trim() || undefined
+      });
+      setSubmittedLeadId(lead.lead_id ?? null);
+
+      // Keep existing authenticated deal workflow for broker queue visibility.
+      if (user && vin) {
+        try {
+          const deal = await api.createDeal({
+            vin,
+            customer_note: [
+              "Lead from Get Price",
+              `Name: ${name.trim()}`,
+              `Email: ${email.trim()}`,
+              `Phone: ${phone.trim()}`,
+              vehicleLabel ? `Vehicle: ${vehicleLabel}` : undefined,
+              notes.trim() ? `Notes: ${notes.trim()}` : undefined
+            ]
+              .filter(Boolean)
+              .join(" | ")
+          });
+          setSubmittedDealId(deal.id);
+        } catch {
+          toast({
+            variant: "error",
+            title: "Lead saved, but deal sync failed",
+            description: "Request is captured. We could not attach it to your deal tracker right now."
+          });
+        }
+      }
+    } catch {
+      toast({
+        variant: "error",
+        title: "Could not submit lead",
+        description: "Please try again in a moment."
+      });
+      return;
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -114,18 +124,27 @@ export default function LeadFormButton({
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-4xl overflow-hidden p-0">
-        {leadUrl ? (
+        {submittedLeadId ? (
           <>
             <DialogHeader className="border-b border-ink-200 px-5 py-3">
-              <DialogTitle className="text-base">{title}</DialogTitle>
+              <DialogTitle className="text-base">{title} request submitted</DialogTitle>
             </DialogHeader>
-            <iframe
-              src={leadUrl}
-              title="Lead form"
-              className="h-[75vh] w-full border-0"
-              loading="lazy"
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
+            <div className="grid gap-3 p-5">
+              <p className="text-sm text-ink-700">
+                Thanks. Your request has been captured and sent to our team.
+              </p>
+              <p className="text-sm text-ink-600">
+                Lead ID: <span className="font-medium text-ink-900">#{submittedLeadId}</span>
+                {submittedDealId ? (
+                  <>
+                    {" "}| Deal ID: <span className="font-medium text-ink-900">#{submittedDealId}</span>
+                  </>
+                ) : null}
+              </p>
+              <div className="flex justify-end">
+                <Button onClick={() => setOpen(false)}>Close</Button>
+              </div>
+            </div>
           </>
         ) : (
           <>

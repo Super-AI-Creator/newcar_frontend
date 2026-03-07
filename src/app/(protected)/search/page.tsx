@@ -34,6 +34,9 @@ const defaultValues = {
   usedMaxPrice: 35000,
   maxMileage: 60000
 };
+const ANY_MAKE = "__any_make__";
+const ANY_MODEL = "__any_model__";
+const ANY_TRIM = "__any_trim__";
 
 type VehicleTypeFilter = "new" | "used";
 
@@ -88,8 +91,8 @@ function SearchPageContent() {
   const pageSize = 20;
 
   const filtersQuery = useQuery({
-    queryKey: ["filters"],
-    queryFn: api.getFilters,
+    queryKey: ["filters", "search", vehicleType],
+    queryFn: () => api.getFilters({ vehicle_type: vehicleType }),
     enabled: true,
     staleTime: 60_000,
     refetchOnWindowFocus: false
@@ -278,8 +281,15 @@ function SearchPageContent() {
   }, [make, model, trim, sort, mode, maxPayment, maxPrice, usedMaxPrice, maxMileage, vehicleType]);
 
   function clearSingleFilter(key: string) {
-    if (key === "make") setMake("");
-    if (key === "model") setModel("");
+    if (key === "make") {
+      setMake("");
+      setModel("");
+      setTrim("");
+    }
+    if (key === "model") {
+      setModel("");
+      setTrim("");
+    }
     if (key === "trim") setTrim("");
     if (key === "sort") setSort(sortOptions[0].value);
     if (key === "maxPayment") setMaxPayment(defaultValues.maxPayment);
@@ -363,11 +373,27 @@ function SearchPageContent() {
                 <div className="space-y-2">
                   <Label>Make</Label>
                   {makes.length > 0 ? (
-                    <Select value={make} onValueChange={(nextMake) => { setMake(nextMake); setModel(""); setTrim(""); }}>
+                    <Select
+                      value={make || ANY_MAKE}
+                      onValueChange={(nextMake) => {
+                        if (nextMake === ANY_MAKE) {
+                          setMake("");
+                          setModel("");
+                          setTrim("");
+                          return;
+                        }
+                        if (nextMake !== make) {
+                          setMake(nextMake);
+                          setModel("");
+                          setTrim("");
+                        }
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Any make" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value={ANY_MAKE}>Any make</SelectItem>
                         {makes.map((item) => (
                           <SelectItem key={item} value={item}>
                             {item}
@@ -392,11 +418,24 @@ function SearchPageContent() {
                 <div className="space-y-2">
                   <Label>Model</Label>
                   {models.length > 0 ? (
-                    <Select value={model} onValueChange={(nextModel) => { setModel(nextModel); setTrim(""); }} disabled={!make}>
+                    <Select
+                      value={model || ANY_MODEL}
+                      onValueChange={(nextModel) => {
+                        if (nextModel === ANY_MODEL) {
+                          setModel("");
+                          setTrim("");
+                          return;
+                        }
+                        setModel(nextModel);
+                        setTrim("");
+                      }}
+                      disabled={!make}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder={make ? "Any model" : "Select make first"} />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value={ANY_MODEL}>Any model</SelectItem>
                         {models.map((item) => (
                           <SelectItem key={item} value={item}>
                             {item}
@@ -422,11 +461,15 @@ function SearchPageContent() {
                 <div className="space-y-2">
                   <Label>Trim</Label>
                   {trims.length > 0 ? (
-                    <Select value={trim} onValueChange={setTrim}>
+                    <Select
+                      value={trim || ANY_TRIM}
+                      onValueChange={(nextTrim) => setTrim(nextTrim === ANY_TRIM ? "" : nextTrim)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Any trim" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value={ANY_TRIM}>Any trim</SelectItem>
                         {trims.map((item) => (
                           <SelectItem key={item} value={item}>
                             {item}
@@ -554,11 +597,27 @@ function SearchPageContent() {
                 <div className="space-y-2">
                   <Label>Make</Label>
                   {makes.length > 0 ? (
-                    <Select value={make} onValueChange={(nextMake) => { setMake(nextMake); setModel(""); setTrim(""); }}>
+                    <Select
+                      value={make || ANY_MAKE}
+                      onValueChange={(nextMake) => {
+                        if (nextMake === ANY_MAKE) {
+                          setMake("");
+                          setModel("");
+                          setTrim("");
+                          return;
+                        }
+                        if (nextMake !== make) {
+                          setMake(nextMake);
+                          setModel("");
+                          setTrim("");
+                        }
+                      }}
+                    >
                       <SelectTrigger className="h-10">
                         <SelectValue placeholder="Any make" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value={ANY_MAKE}>Any make</SelectItem>
                         {makes.map((item) => (
                           <SelectItem key={item} value={item}>
                             {item}
@@ -584,11 +643,24 @@ function SearchPageContent() {
                 <div className="space-y-2">
                   <Label>Model</Label>
                   {models.length > 0 ? (
-                    <Select value={model} onValueChange={(nextModel) => { setModel(nextModel); setTrim(""); }} disabled={!make}>
+                    <Select
+                      value={model || ANY_MODEL}
+                      onValueChange={(nextModel) => {
+                        if (nextModel === ANY_MODEL) {
+                          setModel("");
+                          setTrim("");
+                          return;
+                        }
+                        setModel(nextModel);
+                        setTrim("");
+                      }}
+                      disabled={!make}
+                    >
                       <SelectTrigger className="h-10">
                         <SelectValue placeholder={make ? "Any model" : "Select make first"} />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value={ANY_MODEL}>Any model</SelectItem>
                         {models.map((item) => (
                           <SelectItem key={item} value={item}>
                             {item}
@@ -615,11 +687,15 @@ function SearchPageContent() {
                 <div className="space-y-2">
                   <Label>Trim</Label>
                   {trims.length > 0 ? (
-                    <Select value={trim} onValueChange={setTrim}>
+                    <Select
+                      value={trim || ANY_TRIM}
+                      onValueChange={(nextTrim) => setTrim(nextTrim === ANY_TRIM ? "" : nextTrim)}
+                    >
                       <SelectTrigger className="h-10">
                         <SelectValue placeholder="Any trim" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value={ANY_TRIM}>Any trim</SelectItem>
                         {trims.map((item) => (
                           <SelectItem key={item} value={item}>
                             {item}

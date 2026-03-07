@@ -7,9 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { pickVehicleImage, DEFAULT_CAR_IMAGE } from "@/lib/vehicle-image";
 import DealSearchLoader from "@/components/deal-search-loader";
-
-import { env } from "@/lib/env";
-const LEAD_FORM_URL = env.leadFormUrl;
+import LeadFormButton from "@/components/lead-form-button";
 
 export default function LeaseSpecials() {
   const specialsQuery = useQuery({
@@ -29,15 +27,6 @@ export default function LeaseSpecials() {
   return (
     <div className="grid gap-5 lg:grid-cols-3">
       {vehicles.map((vehicle) => {
-        const leadQuery = new URLSearchParams({
-          vin: vehicle.vin,
-          make: vehicle.make ?? "",
-          model: vehicle.model ?? "",
-          trim: vehicle.trim ?? "",
-          year: vehicle.year ? String(vehicle.year) : "",
-        });
-        const leadUrl = `${LEAD_FORM_URL}?${leadQuery.toString()}`;
-
         return (
           <Card key={vehicle.vin} className="search-card group overflow-hidden border-ink-200 bg-white transition-[transform,box-shadow,border-color] duration-150 motion-safe:hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg">
             <CardContent className="p-0">
@@ -79,11 +68,19 @@ export default function LeaseSpecials() {
                     )}
                 </div>
                 <div className="flex gap-2">
-                  <Button asChild variant="outline" className="rounded-full">
-                    <a href={leadUrl} target="_blank" rel="noreferrer">
-                      Verify Availability
-                    </a>
-                  </Button>
+                  <LeadFormButton
+                    variant="outline"
+                    className="rounded-full"
+                    vin={vehicle.vin}
+                    make={vehicle.make ?? ""}
+                    model={vehicle.model ?? ""}
+                    trim={vehicle.trim ?? ""}
+                    year={vehicle.year}
+                    source="homepage_lease_specials_verify"
+                    title="Verify Availability"
+                  >
+                    Verify Availability
+                  </LeadFormButton>
                   <Button asChild className="rounded-full">
                     <Link href={`/vehicles/${encodeURIComponent(vehicle.vin)}`}>View</Link>
                   </Button>

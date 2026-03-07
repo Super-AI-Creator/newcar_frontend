@@ -13,27 +13,53 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { CarFront, CircleDollarSign, Info, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowUpDown, CarFront, CircleDollarSign, Info, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api, type Vehicle } from "@/lib/api";
 import { DEFAULT_CAR_IMAGE, pickVehicleImage } from "@/lib/vehicle-image";
 import DealSearchLoader from "@/components/deal-search-loader";
 import LeadFormButton from "@/components/lead-form-button";
+import { useAuth } from "@/components/auth-provider";
+import { useToast } from "@/components/toast-provider";
 
 const sortOptions = [
   { value: "payment_low_high", label: "Payment: Low to High" },
-  { value: "msrp_low_high", label: "Price: Low to High" }
+  { value: "payment_high_low", label: "Payment: High to Low" },
+  { value: "msrp_low_high", label: "Price: Low to High" },
+  { value: "price_high_low", label: "Price: High to Low" },
+  { value: "year_newest", label: "Year: Newest First" },
+  { value: "year_oldest", label: "Year: Oldest First" },
+  { value: "make_a_z", label: "Make: A to Z" },
+  { value: "make_z_a", label: "Make: Z to A" },
+  { value: "model_a_z", label: "Model: A to Z" },
+  { value: "model_z_a", label: "Model: Z to A" }
 ];
+const clientOnlySorts = new Set([
+  "payment_low_high",
+  "payment_high_low",
+  "year_newest",
+  "year_oldest",
+  "make_a_z",
+  "make_z_a",
+  "model_a_z",
+  "model_z_a"
+]);
 
 const paymentPresets = [399, 499, 599, 699, 799];
 const defaultMaxPayment = 1499;
 const defaultMaxPrice = 150000;
 const pageSize = 12;
+const ANY_MAKE = "__any_make__";
+const ANY_MODEL = "__any_model__";
 
 function parsePositiveNumber(value: string | null, fallback: number): number {
   if (value == null) return fallback;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function getBackendSort(sort: string) {
+  return clientOnlySorts.has(sort) ? undefined : sort;
 }
 
 export default function LeaseSpecialsPage() {
@@ -65,13 +91,14 @@ function LeaseSpecialsPageContent() {
   const [model, setModel] = useState(searchParams.get("model") ?? "");
   const [sort, setSort] = useState(searchParams.get("sort") ?? sortOptions[0].value);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [mobileSortOpen, setMobileSortOpen] = useState(false);
   const [maxPayment, setMaxPayment] = useState(parsePositiveNumber(searchParams.get("max_payment"), defaultMaxPayment));
   const [maxPrice, setMaxPrice] = useState(parsePositiveNumber(searchParams.get("max_price"), defaultMaxPrice));
   const [page, setPage] = useState(parsePositiveNumber(searchParams.get("page"), 1));
 
   const filtersQuery = useQuery({
-    queryKey: ["filters"],
-    queryFn: api.getFilters,
+    queryKey: ["filters", "lease-specials"],
+    queryFn: () => api.getFilters({ vehicle_type: "new", offers_only: true }),
     staleTime: 60_000,
     refetchOnWindowFocus: false
   });
@@ -94,7 +121,7 @@ function LeaseSpecialsPageContent() {
       model,
       max_payment: maxPayment,
       max_price: maxPrice,
-      sort: sort === "payment_low_high" ? undefined : sort,
+      sort: getBackendSort(sort),
       page,
       page_size: pageSize
     }),
@@ -112,20 +139,90 @@ function LeaseSpecialsPageContent() {
   const resultItems = resultsQuery.data?.results ?? [];
   const sortedResultItems = useMemo(() => {
     const items = [...resultItems];
+    const vehiclePrice = (item: Vehicle, fallback: number) =>
+      item.discounted ?? item.msrp ?? item.listed_price ?? fallback;
+    const byTextAsc = (a: string | undefined, b: string | undefined) => {
+      const left = (a ?? "").trim();
+      const right = (b ?? "").trim();
+      if (left && right) return left.localeCompare(right, undefined, { sensitivity: "base" });
+      if (left || right) return left ? -1 : 1;
+      return 0;
+    };
+
     if (sort === "payment_low_high") {
       items.sort((a, b) => {
-        const aMonthly = typeof a.monthly === "number" ? a.monthly : Number.MAX_SAFE_INTEGER;
-        const bMonthly = typeof b.monthly === "number" ? b.monthly : Number.MAX_SAFE_INTEGER;
-        if (aMonthly !== bMonthly) return aMonthly - bMonthly;
-        const aPrice = a.discounted ?? a.msrp ?? a.listed_price ?? Number.MAX_SAFE_INTEGER;
-        const bPrice = b.discounted ?? b.msrp ?? b.listed_price ?? Number.MAX_SAFE_INTEGER;
+        const aHasMonthly = typeof a.monthly === "number";
+        const bHasMonthly = typeof b.monthly === "number";
+        if (aHasMonthly && bHasMonthly) {
+          const aMonthly = a.monthly as number;
+          const bMonthly = b.monthly as number;
+          if (aMonthly !== bMonthly) return aMonthly - bMonthly;
+        } else if (aHasMonthly !== bHasMonthly) {
+          return aHasMonthly ? -1 : 1;
+        }
+        const aPrice = vehiclePrice(a, Number.MAX_SAFE_INTEGER);
+        const bPrice = vehiclePrice(b, Number.MAX_SAFE_INTEGER);
         return aPrice - bPrice;
       });
+    } else if (sort === "payment_high_low") {
+      items.sort((a, b) => {
+        const aHasMonthly = typeof a.monthly === "number";
+        const bHasMonthly = typeof b.monthly === "number";
+        if (aHasMonthly && bHasMonthly) {
+          const aMonthly = a.monthly as number;
+          const bMonthly = b.monthly as number;
+          if (aMonthly !== bMonthly) return bMonthly - aMonthly;
+        } else if (aHasMonthly !== bHasMonthly) {
+          return aHasMonthly ? -1 : 1;
+        }
+        const aPrice = vehiclePrice(a, 0);
+        const bPrice = vehiclePrice(b, 0);
+        return bPrice - aPrice;
+      });
+    } else if (sort === "price_high_low") {
+      items.sort((a, b) => vehiclePrice(b, 0) - vehiclePrice(a, 0));
+    } else if (sort === "year_newest") {
+      items.sort((a, b) => {
+        const aYear = typeof a.year === "number" ? a.year : null;
+        const bYear = typeof b.year === "number" ? b.year : null;
+        if (aYear !== null && bYear !== null) {
+          if (aYear !== bYear) return bYear - aYear;
+        } else if (aYear !== bYear) {
+          return aYear === null ? 1 : -1;
+        }
+        return byTextAsc(a.make, b.make) || byTextAsc(a.model, b.model);
+      });
+    } else if (sort === "year_oldest") {
+      items.sort((a, b) => {
+        const aYear = typeof a.year === "number" ? a.year : null;
+        const bYear = typeof b.year === "number" ? b.year : null;
+        if (aYear !== null && bYear !== null) {
+          if (aYear !== bYear) return aYear - bYear;
+        } else if (aYear !== bYear) {
+          return aYear === null ? 1 : -1;
+        }
+        return byTextAsc(a.make, b.make) || byTextAsc(a.model, b.model);
+      });
+    } else if (sort === "make_a_z") {
+      items.sort((a, b) => byTextAsc(a.make, b.make) || byTextAsc(a.model, b.model));
+    } else if (sort === "make_z_a") {
+      items.sort((a, b) => byTextAsc(b.make, a.make) || byTextAsc(b.model, a.model));
+    } else if (sort === "model_a_z") {
+      items.sort((a, b) => byTextAsc(a.model, b.model) || byTextAsc(a.make, b.make));
+    } else if (sort === "model_z_a") {
+      items.sort((a, b) => byTextAsc(b.model, a.model) || byTextAsc(b.make, a.make));
     }
     return items;
   }, [resultItems, sort]);
   const totalResults = resultsQuery.data?.total ?? resultItems.length;
   const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
+  const emptyStateMessage = useMemo(() => {
+    const selection = [make, model].filter(Boolean).join(" ");
+    if (selection) {
+      return `No lease offers found for ${selection}. Try another model or clear make/model filters.`;
+    }
+    return "No matches yet. Try raising your payment target or clearing make/model.";
+  }, [make, model]);
   const searchReturnUrl = useMemo(() => {
     const query = searchParams.toString();
     return query ? `${pathname}?${query}` : pathname;
@@ -152,27 +249,80 @@ function LeaseSpecialsPageContent() {
       model: nextModel,
       max_payment: nextMaxPayment,
       max_price: nextMaxPrice,
-      sort: nextSort === "payment_low_high" ? undefined : nextSort,
+      sort: getBackendSort(nextSort),
       page: nextPage,
       page_size: pageSize
     });
   }, [searchParams]);
 
-  function runSearch(nextPage = 1) {
+  function runSearch(
+    nextPage = 1,
+    overrides?: Partial<{
+      make: string;
+      model: string;
+      sort: string;
+      maxPayment: number;
+      maxPrice: number;
+    }>
+  ) {
+    const nextMake = overrides?.make ?? make;
+    const nextModel = overrides?.model ?? model;
+    const nextSort = overrides?.sort ?? sort;
+    const nextMaxPayment = overrides?.maxPayment ?? maxPayment;
+    const nextMaxPrice = overrides?.maxPrice ?? maxPrice;
     const query = new URLSearchParams();
-    if (make) query.set("make", make);
-    if (model) query.set("model", model);
-    if (sort !== sortOptions[0].value) query.set("sort", sort);
-    query.set("max_payment", String(maxPayment));
-    query.set("max_price", String(maxPrice));
+    if (nextMake) query.set("make", nextMake);
+    if (nextModel) query.set("model", nextModel);
+    if (nextSort !== sortOptions[0].value) query.set("sort", nextSort);
+    query.set("max_payment", String(nextMaxPayment));
+    query.set("max_price", String(nextMaxPrice));
     query.set("page", String(nextPage));
     router.replace(`${pathname}?${query.toString()}`);
     setPage(nextPage);
     setAppliedParams({
-      ...params,
-      page: nextPage
+      vehicle_type: "new",
+      offers_only: true,
+      make: nextMake,
+      model: nextModel,
+      max_payment: nextMaxPayment,
+      max_price: nextMaxPrice,
+      sort: getBackendSort(nextSort),
+      page: nextPage,
+      page_size: pageSize
     });
   }
+
+  function handleMakeChange(nextMakeValue: string) {
+    const nextMake = nextMakeValue === ANY_MAKE ? "" : nextMakeValue;
+    if (nextMake === make) return;
+    setMake(nextMake);
+    setModel("");
+  }
+
+  function handleModelChange(nextModelValue: string) {
+    const nextModel = nextModelValue === ANY_MODEL ? "" : nextModelValue;
+    if (nextModel === model) return;
+    setModel(nextModel);
+  }
+
+  useEffect(() => {
+    if (filtersQuery.isLoading) return;
+
+    let normalizedMake = make;
+    let normalizedModel = model;
+
+    if (normalizedMake && !makes.includes(normalizedMake)) {
+      normalizedMake = "";
+      normalizedModel = "";
+    } else if (normalizedModel && !models.includes(normalizedModel)) {
+      normalizedModel = "";
+    }
+
+    if (normalizedMake === make && normalizedModel === model) return;
+    setMake(normalizedMake);
+    setModel(normalizedModel);
+    runSearch(1, { make: normalizedMake, model: normalizedModel });
+  }, [filtersQuery.isLoading, makes, models, make, model]);
 
   function clearFilters() {
     setMake("");
@@ -221,12 +371,44 @@ function LeaseSpecialsPageContent() {
 
         <section className="sm:hidden">
           <div className="flex items-center justify-between">
-            <Button variant="outline" size="sm" className="rounded-full" onClick={() => setMobileFiltersOpen(true)}>
-              <SlidersHorizontal className="mr-1 h-4 w-4" />
-              Filters
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="rounded-full" onClick={() => setMobileFiltersOpen(true)}>
+                <SlidersHorizontal className="mr-1 h-4 w-4" />
+                Filters
+              </Button>
+              <Button variant="outline" size="sm" className="rounded-full" onClick={() => setMobileSortOpen(true)}>
+                <ArrowUpDown className="mr-1 h-4 w-4" />
+                Sort by
+              </Button>
+            </div>
             <p className="text-sm text-ink-600">{totalResults.toLocaleString()} cars</p>
           </div>
+          <Dialog open={mobileSortOpen} onOpenChange={setMobileSortOpen}>
+            <DialogContent className="max-w-[320px] rounded-2xl p-4">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <ArrowUpDown className="h-4 w-4 text-brand-700" />
+                  Sort by
+                </DialogTitle>
+              </DialogHeader>
+              <div className="mt-2 space-y-2">
+                {sortOptions.map((item) => (
+                  <Button
+                    key={item.value}
+                    variant={sort === item.value ? "default" : "outline"}
+                    className="w-full justify-start rounded-full"
+                    onClick={() => {
+                      setSort(item.value);
+                      runSearch(1, { sort: item.value });
+                      setMobileSortOpen(false);
+                    }}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
           <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
             <DialogContent className="left-0 top-0 h-screen w-[88vw] max-w-[340px] translate-x-0 translate-y-0 rounded-none p-4">
               <DialogHeader>
@@ -262,11 +444,15 @@ function LeaseSpecialsPageContent() {
                 <div className="space-y-2">
                   <Label>Make</Label>
                   {makes.length > 0 ? (
-                    <Select value={make} onValueChange={(nextMake) => { setMake(nextMake); setModel(""); }}>
+                    <Select
+                      value={make || ANY_MAKE}
+                      onValueChange={handleMakeChange}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Any make" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value={ANY_MAKE}>Any make</SelectItem>
                         {makes.map((item) => (
                           <SelectItem key={item} value={item}>
                             {item}
@@ -282,11 +468,16 @@ function LeaseSpecialsPageContent() {
                 <div className="space-y-2">
                   <Label>Model</Label>
                   {models.length > 0 ? (
-                    <Select value={model} onValueChange={(nextModel) => setModel(nextModel)} disabled={!make}>
+                    <Select
+                      value={model || ANY_MODEL}
+                      onValueChange={handleModelChange}
+                      disabled={!make}
+                    >
                       <SelectTrigger>
-                        <SelectValue placeholder={make ? "Any model" : "Select make first"} />
+                        <SelectValue placeholder={make ? `Any ${make} model` : "Select make first"} />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value={ANY_MODEL}>{make ? `Any ${make} model` : "Any model"}</SelectItem>
                         {models.map((item) => (
                           <SelectItem key={item} value={item}>
                             {item}
@@ -298,14 +489,14 @@ function LeaseSpecialsPageContent() {
                     <Input
                       value={model}
                       onChange={(event) => setModel(event.target.value)}
-                      placeholder={make ? "Camry" : "Select make first"}
+                      placeholder={make ? `${make} model` : "Select make first"}
                       disabled={!make}
                     />
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Sort</Label>
+              <div className="space-y-2">
+                  <Label>Sort by</Label>
                   <Select value={sort} onValueChange={setSort}>
                     <SelectTrigger>
                       <SelectValue />
@@ -384,11 +575,15 @@ function LeaseSpecialsPageContent() {
               <div className="space-y-2">
                 <Label>Make</Label>
                 {makes.length > 0 ? (
-                  <Select value={make} onValueChange={(nextMake) => { setMake(nextMake); setModel(""); }}>
+                  <Select
+                    value={make || ANY_MAKE}
+                    onValueChange={handleMakeChange}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Any make" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={ANY_MAKE}>Any make</SelectItem>
                       {makes.map((item) => (
                         <SelectItem key={item} value={item}>
                           {item}
@@ -403,11 +598,16 @@ function LeaseSpecialsPageContent() {
               <div className="space-y-2">
                 <Label>Model</Label>
                 {models.length > 0 ? (
-                  <Select value={model} onValueChange={(nextModel) => setModel(nextModel)} disabled={!make}>
+                  <Select
+                    value={model || ANY_MODEL}
+                    onValueChange={handleModelChange}
+                    disabled={!make}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder={make ? "Any model" : "Select make first"} />
+                      <SelectValue placeholder={make ? `Any ${make} model` : "Select make first"} />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={ANY_MODEL}>{make ? `Any ${make} model` : "Any model"}</SelectItem>
                       {models.map((item) => (
                         <SelectItem key={item} value={item}>
                           {item}
@@ -419,13 +619,13 @@ function LeaseSpecialsPageContent() {
                   <Input
                     value={model}
                     onChange={(event) => setModel(event.target.value)}
-                    placeholder={make ? "Camry" : "Select make first"}
+                    placeholder={make ? `${make} model` : "Select make first"}
                     disabled={!make}
                   />
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Ranking</Label>
+                <Label>Sort by</Label>
                 <Select value={sort} onValueChange={setSort}>
                   <SelectTrigger>
                     <SelectValue />
@@ -477,7 +677,7 @@ function LeaseSpecialsPageContent() {
               {resultItems.length === 0 && (
                 <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
                   <CardContent className="py-10 text-center text-ink-500">
-                    No matches yet. Try raising your payment target or clearing make/model.
+                    {emptyStateMessage}
                   </CardContent>
                 </Card>
               )}
@@ -485,6 +685,7 @@ function LeaseSpecialsPageContent() {
                 <LeaseSpecialCard
                   key={vehicle.vin}
                   vehicle={vehicle}
+                  returnUrl={searchReturnUrl}
                 />
               ))}
             </div>
@@ -510,18 +711,38 @@ function LeaseSpecialsPageContent() {
 }
 
 function LeaseSpecialCard({
-  vehicle
+  vehicle,
+  returnUrl
 }: {
   vehicle: Vehicle;
+  returnUrl?: string;
 }) {
+  const router = useRouter();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const primaryPrice = vehicle.discounted ?? vehicle.msrp ?? vehicle.listed_price ?? undefined;
   const detailsHref = `/vehicles/${encodeURIComponent(vehicle.vin)}`;
   const detailsActionHref = detailsHref;
   const fullName = `${vehicle.year ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""} ${vehicle.trim ?? ""}`.trim();
   const imageUrl = pickVehicleImage(vehicle);
+  const checkAvailabilityHref = `/credit-application?vin=${encodeURIComponent(vehicle.vin)}&make=${encodeURIComponent(vehicle.make ?? "")}&model=${encodeURIComponent(vehicle.model ?? "")}&trim=${encodeURIComponent(vehicle.trim ?? "")}`;
   const leaseMeta: string[] = [];
   if (vehicle.term_months && vehicle.term_months > 0) leaseMeta.push(`${vehicle.term_months} mo`);
   if (vehicle.miles_per_year && vehicle.miles_per_year > 0) leaseMeta.push(`${vehicle.miles_per_year.toLocaleString()} mi/yr`);
+
+  const handleCheckAvailability = () => {
+    if (!user) {
+      toast({
+        variant: "error",
+        title: "Login to continue",
+        description: "Please sign in to check availability."
+      });
+      const nextReturnUrl = returnUrl || "/lease-specials";
+      router.push(`/login?returnUrl=${encodeURIComponent(nextReturnUrl)}`);
+      return;
+    }
+    router.push(checkAvailabilityHref);
+  };
 
   return (
     <Card className="search-card group overflow-hidden rounded-xl border border-ink-300 bg-[#f6f7f9] shadow-sm transition-[transform,box-shadow,border-color] duration-150 motion-safe:hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg">
@@ -578,13 +799,9 @@ function LeaseSpecialCard({
                 <span className="max-[420px]:hidden">Get Price</span>
                 <span className="hidden max-[420px]:inline">Price</span>
             </LeadFormButton>
-            <Button asChild size="sm" variant="outline" className="rounded-full">
-              <Link
-                href={`/credit-application?vin=${encodeURIComponent(vehicle.vin)}&make=${encodeURIComponent(vehicle.make ?? "")}&model=${encodeURIComponent(vehicle.model ?? "")}&trim=${encodeURIComponent(vehicle.trim ?? "")}`}
-              >
-                <span className="max-[420px]:hidden">Verify Availability</span>
-                <span className="hidden max-[420px]:inline">Verify</span>
-              </Link>
+            <Button size="sm" variant="outline" className="rounded-full" onClick={handleCheckAvailability}>
+              <span className="max-[420px]:hidden">Check availability</span>
+              <span className="hidden max-[420px]:inline">Check</span>
             </Button>
           </div>
         </div>

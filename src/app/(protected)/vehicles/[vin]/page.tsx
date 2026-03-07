@@ -104,10 +104,12 @@ export default function VehicleDetailPage() {
       });
     },
     onError: (error: any) => {
+      const rawMessage = String(error?.message ?? "").trim();
+      const needsLogin = rawMessage.toLowerCase() === "login to continue" || rawMessage.toLowerCase() === "not authenticated";
       toast({
         variant: "error",
-        title: "Save failed",
-        description: error?.message ?? "Unable to save favorite."
+        title: needsLogin ? "Login to continue" : "Save failed",
+        description: needsLogin ? "Login to continue" : (rawMessage || "Unable to save favorite.")
       });
     }
   });
@@ -453,7 +455,7 @@ export default function VehicleDetailPage() {
                     href={`/credit-application?vin=${encodeURIComponent(vin)}&make=${encodeURIComponent(vehicleQuery.data?.make ?? "")}&model=${encodeURIComponent(vehicleQuery.data?.model ?? "")}&trim=${encodeURIComponent(vehicleQuery.data?.trim ?? "")}`}
                   >
                     <CreditCard className="mr-1 h-4 w-4" />
-                    Credit application
+                    Get Pre-Approved
                   </Link>
                 </Button>
                 <Button variant="outline" className="h-11 justify-center" onClick={() => favoriteMutation.mutate()}>

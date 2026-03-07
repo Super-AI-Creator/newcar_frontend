@@ -311,7 +311,80 @@ export const api = {
     const total = typeof raw?.total === "number" ? raw.total : results.length;
     return { results, total } as { results: Vehicle[]; total: number };
   },
-  getFilters: async () => {
+  getFilters: async (params?: { vehicle_type?: "new" | "used" | "all"; offers_only?: boolean }) => {
+    const query = new URLSearchParams();
+    if (params?.vehicle_type) query.set("vehicle_type", params.vehicle_type);
+    if (params?.offers_only !== undefined) query.set("offers_only", String(params.offers_only));
+    const qs = query.toString();
+
+    try {
+      return await apiFetch<{
+        makes?: string[];
+        models?: string[];
+        trims?: string[];
+        models_by_make?: Record<string, string[]>;
+        trims_by_make_model?: Record<string, string[]>;
+      }>(`/inventory/filters${qs ? `?${qs}` : ""}`);
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError?.status !== 404) throw error;
+    }
+
+    try {
+      const searchQuery = new URLSearchParams();
+      if (params?.vehicle_type) searchQuery.set("vehicle_type", params.vehicle_type);
+      if (params?.offers_only !== undefined) searchQuery.set("offers_only", String(params.offers_only));
+      searchQuery.set("page", "1");
+      searchQuery.set("page_size", "500");
+      const searchData = await apiFetch<any>(`/inventory/search?${searchQuery.toString()}`);
+      const items = Array.isArray(searchData?.items)
+        ? searchData.items
+        : Array.isArray(searchData?.results)
+          ? searchData.results
+          : [];
+
+      const makesSet = new Set<string>();
+      const modelsByMake: Record<string, Set<string>> = {};
+      const trimsByMakeModel: Record<string, Set<string>> = {};
+      for (const item of items) {
+        const make = typeof item?.make === "string" ? item.make.trim() : "";
+        const model = typeof item?.model === "string" ? item.model.trim() : "";
+        const trim = typeof item?.trim === "string" ? item.trim.trim() : "";
+        if (!make || !model) continue;
+        makesSet.add(make);
+        if (!modelsByMake[make]) modelsByMake[make] = new Set<string>();
+        modelsByMake[make].add(model);
+        if (trim) {
+          const key = `${make}|||${model}`;
+          if (!trimsByMakeModel[key]) trimsByMakeModel[key] = new Set<string>();
+          trimsByMakeModel[key].add(trim);
+        }
+      }
+
+      const makes = Array.from(makesSet).sort();
+      const modelsByMakeSorted: Record<string, string[]> = {};
+      Object.keys(modelsByMake).forEach((make) => {
+        modelsByMakeSorted[make] = Array.from(modelsByMake[make]).sort();
+      });
+      const trimsByMakeModelSorted: Record<string, string[]> = {};
+      Object.keys(trimsByMakeModel).forEach((key) => {
+        trimsByMakeModelSorted[key] = Array.from(trimsByMakeModel[key]).sort();
+      });
+      const models = Array.from(new Set(Object.values(modelsByMakeSorted).flat())).sort();
+      const trims = Array.from(new Set(Object.values(trimsByMakeModelSorted).flat())).sort();
+
+      return {
+        makes,
+        models,
+        trims,
+        models_by_make: modelsByMakeSorted,
+        trims_by_make_model: trimsByMakeModelSorted
+      };
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError?.status && apiError.status !== 404) throw error;
+    }
+
     try {
       return await apiFetch<{
         makes?: string[];
@@ -437,6 +510,24 @@ export const api = {
       })
     });
     return { sent: data.status === "sent" };
+  },
+  submitLead: async (payload: {
+    vin?: string;
+    year?: number | string;
+    make?: string;
+    model?: string;
+    trim?: string;
+    vehicle?: string;
+    name: string;
+    email: string;
+    phone: string;
+    notes?: string;
+    source?: string;
+  }) => {
+    return apiFetch<{ saved: boolean; lead_id: number }>("/leads", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
   },
   createDeal: async (payload: { vin: string; customer_note?: string }) => {
     return apiFetch<Deal>("/deals", {
