@@ -516,12 +516,12 @@ function SearchPageContent() {
                     </Badge>
                   </div>
                   {mode === "payment" ? (
-                    <Slider value={[maxPayment]} min={150} max={1500} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
+                    <Slider value={[maxPayment]} min={150} max={10000} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
                   ) : (
                     <Slider
                       value={[vehicleType === "new" ? maxPrice : usedMaxPrice]}
                       min={vehicleType === "new" ? 15000 : 2000}
-                      max={120000}
+                      max={1000000}
                       step={500}
                       onValueChange={(v) => (vehicleType === "new" ? setMaxPrice(v[0]) : setUsedMaxPrice(v[0]))}
                     />
@@ -745,12 +745,12 @@ function SearchPageContent() {
                   </Badge>
                 </div>
                 {mode === "payment" ? (
-                  <Slider value={[maxPayment]} min={150} max={1500} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
+                  <Slider value={[maxPayment]} min={150} max={10000} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
                 ) : (
                   <Slider
                     value={[vehicleType === "new" ? maxPrice : usedMaxPrice]}
                     min={vehicleType === "new" ? 15000 : 2000}
-                    max={120000}
+                    max={1000000}
                     step={500}
                     onValueChange={(v) => (vehicleType === "new" ? setMaxPrice(v[0]) : setUsedMaxPrice(v[0]))}
                   />

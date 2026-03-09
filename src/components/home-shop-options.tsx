@@ -68,7 +68,7 @@ export default function HomeShopOptions() {
               ${maxPayment}
               <span className="ml-1 text-base font-medium text-ink-500">/month</span>
             </p>
-            <Slider value={[maxPayment]} min={199} max={1499} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
+            <Slider value={[maxPayment]} min={199} max={10000} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
             <div className="flex gap-2">
               <Button variant={paymentMode === "lease" ? "default" : "outline"} size="sm" onClick={() => setPaymentMode("lease")}>
                 Lease

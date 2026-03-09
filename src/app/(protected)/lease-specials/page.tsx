@@ -46,8 +46,8 @@ const clientOnlySorts = new Set([
 ]);
 
 const paymentPresets = [399, 499, 599, 699, 799];
-const defaultMaxPayment = 1499;
-const defaultMaxPrice = 150000;
+const defaultMaxPayment = 10000;
+const defaultMaxPrice = 1000000;
 const pageSize = 12;
 const ANY_MAKE = "__any_make__";
 const ANY_MODEL = "__any_model__";
@@ -430,7 +430,7 @@ function LeaseSpecialsPageContent() {
                       </Button>
                     ))}
                   </div>
-                  <Slider value={[maxPayment]} min={199} max={1499} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
+                  <Slider value={[maxPayment]} min={199} max={10000} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
                 </div>
 
                 <div className="space-y-2">
@@ -438,7 +438,7 @@ function LeaseSpecialsPageContent() {
                     <Label>Max vehicle price</Label>
                     <Badge>${maxPrice.toLocaleString()}</Badge>
                   </div>
-                  <Slider value={[maxPrice]} min={20000} max={150000} step={500} onValueChange={(v) => setMaxPrice(v[0])} />
+                  <Slider value={[maxPrice]} min={20000} max={1000000} step={500} onValueChange={(v) => setMaxPrice(v[0])} />
                 </div>
 
                 <div className="space-y-2">
@@ -560,7 +560,7 @@ function LeaseSpecialsPageContent() {
                   </Button>
                 ))}
               </div>
-              <Slider value={[maxPayment]} min={199} max={1499} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
+              <Slider value={[maxPayment]} min={199} max={10000} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
             </div>
 
             <div className="space-y-3">
@@ -568,7 +568,7 @@ function LeaseSpecialsPageContent() {
                 <Label>Max vehicle price</Label>
                 <Badge>${maxPrice.toLocaleString()}</Badge>
               </div>
-              <Slider value={[maxPrice]} min={20000} max={150000} step={500} onValueChange={(v) => setMaxPrice(v[0])} />
+              <Slider value={[maxPrice]} min={20000} max={1000000} step={500} onValueChange={(v) => setMaxPrice(v[0])} />
             </div>
 
             <div className="grid gap-3">
@@ -729,6 +729,13 @@ function LeaseSpecialCard({
   const leaseMeta: string[] = [];
   if (vehicle.term_months && vehicle.term_months > 0) leaseMeta.push(`${vehicle.term_months} mo`);
   if (vehicle.miles_per_year && vehicle.miles_per_year > 0) leaseMeta.push(`${vehicle.miles_per_year.toLocaleString()} mi/yr`);
+  const leaseBase = vehicle.discounted ?? vehicle.msrp;
+  const leasePaymentDisclosure =
+    vehicle.monthly !== undefined
+      ? leaseBase !== undefined
+        ? `Lease payment is based on offer-sheet MSRP $${leaseBase.toLocaleString()}, not discounted price.`
+        : "Lease payment is based on offer-sheet MSRP and lease structure, not discounted price."
+      : null;
 
   const handleCheckAvailability = () => {
     if (!user) {
@@ -781,6 +788,7 @@ function LeaseSpecialCard({
               {vehicle.monthly !== undefined ? `$${vehicle.monthly.toLocaleString()}/mo lease` : "Monthly offer coming soon"}
               <Info className="h-4 w-4 text-ink-500" />
             </p>
+            {leasePaymentDisclosure && <p className="mt-1 text-[11px] leading-snug text-ink-600">{leasePaymentDisclosure}</p>}
             {vehicle.down !== undefined && <p className="mt-1 text-xs text-ink-700">Down ${vehicle.down.toLocaleString()}</p>}
             {leaseMeta.length > 0 && <p className="mt-1 text-xs text-ink-700">{leaseMeta.join(" | ")}</p>}
           </div>

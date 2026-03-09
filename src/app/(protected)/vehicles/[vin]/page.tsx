@@ -318,6 +318,18 @@ export default function VehicleDetailPage() {
     vehicleQuery.data?.condition,
     isUsed
   ]);
+  const leasePaymentDisclosure = useMemo(() => {
+    if (vehicleQuery.data?.monthly === undefined || vehicleQuery.data?.monthly === null) return undefined;
+    const leaseBaseText = formatMoney(vehicleQuery.data?.discounted ?? vehicleQuery.data?.msrp);
+    const downText = formatMoney(vehicleQuery.data?.down);
+    if (leaseBaseText && downText) {
+      return `Lease payment is based on offer-sheet MSRP ${leaseBaseText} and down payment ${downText}, not discounted price.`;
+    }
+    if (leaseBaseText) {
+      return `Lease payment is based on offer-sheet MSRP ${leaseBaseText}, not discounted price.`;
+    }
+    return "Lease payment is based on offer-sheet MSRP and lease structure, not discounted price.";
+  }, [vehicleQuery.data?.monthly, vehicleQuery.data?.discounted, vehicleQuery.data?.msrp, vehicleQuery.data?.down]);
 
   return (
     <div className="app-page min-h-screen">
@@ -390,6 +402,7 @@ export default function VehicleDetailPage() {
                         ${vehicleQuery.data.monthly.toLocaleString()}
                         <span className="ml-1 text-sm font-medium text-ink-600">/mo</span>
                       </p>
+                      {leasePaymentDisclosure && <p className="mt-1 max-w-[20rem] text-[11px] leading-snug text-ink-500">{leasePaymentDisclosure}</p>}
                     </div>
                   )}
                 </div>
@@ -550,6 +563,7 @@ export default function VehicleDetailPage() {
                           <div className="mb-3 rounded-lg border border-brand-200 bg-white px-3 py-2.5">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-700">Lease payment</p>
                             <p className="text-xl font-display font-semibold text-ink-900">${vehicleQuery.data.monthly.toLocaleString()} /mo</p>
+                            {leasePaymentDisclosure && <p className="mt-1 text-[11px] leading-snug text-ink-500">{leasePaymentDisclosure}</p>}
                           </div>
                         ) : null}
                         <dl className="space-y-2 text-sm">
@@ -573,7 +587,7 @@ export default function VehicleDetailPage() {
                           )}
                           {vehicleQuery.data?.discounted !== undefined && vehicleQuery.data?.discounted !== null && (
                             <div className="flex items-center justify-between rounded-md bg-white px-3 py-2">
-                              <dt className="text-ink-600">Discounted</dt>
+                              <dt className="text-ink-600">MSRP</dt>
                               <dd className="font-semibold text-ink-900">${vehicleQuery.data.discounted.toLocaleString()}</dd>
                             </div>
                           )}
