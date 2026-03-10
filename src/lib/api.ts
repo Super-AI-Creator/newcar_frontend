@@ -311,6 +311,30 @@ export const api = {
     const total = typeof raw?.total === "number" ? raw.total : results.length;
     return { results, total } as { results: Vehicle[]; total: number };
   },
+  homepageSpecials: async (params?: { limit?: number; month?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.limit != null) query.set("limit", String(params.limit));
+    if (params?.month) query.set("month", params.month);
+    const qs = query.toString();
+
+    try {
+      const raw = await apiFetch<any>(`/inventory/homepage-specials${qs ? `?${qs}` : ""}`);
+      const rawResults = Array.isArray(raw?.results)
+        ? raw.results
+        : Array.isArray(raw?.items)
+          ? raw.items
+          : Array.isArray(raw)
+            ? raw
+            : [];
+      const results = rawResults.map((item: any) => normalizeVehicle(item));
+      const total = typeof raw?.total === "number" ? raw.total : results.length;
+      return { results, total } as { results: Vehicle[]; total: number };
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError?.status !== 404) throw error;
+      return api.search({ vehicle_type: "new", offers_only: true, page: 1, page_size: params?.limit ?? 6, sort: "best_deal" });
+    }
+  },
   getFilters: async (params?: { vehicle_type?: "new" | "used" | "all"; offers_only?: boolean }) => {
     const query = new URLSearchParams();
     if (params?.vehicle_type) query.set("vehicle_type", params.vehicle_type);
@@ -815,6 +839,102 @@ export const api = {
       }
     };
   },
+  adminHomepageFeatured: async (params?: { month?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.month) query.set("month", params.month);
+    const qs = query.toString();
+    return apiFetch<HomepageFeaturedResponse>(`/admin/homepage-featured${qs ? `?${qs}` : ""}`);
+  },
+  setAdminHomepageFeatured: async (payload: { vins: string[]; month?: string }) => {
+    const query = new URLSearchParams();
+    if (payload.month) query.set("month", payload.month);
+    const qs = query.toString();
+    return apiFetch<HomepageFeaturedResponse>(`/admin/homepage-featured${qs ? `?${qs}` : ""}`, {
+      method: "PUT",
+      body: JSON.stringify({ vins: payload.vins })
+    });
+  },
+  adminManualVehicles: async (params?: { q?: string; limit?: number; include_inactive?: boolean }) => {
+    const query = new URLSearchParams();
+    if (params?.q) query.set("q", params.q);
+    if (params?.limit != null) query.set("limit", String(params.limit));
+    if (params?.include_inactive != null) query.set("include_inactive", String(params.include_inactive));
+    const qs = query.toString();
+    const data = await apiFetch<{ items?: ManualVehicleRecord[] }>(`/admin/manual-vehicles${qs ? `?${qs}` : ""}`);
+    return { items: data.items ?? [] };
+  },
+  upsertAdminManualVehicle: async (
+    vin: string,
+    payload: {
+      vehicle_type?: "new" | "used";
+      year?: number | null;
+      make?: string | null;
+      model?: string | null;
+      trim?: string | null;
+      msrp?: number | null;
+      listed_price?: number | null;
+      mileage?: number | null;
+      condition?: string | null;
+      photos?: string[];
+      details?: Record<string, unknown> | null;
+      dealer_name?: string | null;
+      dealer_phone?: string | null;
+      listing_url?: string | null;
+      carfax_url?: string | null;
+      down_payment?: number | null;
+      monthly_payment?: number | null;
+      discounted_price?: number | null;
+      term_months?: number | null;
+      miles_per_year?: number | null;
+    }
+  ) => {
+    return apiFetch<{ status: string; item: ManualVehicleRecord }>(`/admin/manual-vehicles/${encodeURIComponent(vin)}`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+  },
+  deleteAdminManualVehicle: async (vin: string) => {
+    return apiFetch<{ deleted: boolean; vin: string }>(`/admin/manual-vehicles/${encodeURIComponent(vin)}`, {
+      method: "DELETE"
+    });
+  },
+  adminSeoSettings: async (params?: { q?: string; include_inactive?: boolean; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.q) query.set("q", params.q);
+    if (params?.include_inactive != null) query.set("include_inactive", String(params.include_inactive));
+    if (params?.limit != null) query.set("limit", String(params.limit));
+    const qs = query.toString();
+    const data = await apiFetch<{ items?: SeoPageSettingRecord[] }>(`/admin/seo-settings${qs ? `?${qs}` : ""}`);
+    return { items: data.items ?? [] };
+  },
+  adminSeoSetting: async (pageKey: string) => {
+    return apiFetch<SeoPageSettingRecord>(`/admin/seo-settings/${encodeURIComponent(pageKey)}`);
+  },
+  upsertAdminSeoSetting: async (
+    pageKey: string,
+    payload: {
+      title?: string | null;
+      description?: string | null;
+      keywords?: string | null;
+      canonical_url?: string | null;
+      og_title?: string | null;
+      og_description?: string | null;
+      og_image_url?: string | null;
+      robots?: string | null;
+      json_ld?: unknown;
+      is_active?: boolean;
+    }
+  ) => {
+    return apiFetch<{ status: string; item: SeoPageSettingRecord }>(`/admin/seo-settings/${encodeURIComponent(pageKey)}`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+  },
+  deleteAdminSeoSetting: async (pageKey: string) => {
+    return apiFetch<{ deleted: boolean; page_key: string }>(`/admin/seo-settings/${encodeURIComponent(pageKey)}`, {
+      method: "DELETE"
+    });
+  },
   adminLeadDelivery: async (params?: { status?: "pending" | "sent" | "failed" | "skipped"; q?: string; limit?: number }) => {
     const query = new URLSearchParams();
     if (params?.status) query.set("status", params.status);
@@ -1073,6 +1193,7 @@ export type CreditApplicationRecord = {
   broker_note?: string | null;
   reviewed_by_user_id?: number | null;
   reviewed_by_name?: string | null;
+  reviewed_by_email?: string | null;
   reviewed_at?: string | null;
   payload_json?: Record<string, unknown> | null;
   created_at?: string | null;
@@ -1090,6 +1211,7 @@ export type DocumentSubmissionRecord = {
   broker_note?: string | null;
   reviewed_by_user_id?: number | null;
   reviewed_by_name?: string | null;
+  reviewed_by_email?: string | null;
   reviewed_at?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
@@ -1111,6 +1233,57 @@ export type OfferOverrideRecord = {
   updated_at?: string | null;
 };
 
+export type HomepageFeaturedItem = {
+  position: number;
+  vin: string;
+  updated_at?: string | null;
+  vehicle?: {
+    vin: string;
+    found?: boolean;
+    year?: number | null;
+    make?: string | null;
+    model?: string | null;
+    trim?: string | null;
+    monthly_payment?: number | null;
+    down_payment?: number | null;
+    discounted_price?: number | null;
+  };
+};
+
+export type HomepageFeaturedResponse = {
+  month: string;
+  max_items: number;
+  count: number;
+  vins: string[];
+  items: HomepageFeaturedItem[];
+};
+
+export type ManualVehicleRecord = {
+  vin: string;
+  vehicle_type?: "new" | "used" | string | null;
+  year?: number | null;
+  make?: string | null;
+  model?: string | null;
+  trim?: string | null;
+  msrp?: number | null;
+  listed_price?: number | null;
+  mileage?: number | null;
+  condition?: string | null;
+  photos?: string[];
+  details?: Record<string, unknown> | null;
+  dealer_name?: string | null;
+  dealer_phone?: string | null;
+  listing_url?: string | null;
+  carfax_url?: string | null;
+  is_active?: boolean;
+  updated_at?: string | null;
+  down_payment?: number | null;
+  monthly_payment?: number | null;
+  discounted_price?: number | null;
+  term_months?: number | null;
+  miles_per_year?: number | null;
+};
+
 export type LeadDeliveryRecord = {
   lead_id: number;
   created_at?: string | null;
@@ -1124,4 +1297,20 @@ export type LeadDeliveryRecord = {
   webhook_last_error?: string | null;
   webhook_last_attempt_at?: string | null;
   webhook_delivered_at?: string | null;
+};
+
+export type SeoPageSettingRecord = {
+  page_key: string;
+  title?: string | null;
+  description?: string | null;
+  keywords?: string | null;
+  canonical_url?: string | null;
+  og_title?: string | null;
+  og_description?: string | null;
+  og_image_url?: string | null;
+  robots?: string | null;
+  json_ld?: unknown;
+  is_active?: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
 };

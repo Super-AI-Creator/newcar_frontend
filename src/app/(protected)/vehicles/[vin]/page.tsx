@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { api } from "@/lib/api";
+import { api, type ManualVehicleRecord } from "@/lib/api";
 import { env } from "@/lib/env";
 import { DEFAULT_CAR_IMAGE, pickVehicleImage } from "@/lib/vehicle-image";
 import { useToast } from "@/components/toast-provider";
@@ -44,12 +44,20 @@ function formatMoney(value: number | null | undefined): string | undefined {
   return `$${value.toLocaleString()}`;
 }
 
+function currentMonthKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
 export default function VehicleDetailPage() {
   const params = useParams();
   const vin = params?.vin as string;
   const { user } = useAuth();
   const normalizedRole = (user?.role ?? "").toLowerCase();
-  const isBrokerUser = ["broker", "broker_admin", "admin", "dealer"].includes(normalizedRole);
+  const isBrokerUser = ["broker", "broker_admin", "admin", "super_admin", "dealer"].includes(normalizedRole);
+  const isSuperAdmin = normalizedRole === "super_admin";
   const { toast } = useToast();
   const [down, setDown] = useState(2000);
   const [term, setTerm] = useState(72);
@@ -60,6 +68,25 @@ export default function VehicleDetailPage() {
   const [dealVerified, setDealVerified] = useState(false);
   const [dealReadyToProceed, setDealReadyToProceed] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(0);
+  const [featuredMonth, setFeaturedMonth] = useState(currentMonthKey());
+  const [adminVehicleType, setAdminVehicleType] = useState<"new" | "used">("new");
+  const [adminYear, setAdminYear] = useState("");
+  const [adminMake, setAdminMake] = useState("");
+  const [adminModel, setAdminModel] = useState("");
+  const [adminTrim, setAdminTrim] = useState("");
+  const [adminListedPrice, setAdminListedPrice] = useState("");
+  const [adminMsrp, setAdminMsrp] = useState("");
+  const [adminMileage, setAdminMileage] = useState("");
+  const [adminCondition, setAdminCondition] = useState("");
+  const [adminDealerName, setAdminDealerName] = useState("");
+  const [adminDealerPhone, setAdminDealerPhone] = useState("");
+  const [adminListingUrl, setAdminListingUrl] = useState("");
+  const [adminPhotoUrls, setAdminPhotoUrls] = useState<string[]>([""]);
+  const [dragPhotoIndex, setDragPhotoIndex] = useState<number | null>(null);
+  const [dragOverPhotoIndex, setDragOverPhotoIndex] = useState<number | null>(null);
+  const [adminDownPayment, setAdminDownPayment] = useState("");
+  const [adminMonthlyPayment, setAdminMonthlyPayment] = useState("");
+  const [adminDiscountedPrice, setAdminDiscountedPrice] = useState("");
   const maskedVin = useMemo(() => {
     const clean = (vin ?? "").trim();
     if (!clean) return "*****";
@@ -70,6 +97,16 @@ export default function VehicleDetailPage() {
     queryKey: ["vehicle", vin],
     queryFn: () => api.getVehicle(vin),
     enabled: !!vin
+  });
+  const manualVehicleQuery = useQuery({
+    queryKey: ["admin-manual-vehicle", vin],
+    queryFn: () => api.adminManualVehicles({ q: vin, include_inactive: true, limit: 25 }),
+    enabled: isSuperAdmin && !!vin
+  });
+  const featuredQuery = useQuery({
+    queryKey: ["admin-homepage-featured", featuredMonth],
+    queryFn: () => api.adminHomepageFeatured({ month: featuredMonth }),
+    enabled: isSuperAdmin
   });
 
   const estimateMutation = useMutation({
@@ -89,11 +126,110 @@ export default function VehicleDetailPage() {
       });
     }
   });
+  const upsertManualVehicleMutation = useMutation({
+    mutationFn: (payload: {
+      vehicle_type: "new" | "used";
+      year?: number | null;
+      make?: string | null;
+      model?: string | null;
+      trim?: string | null;
+      listed_price?: number | null;
+      msrp?: number | null;
+      mileage?: number | null;
+      condition?: string | null;
+      dealer_name?: string | null;
+      dealer_phone?: string | null;
+      listing_url?: string | null;
+      photos?: string[];
+      down_payment?: number | null;
+      monthly_payment?: number | null;
+      discounted_price?: number | null;
+    }) => api.upsertAdminManualVehicle(vin, payload),
+    onSuccess: () => {
+      vehicleQuery.refetch();
+      manualVehicleQuery.refetch();
+      toast({ variant: "success", title: "Vehicle updated", description: "Manual override saved." });
+    },
+    onError: (error: any) => {
+      toast({ variant: "error", title: "Update failed", description: error?.message ?? "Could not update vehicle." });
+    }
+  });
+  const addToFeaturedMutation = useMutation({
+    mutationFn: async () => {
+      const currentVins = (featuredQuery.data?.vins ?? []).map((item) => item.trim().toUpperCase());
+      const normalizedVin = (vin ?? "").trim().toUpperCase();
+      if (!normalizedVin) throw new Error("VIN not found.");
+      if (currentVins.includes(normalizedVin)) {
+        return { month: featuredMonth, vins: currentVins, already: true };
+      }
+      if (currentVins.length >= 6) {
+        throw new Error(`Featured list for ${featuredMonth} already has 6 vehicles.`);
+      }
+      return api.setAdminHomepageFeatured({
+        month: featuredMonth,
+        vins: [...currentVins, normalizedVin]
+      });
+    },
+    onSuccess: (result: any) => {
+      featuredQuery.refetch();
+      if (result?.already) {
+        toast({ variant: "success", title: "Already featured", description: `VIN ${vin} is already on ${featuredMonth}.` });
+        return;
+      }
+      toast({ variant: "success", title: "Added to landing page", description: `VIN ${vin} added for ${featuredMonth}.` });
+    },
+    onError: (error: any) => {
+      toast({ variant: "error", title: "Could not add featured vehicle", description: error?.message ?? "Please try again." });
+    }
+  });
 
   useEffect(() => {
     setDealName(user?.name ?? "");
     setDealEmail(user?.email ?? "");
   }, [user?.name, user?.email]);
+  const manualVehicle = useMemo<ManualVehicleRecord | undefined>(() => {
+    const items = manualVehicleQuery.data?.items ?? [];
+    const normalizedVin = (vin ?? "").trim().toUpperCase();
+    return items.find((item) => (item.vin ?? "").trim().toUpperCase() === normalizedVin);
+  }, [manualVehicleQuery.data?.items, vin]);
+
+  useEffect(() => {
+    if (!isSuperAdmin || !vin) return;
+    const source = manualVehicle;
+    const base = vehicleQuery.data;
+    if (!source && !base) return;
+
+    const vehicleTypeRaw = (source?.vehicle_type ?? base?.vehicle_type ?? "new").toString().toLowerCase();
+    setAdminVehicleType(vehicleTypeRaw === "used" ? "used" : "new");
+    setAdminYear(source?.year != null ? String(source.year) : base?.year != null ? String(base.year) : "");
+    setAdminMake(source?.make ?? base?.make ?? "");
+    setAdminModel(source?.model ?? base?.model ?? "");
+    setAdminTrim(source?.trim ?? base?.trim ?? "");
+    setAdminListedPrice(
+      source?.listed_price != null
+        ? String(source.listed_price)
+        : base?.listed_price != null
+        ? String(base.listed_price)
+        : ""
+    );
+    setAdminMsrp(source?.msrp != null ? String(source.msrp) : base?.msrp != null ? String(base.msrp) : "");
+    setAdminMileage(source?.mileage != null ? String(source.mileage) : base?.mileage != null ? String(base.mileage) : "");
+    setAdminCondition((source?.condition ?? base?.condition ?? "").toString().toLowerCase());
+    setAdminDealerName(source?.dealer_name ?? base?.dealer_name ?? "");
+    setAdminDealerPhone(source?.dealer_phone ?? base?.dealer_phone ?? "");
+    setAdminListingUrl(source?.listing_url ?? base?.listing_url ?? "");
+    const photos = Array.isArray(source?.photos) && source.photos.length > 0 ? source.photos : base?.photos ?? [];
+    setAdminPhotoUrls(photos.length > 0 ? photos : [""]);
+    setAdminDownPayment(source?.down_payment != null ? String(source.down_payment) : base?.down != null ? String(base.down) : "");
+    setAdminMonthlyPayment(source?.monthly_payment != null ? String(source.monthly_payment) : base?.monthly != null ? String(base.monthly) : "");
+    setAdminDiscountedPrice(
+      source?.discounted_price != null
+        ? String(source.discounted_price)
+        : base?.discounted != null
+        ? String(base.discounted)
+        : ""
+    );
+  }, [isSuperAdmin, vin, manualVehicle, vehicleQuery.data]);
 
   const favoriteMutation = useMutation({
     mutationFn: () => api.toggleFavorite(vin),
@@ -330,6 +466,74 @@ export default function VehicleDetailPage() {
     }
     return "Lease payment is based on offer-sheet MSRP and lease structure, not discounted price.";
   }, [vehicleQuery.data?.monthly, vehicleQuery.data?.discounted, vehicleQuery.data?.msrp, vehicleQuery.data?.down]);
+
+  const parseOptionalNumber = (value: string) => {
+    const cleaned = value.trim();
+    if (!cleaned) return null;
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const saveAdminVehicleOverride = () => {
+    if (!vin) return;
+    upsertManualVehicleMutation.mutate({
+      vehicle_type: adminVehicleType,
+      year: parseOptionalNumber(adminYear),
+      make: adminMake.trim() || null,
+      model: adminModel.trim() || null,
+      trim: adminTrim.trim() || null,
+      listed_price: parseOptionalNumber(adminListedPrice),
+      msrp: parseOptionalNumber(adminMsrp),
+      mileage: parseOptionalNumber(adminMileage),
+      condition: adminCondition.trim() || null,
+      dealer_name: adminDealerName.trim() || null,
+      dealer_phone: adminDealerPhone.trim() || null,
+      listing_url: adminListingUrl.trim() || null,
+      photos: adminPhotoUrls
+        .map((item) => item.trim())
+        .filter(Boolean),
+      down_payment: parseOptionalNumber(adminDownPayment),
+      monthly_payment: parseOptionalNumber(adminMonthlyPayment),
+      discounted_price: parseOptionalNumber(adminDiscountedPrice)
+    });
+  };
+
+  const updateAdminPhotoUrlAt = (index: number, value: string) => {
+    setAdminPhotoUrls((prev) => prev.map((item, idx) => (idx === index ? value : item)));
+  };
+
+  const addAdminPhotoUrlField = () => {
+    setAdminPhotoUrls((prev) => [...prev, ""]);
+  };
+
+  const removeAdminPhotoUrlField = (index: number) => {
+    setAdminPhotoUrls((prev) => {
+      const next = prev.filter((_, idx) => idx !== index);
+      return next.length > 0 ? next : [""];
+    });
+  };
+
+  const moveAdminPhotoUrl = (fromIndex: number, toIndex: number) => {
+    setAdminPhotoUrls((prev) => {
+      if (fromIndex < 0 || toIndex < 0 || fromIndex >= prev.length || toIndex >= prev.length || fromIndex === toIndex) {
+        return prev;
+      }
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  };
+
+  const startPhotoDrag = (index: number) => {
+    setDragPhotoIndex(index);
+    setDragOverPhotoIndex(index);
+  };
+
+  const endPhotoDrag = () => {
+    setDragPhotoIndex(null);
+    setDragOverPhotoIndex(null);
+  };
 
   return (
     <div className="app-page min-h-screen">
@@ -657,6 +861,196 @@ export default function VehicleDetailPage() {
                   )}
                 </CardContent>
               </Card>
+              {isSuperAdmin && (
+              <Card className="border-ink-200 bg-white">
+                <CardHeader>
+                  <CardTitle>Super Admin Controls</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-lg border border-ink-200 bg-ink-50 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Landing Page Featured</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Input
+                        type="month"
+                        value={featuredMonth}
+                        onChange={(event) => setFeaturedMonth(event.target.value || currentMonthKey())}
+                        className="max-w-[180px]"
+                      />
+                      <Button size="sm" variant="outline" onClick={() => featuredQuery.refetch()} disabled={featuredQuery.isFetching}>
+                        Refresh
+                      </Button>
+                      <Button size="sm" onClick={() => addToFeaturedMutation.mutate()} disabled={addToFeaturedMutation.isPending}>
+                        Add VIN to Landing Page
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-xs text-ink-600">
+                      {(() => {
+                        const featuredVins = (featuredQuery.data?.vins ?? []).map((item) => item.trim().toUpperCase());
+                        const normalizedVin = (vin ?? "").trim().toUpperCase();
+                        const inList = featuredVins.includes(normalizedVin);
+                        return `${featuredVins.length}/6 selected for ${featuredMonth}${inList ? " | This VIN is already featured." : ""}`;
+                      })()}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border border-ink-200 bg-ink-50 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Edit Vehicle (Manual Override)</p>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label>Vehicle type</Label>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant={adminVehicleType === "new" ? "default" : "outline"} onClick={() => setAdminVehicleType("new")}>
+                            New
+                          </Button>
+                          <Button size="sm" variant={adminVehicleType === "used" ? "default" : "outline"} onClick={() => setAdminVehicleType("used")}>
+                            Used
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Year</Label>
+                        <Input value={adminYear} onChange={(event) => setAdminYear(event.target.value)} placeholder="2026" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Make</Label>
+                        <Input value={adminMake} onChange={(event) => setAdminMake(event.target.value)} placeholder="GMC" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Model</Label>
+                        <Input value={adminModel} onChange={(event) => setAdminModel(event.target.value)} placeholder="Sierra 1500" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Trim</Label>
+                        <Input value={adminTrim} onChange={(event) => setAdminTrim(event.target.value)} placeholder="Pro" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Condition</Label>
+                        <select
+                          value={adminCondition}
+                          onChange={(event) => setAdminCondition(event.target.value)}
+                          className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                          <option value="">Select condition</option>
+                          <option value="new">new</option>
+                          <option value="used">used</option>
+                          <option value="cpo">cpo</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Listed price</Label>
+                        <Input value={adminListedPrice} onChange={(event) => setAdminListedPrice(event.target.value)} placeholder="54995" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>MSRP</Label>
+                        <Input value={adminMsrp} onChange={(event) => setAdminMsrp(event.target.value)} placeholder="58995" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Mileage</Label>
+                        <Input value={adminMileage} onChange={(event) => setAdminMileage(event.target.value)} placeholder="10" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Dealer name</Label>
+                        <Input value={adminDealerName} onChange={(event) => setAdminDealerName(event.target.value)} placeholder="Dealer name" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Dealer phone</Label>
+                        <Input value={adminDealerPhone} onChange={(event) => setAdminDealerPhone(event.target.value)} placeholder="818-555-1212" />
+                      </div>
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label>Listing URL</Label>
+                        <Input value={adminListingUrl} onChange={(event) => setAdminListingUrl(event.target.value)} placeholder="https://..." />
+                      </div>
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label>Photo URLs</Label>
+                        <div className="space-y-2">
+                          {adminPhotoUrls.map((photoUrl, index) => (
+                            <div
+                              key={`admin-photo-${index}`}
+                              draggable
+                              onDragStart={(event) => {
+                                startPhotoDrag(index);
+                                event.dataTransfer.effectAllowed = "move";
+                                event.dataTransfer.setData("text/plain", String(index));
+                              }}
+                              onDragOver={(event) => {
+                                event.preventDefault();
+                                event.dataTransfer.dropEffect = "move";
+                                if (dragOverPhotoIndex !== index) setDragOverPhotoIndex(index);
+                              }}
+                              onDrop={(event) => {
+                                event.preventDefault();
+                                const sourceIndex = dragPhotoIndex ?? Number(event.dataTransfer.getData("text/plain"));
+                                if (Number.isFinite(sourceIndex)) {
+                                  moveAdminPhotoUrl(sourceIndex, index);
+                                }
+                                endPhotoDrag();
+                              }}
+                              onDragEnd={endPhotoDrag}
+                              className={`grid items-center gap-2 rounded-md border p-2 sm:grid-cols-[64px_88px_1fr_auto] ${
+                                dragOverPhotoIndex === index ? "border-brand-400 bg-brand-50" : "border-ink-200 bg-white"
+                              }`}
+                            >
+                              <div
+                                className="cursor-grab select-none rounded border border-ink-200 bg-ink-50 px-1 py-2 text-center text-[11px] font-medium text-ink-600 active:cursor-grabbing"
+                                title="Drag to reorder"
+                              >
+                                Drag
+                              </div>
+                              <div className="h-14 w-20 overflow-hidden rounded-md border border-ink-200 bg-white">
+                                {photoUrl.trim() ? (
+                                  <img
+                                    src={photoUrl}
+                                    alt={`Photo ${index + 1}`}
+                                    className="h-full w-full object-cover"
+                                    onError={(e) => {
+                                      if (e.currentTarget.src.endsWith(DEFAULT_CAR_IMAGE)) return;
+                                      e.currentTarget.src = DEFAULT_CAR_IMAGE;
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="flex h-full items-center justify-center text-[11px] text-ink-400">No image</div>
+                                )}
+                              </div>
+                              <Input
+                                value={photoUrl}
+                                onChange={(event) => updateAdminPhotoUrlAt(index, event.target.value)}
+                                placeholder={`Photo URL ${index + 1}`}
+                              />
+                              <Button size="sm" variant="outline" onClick={() => removeAdminPhotoUrlField(index)}>
+                                Remove
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                        <Button size="sm" variant="outline" onClick={addAdminPhotoUrlField}>
+                          Add photo URL
+                        </Button>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Down payment</Label>
+                        <Input value={adminDownPayment} onChange={(event) => setAdminDownPayment(event.target.value)} placeholder="3000" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Monthly payment</Label>
+                        <Input value={adminMonthlyPayment} onChange={(event) => setAdminMonthlyPayment(event.target.value)} placeholder="499" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Discounted / MSRP value</Label>
+                        <Input value={adminDiscountedPrice} onChange={(event) => setAdminDiscountedPrice(event.target.value)} placeholder="54995" />
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button onClick={saveAdminVehicleOverride} disabled={upsertManualVehicleMutation.isPending}>
+                        Save Vehicle Override
+                      </Button>
+                      <Button variant="outline" onClick={() => manualVehicleQuery.refetch()} disabled={manualVehicleQuery.isFetching}>
+                        Reload Override
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              )}
               {!isBrokerUser && (
               <Card className="tc-fade-up-delay border-ink-200 bg-white">
                 <CardHeader>

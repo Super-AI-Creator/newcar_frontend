@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { api, type Deal, type LeadDeliveryRecord, type Vehicle } from "@/lib/api";
+import { api, type Deal, type LeadDeliveryRecord, type ManualVehicleRecord, type SeoPageSettingRecord, type Vehicle } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/toast-provider";
+import { useAuth } from "@/components/auth-provider";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -66,6 +67,8 @@ const PIPELINE_STEPS: Array<{ key: string; label: string; icon: ComponentType<{ 
   { key: "delivered", label: "Delivered", icon: CheckCircle2 }
 ];
 
+const SEO_PRESET_PAGE_KEYS = ["site_default", "home", "search", "lease_specials", "reviews", "credit_application"] as const;
+
 function statusLabel(status: string) {
   return DEAL_STATUS_LABELS[status] ?? status;
 }
@@ -95,6 +98,13 @@ function formatDateTime(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString();
+}
+
+function currentMonthKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
 }
 
 function prettyJson(value: unknown) {
@@ -516,6 +526,9 @@ function DealCard({
 }
 
 export default function AdminPage() {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "super_admin";
+  const isBrokerWorkspace = !isSuperAdmin;
   const { toast } = useToast();
   const [lenderName, setLenderName] = useState("Default Lender");
   const [creditTier, setCreditTier] = useState("B");
@@ -551,6 +564,39 @@ export default function AdminPage() {
   const [offerDiscountedPrice, setOfferDiscountedPrice] = useState("");
   const [offerTermMonths, setOfferTermMonths] = useState("");
   const [offerMilesPerYear, setOfferMilesPerYear] = useState("");
+  const [featuredMonth, setFeaturedMonth] = useState(currentMonthKey());
+  const [featuredVinInput, setFeaturedVinInput] = useState("");
+  const [featuredVinsDraft, setFeaturedVinsDraft] = useState<string[]>([]);
+  const [featuredDirty, setFeaturedDirty] = useState(false);
+  const [manualSearch, setManualSearch] = useState("");
+  const [manualVin, setManualVin] = useState("");
+  const [manualYear, setManualYear] = useState("");
+  const [manualMake, setManualMake] = useState("");
+  const [manualModel, setManualModel] = useState("");
+  const [manualTrim, setManualTrim] = useState("");
+  const [manualVehicleType, setManualVehicleType] = useState<"new" | "used">("new");
+  const [manualListedPrice, setManualListedPrice] = useState("");
+  const [manualMsrp, setManualMsrp] = useState("");
+  const [manualMileage, setManualMileage] = useState("");
+  const [manualCondition, setManualCondition] = useState("");
+  const [manualDealerName, setManualDealerName] = useState("");
+  const [manualDealerPhone, setManualDealerPhone] = useState("");
+  const [manualListingUrl, setManualListingUrl] = useState("");
+  const [manualPhotosCsv, setManualPhotosCsv] = useState("");
+  const [manualDownPayment, setManualDownPayment] = useState("");
+  const [manualMonthlyPayment, setManualMonthlyPayment] = useState("");
+  const [manualDiscountedPrice, setManualDiscountedPrice] = useState("");
+  const [seoPageKey, setSeoPageKey] = useState<string>("home");
+  const [seoTitle, setSeoTitle] = useState("");
+  const [seoDescription, setSeoDescription] = useState("");
+  const [seoKeywords, setSeoKeywords] = useState("");
+  const [seoCanonicalUrl, setSeoCanonicalUrl] = useState("");
+  const [seoOgTitle, setSeoOgTitle] = useState("");
+  const [seoOgDescription, setSeoOgDescription] = useState("");
+  const [seoOgImageUrl, setSeoOgImageUrl] = useState("");
+  const [seoRobots, setSeoRobots] = useState("index,follow");
+  const [seoJsonLd, setSeoJsonLd] = useState("{}");
+  const [seoIsActive, setSeoIsActive] = useState(true);
   const [leadDeliveryStatusFilter, setLeadDeliveryStatusFilter] = useState<"all" | "pending" | "sent" | "failed" | "skipped">("all");
   const [leadDeliverySearch, setLeadDeliverySearch] = useState("");
   const [adminTab, setAdminTab] = useState<"broker_ops" | "credit_docs" | "admin_data">("broker_ops");
@@ -569,9 +615,40 @@ export default function AdminPage() {
   const dealPipelineRef = useRef<HTMLElement | null>(null);
   const conversationRef = useRef<HTMLElement | null>(null);
   const docsQueueRef = useRef<HTMLDivElement | null>(null);
+  const normalizedSeoPageKey = seoPageKey.trim().toLowerCase();
+  const isValidSeoPageKey = /^[a-z0-9][a-z0-9_-]{0,63}$/.test(normalizedSeoPageKey);
 
-  const sourcesQuery = useQuery({ queryKey: ["admin-sources"], queryFn: api.adminSources });
-  const statusQuery = useQuery({ queryKey: ["admin-sync-status"], queryFn: api.syncStatus });
+  const sourcesQuery = useQuery({
+    queryKey: ["admin-sources"],
+    queryFn: api.adminSources,
+    enabled: isBrokerWorkspace
+  });
+  const statusQuery = useQuery({
+    queryKey: ["admin-sync-status"],
+    queryFn: api.syncStatus,
+    enabled: isBrokerWorkspace
+  });
+  const homepageFeaturedQuery = useQuery({
+    queryKey: ["admin-homepage-featured", featuredMonth],
+    queryFn: () => api.adminHomepageFeatured({ month: featuredMonth }),
+    enabled: isSuperAdmin
+  });
+  const manualVehiclesQuery = useQuery({
+    queryKey: ["admin-manual-vehicles", manualSearch],
+    queryFn: () => api.adminManualVehicles({ q: manualSearch || undefined, limit: 200 }),
+    enabled: isSuperAdmin
+  });
+  const seoSettingsQuery = useQuery({
+    queryKey: ["admin-seo-settings"],
+    queryFn: () => api.adminSeoSettings({ include_inactive: true, limit: 200 }),
+    enabled: isSuperAdmin
+  });
+  const seoSettingQuery = useQuery({
+    queryKey: ["admin-seo-setting", normalizedSeoPageKey],
+    queryFn: () => api.adminSeoSetting(normalizedSeoPageKey),
+    enabled: isSuperAdmin && isValidSeoPageKey && normalizedSeoPageKey.length > 0,
+    retry: false
+  });
   const leadDeliveryQuery = useQuery({
     queryKey: ["admin-lead-delivery", leadDeliveryStatusFilter, leadDeliverySearch],
     queryFn: () =>
@@ -579,11 +656,12 @@ export default function AdminPage() {
         status: leadDeliveryStatusFilter === "all" ? undefined : leadDeliveryStatusFilter,
         q: leadDeliverySearch || undefined,
         limit: 200
-      })
+      }),
+    enabled: isBrokerWorkspace
   });
-  const dealsQuery = useQuery({ queryKey: ["admin-deals-queue"], queryFn: api.brokerQueue });
-  const messagesQuery = useQuery({ queryKey: ["admin-messages"], queryFn: api.messages });
-  const lenderRatesQuery = useQuery({ queryKey: ["admin-lender-rates"], queryFn: api.lenderRates });
+  const dealsQuery = useQuery({ queryKey: ["admin-deals-queue"], queryFn: api.brokerQueue, enabled: isBrokerWorkspace });
+  const messagesQuery = useQuery({ queryKey: ["admin-messages"], queryFn: api.messages, enabled: isBrokerWorkspace });
+  const lenderRatesQuery = useQuery({ queryKey: ["admin-lender-rates"], queryFn: api.lenderRates, enabled: isBrokerWorkspace });
   const offerOverridesQuery = useQuery({
     queryKey: ["admin-offer-overrides", offerSourceFilter, offerSearch],
     queryFn: () =>
@@ -591,7 +669,8 @@ export default function AdminPage() {
         source: offerSourceFilter === "all" ? undefined : offerSourceFilter,
         q: offerSearch || undefined,
         limit: 200
-      })
+      }),
+    enabled: isBrokerWorkspace
   });
   const creditApplicationsQuery = useQuery({
     queryKey: ["admin-credit-applications", creditStatusFilter, creditSearch],
@@ -600,7 +679,8 @@ export default function AdminPage() {
         status: creditStatusFilter === "all" ? undefined : creditStatusFilter,
         q: creditSearch || undefined,
         page_size: 50
-      })
+      }),
+    enabled: isBrokerWorkspace || isSuperAdmin
   });
   const docSubmissionsQuery = useQuery({
     queryKey: ["admin-doc-submissions", docStatusFilter, docSearch],
@@ -609,12 +689,13 @@ export default function AdminPage() {
         status: docStatusFilter === "all" ? undefined : docStatusFilter,
         q: docSearch || undefined,
         page_size: 50
-      })
+      }),
+    enabled: isBrokerWorkspace || isSuperAdmin
   });
   const dealEventsQuery = useQuery({
     queryKey: ["admin-deal-events", expandedDealId],
     queryFn: () => api.dealEvents(expandedDealId as number),
-    enabled: expandedDealId !== null
+    enabled: isBrokerWorkspace && expandedDealId !== null
   });
 
   const syncMutation = useMutation({
@@ -733,6 +814,111 @@ export default function AdminPage() {
     onError: (err: unknown) =>
       toast({ variant: "error", title: "Delete failed", description: errorMessage(err, "Could not remove lease special.") })
   });
+  const saveHomepageFeaturedMutation = useMutation({
+    mutationFn: (vins: string[]) => api.setAdminHomepageFeatured({ month: featuredMonth, vins }),
+    onSuccess: (result) => {
+      setFeaturedDirty(false);
+      setFeaturedVinsDraft(result.vins ?? []);
+      homepageFeaturedQuery.refetch();
+      toast({
+        variant: "success",
+        title: "Homepage featured cars saved",
+        description: `${result.vins?.length ?? 0} vehicles selected for ${result.month}.`
+      });
+    },
+    onError: (err: unknown) =>
+      toast({ variant: "error", title: "Save failed", description: errorMessage(err, "Could not save homepage featured cars.") })
+  });
+  const upsertManualVehicleMutation = useMutation({
+    mutationFn: (payload: {
+      vin: string;
+      vehicle_type: "new" | "used";
+      year?: number | null;
+      make?: string | null;
+      model?: string | null;
+      trim?: string | null;
+      msrp?: number | null;
+      listed_price?: number | null;
+      mileage?: number | null;
+      condition?: string | null;
+      dealer_name?: string | null;
+      dealer_phone?: string | null;
+      listing_url?: string | null;
+      photos?: string[];
+      down_payment?: number | null;
+      monthly_payment?: number | null;
+      discounted_price?: number | null;
+    }) =>
+      api.upsertAdminManualVehicle(payload.vin, {
+        vehicle_type: payload.vehicle_type,
+        year: payload.year,
+        make: payload.make,
+        model: payload.model,
+        trim: payload.trim,
+        msrp: payload.msrp,
+        listed_price: payload.listed_price,
+        mileage: payload.mileage,
+        condition: payload.condition,
+        dealer_name: payload.dealer_name,
+        dealer_phone: payload.dealer_phone,
+        listing_url: payload.listing_url,
+        photos: payload.photos,
+        down_payment: payload.down_payment,
+        monthly_payment: payload.monthly_payment,
+        discounted_price: payload.discounted_price
+      }),
+    onSuccess: () => {
+      manualVehiclesQuery.refetch();
+      homepageFeaturedQuery.refetch();
+      toast({ variant: "success", title: "Manual vehicle saved" });
+    },
+    onError: (err: unknown) =>
+      toast({ variant: "error", title: "Save failed", description: errorMessage(err, "Could not save manual vehicle.") })
+  });
+  const deleteManualVehicleMutation = useMutation({
+    mutationFn: (vin: string) => api.deleteAdminManualVehicle(vin),
+    onSuccess: () => {
+      manualVehiclesQuery.refetch();
+      homepageFeaturedQuery.refetch();
+      toast({ variant: "success", title: "Manual vehicle deleted" });
+    },
+    onError: (err: unknown) =>
+      toast({ variant: "error", title: "Delete failed", description: errorMessage(err, "Could not delete manual vehicle.") })
+  });
+  const upsertSeoSettingMutation = useMutation({
+    mutationFn: (payload: {
+      pageKey: string;
+      body: {
+        title?: string | null;
+        description?: string | null;
+        keywords?: string | null;
+        canonical_url?: string | null;
+        og_title?: string | null;
+        og_description?: string | null;
+        og_image_url?: string | null;
+        robots?: string | null;
+        json_ld?: unknown;
+        is_active?: boolean;
+      };
+    }) => api.upsertAdminSeoSetting(payload.pageKey, payload.body),
+    onSuccess: () => {
+      seoSettingsQuery.refetch();
+      seoSettingQuery.refetch();
+      toast({ variant: "success", title: "SEO setting saved" });
+    },
+    onError: (err: unknown) =>
+      toast({ variant: "error", title: "Save failed", description: errorMessage(err, "Could not save SEO setting.") })
+  });
+  const deleteSeoSettingMutation = useMutation({
+    mutationFn: (pageKey: string) => api.deleteAdminSeoSetting(pageKey),
+    onSuccess: () => {
+      seoSettingsQuery.refetch();
+      seoSettingQuery.refetch();
+      toast({ variant: "success", title: "SEO setting deleted" });
+    },
+    onError: (err: unknown) =>
+      toast({ variant: "error", title: "Delete failed", description: errorMessage(err, "Could not delete SEO setting.") })
+  });
 
   const sendBrokerReplyMutation = useMutation({
     mutationFn: (payload: { customer_user_id: number; vin?: string; message: string }) => api.sendBrokerReply(payload),
@@ -769,7 +955,20 @@ export default function AdminPage() {
 
   const deals = dealsQuery.data?.items ?? [];
   const offerOverrides = offerOverridesQuery.data?.items ?? [];
+  const homepageFeaturedItems = homepageFeaturedQuery.data?.items ?? [];
+  const homepageFeaturedLimit = homepageFeaturedQuery.data?.max_items ?? 6;
+  const manualVehicles: ManualVehicleRecord[] = manualVehiclesQuery.data?.items ?? [];
+  const seoSettings: SeoPageSettingRecord[] = seoSettingsQuery.data?.items ?? [];
+  const seoSettingErrorStatus = (seoSettingQuery.error as { status?: number } | null)?.status;
   const leadDeliveryItems: LeadDeliveryRecord[] = leadDeliveryQuery.data?.items ?? [];
+  const featuredSummaryByVin = useMemo(() => {
+    const map: Record<string, (typeof homepageFeaturedItems)[number]["vehicle"]> = {};
+    for (const item of homepageFeaturedItems) {
+      if (!item.vin) continue;
+      map[item.vin] = item.vehicle;
+    }
+    return map;
+  }, [homepageFeaturedItems]);
   const offerOverrideByVin = useMemo(() => {
     const map: Record<string, (typeof offerOverrides)[number]> = {};
     for (const item of offerOverrides) {
@@ -911,8 +1110,14 @@ export default function AdminPage() {
     for (const thread of threads) {
       if (thread.vin) set.add(thread.vin);
     }
+    for (const vin of featuredVinsDraft) {
+      if (vin) set.add(vin);
+    }
+    for (const item of homepageFeaturedItems) {
+      if (item.vin) set.add(item.vin);
+    }
     return Array.from(set).sort();
-  }, [deals, threads]);
+  }, [deals, threads, featuredVinsDraft, homepageFeaturedItems]);
 
   const vehiclesByVinQuery = useQuery({
     queryKey: ["admin-vehicles-by-vin", vehicleVins.join("|")],
@@ -996,6 +1201,11 @@ export default function AdminPage() {
     messageScrollRef.current.scrollTop = messageScrollRef.current.scrollHeight;
   };
 
+  useEffect(() => {
+    if (featuredDirty) return;
+    setFeaturedVinsDraft(homepageFeaturedQuery.data?.vins ?? []);
+  }, [homepageFeaturedQuery.data?.month, homepageFeaturedQuery.data?.vins, featuredDirty]);
+
   useLayoutEffect(() => {
     scrollMessagesToBottom();
     const frame = requestAnimationFrame(scrollMessagesToBottom);
@@ -1007,6 +1217,47 @@ export default function AdminPage() {
     const timeout = setTimeout(() => setHighlightedDealId(null), 3000);
     return () => clearTimeout(timeout);
   }, [highlightedDealId]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    if (!isValidSeoPageKey || !normalizedSeoPageKey) return;
+
+    const row = seoSettingQuery.data;
+    if (row && row.page_key === normalizedSeoPageKey) {
+      setSeoTitle(row.title ?? "");
+      setSeoDescription(row.description ?? "");
+      setSeoKeywords(row.keywords ?? "");
+      setSeoCanonicalUrl(row.canonical_url ?? "");
+      setSeoOgTitle(row.og_title ?? "");
+      setSeoOgDescription(row.og_description ?? "");
+      setSeoOgImageUrl(row.og_image_url ?? "");
+      setSeoRobots(row.robots ?? "index,follow");
+      setSeoJsonLd(prettyJson(row.json_ld ?? {}));
+      setSeoIsActive(row.is_active !== false);
+      return;
+    }
+
+    const err = seoSettingQuery.error as { status?: number } | null;
+    if (err?.status === 404) {
+      setSeoTitle("");
+      setSeoDescription("");
+      setSeoKeywords("");
+      setSeoCanonicalUrl("");
+      setSeoOgTitle("");
+      setSeoOgDescription("");
+      setSeoOgImageUrl("");
+      setSeoRobots("index,follow");
+      setSeoJsonLd("{}");
+      setSeoIsActive(true);
+    }
+  }, [isSuperAdmin, isValidSeoPageKey, normalizedSeoPageKey, seoSettingQuery.data, seoSettingQuery.error]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    if (adminTab === "broker_ops") {
+      setAdminTab("admin_data");
+    }
+  }, [isSuperAdmin, adminTab]);
 
   const confirmAction = (title: string, onConfirm: () => void, description = "Please confirm this broker action.") => {
     setConfirmState({
@@ -1148,6 +1399,186 @@ export default function AdminPage() {
     );
   };
 
+  const addHomepageFeaturedVin = () => {
+    const vin = featuredVinInput.trim().toUpperCase();
+    if (!vin) return;
+    if (vin.length < 8) {
+      toast({ variant: "error", title: "Invalid VIN", description: "VIN must be at least 8 characters." });
+      return;
+    }
+    if (featuredVinsDraft.includes(vin)) {
+      toast({ variant: "error", title: "Already selected", description: `${vin} is already in the featured list.` });
+      return;
+    }
+    if (featuredVinsDraft.length >= homepageFeaturedLimit) {
+      toast({
+        variant: "error",
+        title: "List full",
+        description: `You can select up to ${homepageFeaturedLimit} homepage featured cars.`
+      });
+      return;
+    }
+    setFeaturedVinsDraft((prev) => [...prev, vin]);
+    setFeaturedVinInput("");
+    setFeaturedDirty(true);
+  };
+
+  const removeHomepageFeaturedVin = (vin: string) => {
+    setFeaturedVinsDraft((prev) => prev.filter((item) => item !== vin));
+    setFeaturedDirty(true);
+  };
+
+  const moveHomepageFeaturedVin = (vin: string, direction: "up" | "down") => {
+    setFeaturedVinsDraft((prev) => {
+      const index = prev.indexOf(vin);
+      if (index < 0) return prev;
+      const nextIndex = direction === "up" ? index - 1 : index + 1;
+      if (nextIndex < 0 || nextIndex >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return next;
+    });
+    setFeaturedDirty(true);
+  };
+
+  const saveHomepageFeatured = () => {
+    const cleaned = featuredVinsDraft
+      .map((vin) => vin.trim().toUpperCase())
+      .filter((vin, idx, arr) => vin.length >= 8 && arr.indexOf(vin) === idx)
+      .slice(0, homepageFeaturedLimit);
+    saveHomepageFeaturedMutation.mutate(cleaned);
+  };
+
+  const resetManualVehicleForm = () => {
+    setManualVin("");
+    setManualYear("");
+    setManualMake("");
+    setManualModel("");
+    setManualTrim("");
+    setManualVehicleType("new");
+    setManualListedPrice("");
+    setManualMsrp("");
+    setManualMileage("");
+    setManualCondition("");
+    setManualDealerName("");
+    setManualDealerPhone("");
+    setManualListingUrl("");
+    setManualPhotosCsv("");
+    setManualDownPayment("");
+    setManualMonthlyPayment("");
+    setManualDiscountedPrice("");
+  };
+
+  const populateManualVehicleForm = (item: ManualVehicleRecord) => {
+    setManualVin((item.vin ?? "").toUpperCase());
+    setManualYear(item.year != null ? String(item.year) : "");
+    setManualMake(item.make ?? "");
+    setManualModel(item.model ?? "");
+    setManualTrim(item.trim ?? "");
+    setManualVehicleType((item.vehicle_type ?? "new").toLowerCase() === "used" ? "used" : "new");
+    setManualListedPrice(item.listed_price != null ? String(item.listed_price) : "");
+    setManualMsrp(item.msrp != null ? String(item.msrp) : "");
+    setManualMileage(item.mileage != null ? String(item.mileage) : "");
+    setManualCondition(item.condition ?? "");
+    setManualDealerName(item.dealer_name ?? "");
+    setManualDealerPhone(item.dealer_phone ?? "");
+    setManualListingUrl(item.listing_url ?? "");
+    setManualPhotosCsv(Array.isArray(item.photos) ? item.photos.join(", ") : "");
+    setManualDownPayment(item.down_payment != null ? String(item.down_payment) : "");
+    setManualMonthlyPayment(item.monthly_payment != null ? String(item.monthly_payment) : "");
+    setManualDiscountedPrice(item.discounted_price != null ? String(item.discounted_price) : "");
+  };
+
+  const saveManualVehicle = () => {
+    const vin = manualVin.trim().toUpperCase();
+    if (vin.length < 8) {
+      toast({ variant: "error", title: "Invalid VIN", description: "VIN must be at least 8 characters." });
+      return;
+    }
+    upsertManualVehicleMutation.mutate({
+      vin,
+      vehicle_type: manualVehicleType,
+      year: manualYear.trim() ? Number(manualYear) : null,
+      make: manualMake.trim() || null,
+      model: manualModel.trim() || null,
+      trim: manualTrim.trim() || null,
+      listed_price: manualListedPrice.trim() ? Number(manualListedPrice) : null,
+      msrp: manualMsrp.trim() ? Number(manualMsrp) : null,
+      mileage: manualMileage.trim() ? Number(manualMileage) : null,
+      condition: manualCondition.trim() || null,
+      dealer_name: manualDealerName.trim() || null,
+      dealer_phone: manualDealerPhone.trim() || null,
+      listing_url: manualListingUrl.trim() || null,
+      photos: manualPhotosCsv
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+      down_payment: manualDownPayment.trim() ? Number(manualDownPayment) : null,
+      monthly_payment: manualMonthlyPayment.trim() ? Number(manualMonthlyPayment) : null,
+      discounted_price: manualDiscountedPrice.trim() ? Number(manualDiscountedPrice) : null
+    });
+  };
+
+  const clearSeoForm = () => {
+    setSeoTitle("");
+    setSeoDescription("");
+    setSeoKeywords("");
+    setSeoCanonicalUrl("");
+    setSeoOgTitle("");
+    setSeoOgDescription("");
+    setSeoOgImageUrl("");
+    setSeoRobots("index,follow");
+    setSeoJsonLd("{}");
+    setSeoIsActive(true);
+  };
+
+  const saveSeoSetting = () => {
+    if (!isValidSeoPageKey) {
+      toast({
+        variant: "error",
+        title: "Invalid page key",
+        description: "Use lowercase letters/numbers and optional _ or -."
+      });
+      return;
+    }
+
+    let parsedJsonLd: unknown = null;
+    const rawJsonLd = seoJsonLd.trim();
+    if (rawJsonLd) {
+      try {
+        parsedJsonLd = JSON.parse(rawJsonLd);
+      } catch {
+        toast({
+          variant: "error",
+          title: "Invalid JSON-LD",
+          description: "Please enter valid JSON for structured data."
+        });
+        return;
+      }
+    }
+
+    const clean = (value: string) => {
+      const trimmed = value.trim();
+      return trimmed ? trimmed : null;
+    };
+
+    upsertSeoSettingMutation.mutate({
+      pageKey: normalizedSeoPageKey,
+      body: {
+        title: clean(seoTitle),
+        description: clean(seoDescription),
+        keywords: clean(seoKeywords),
+        canonical_url: clean(seoCanonicalUrl),
+        og_title: clean(seoOgTitle),
+        og_description: clean(seoOgDescription),
+        og_image_url: clean(seoOgImageUrl),
+        robots: clean(seoRobots),
+        json_ld: parsedJsonLd,
+        is_active: seoIsActive
+      }
+    });
+  };
+
   const viewDoc = async (submissionId: number, kind: "drivers_license" | "insurance") => {
     try {
       const { blob, filename } = await api.brokerDocDownload(submissionId, kind);
@@ -1167,29 +1598,40 @@ export default function AdminPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="market-kicker">Admin Console</p>
-              <h1 className="market-heading text-3xl sm:text-4xl">Broker Workspace</h1>
+              <h1 className="market-heading text-3xl sm:text-4xl">
+                {isSuperAdmin ? "Super Admin Workspace" : "Broker Workspace"}
+              </h1>
             </div>
             <div className="flex items-center gap-2">
-              <Badge>{totalDeals} deals</Badge>
-              <Button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>Sync Sheets</Button>
+              {isSuperAdmin ? (
+                <Badge>Super admin controls</Badge>
+              ) : (
+                <>
+                  <Badge>{totalDeals} deals</Badge>
+                  <Button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
+                    Sync Sheets
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </section>
 
         <Tabs value={adminTab} onValueChange={(value) => setAdminTab(value as "broker_ops" | "credit_docs" | "admin_data")} className="space-y-4">
           <TabsList className="bg-ink-100 p-1">
-            <TabsTrigger value="broker_ops">Broker Operations</TabsTrigger>
+            {!isSuperAdmin && <TabsTrigger value="broker_ops">Broker Operations</TabsTrigger>}
             <TabsTrigger value="credit_docs">
-              Credit &amp; Docs
+              {isSuperAdmin ? "Forms & Results" : "Credit & Docs"}
               {(pendingCreditCount > 0 || pendingDocCount > 0) && (
                 <span className="ml-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] text-white">
                   {pendingCreditCount + pendingDocCount}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="admin_data">Admin Data</TabsTrigger>
+            <TabsTrigger value="admin_data">{isSuperAdmin ? "Super Admin" : "Admin Data"}</TabsTrigger>
           </TabsList>
 
+          {!isSuperAdmin && (
           <TabsContent value="broker_ops" className="space-y-6">
         <section ref={dealPipelineRef}>
         <Card className="border-ink-200 bg-white">
@@ -1625,6 +2067,7 @@ export default function AdminPage() {
         </Card>
         </section>
           </TabsContent>
+          )}
 
           <TabsContent value="credit_docs" className="space-y-6">
             <div ref={docsQueueRef}>
@@ -1683,56 +2126,86 @@ export default function AdminPage() {
                           Contact: {item.customer_email ?? "-"}
                         </span>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {["in_review", "approved", "declined"].map((next) => (
-                          <Button
-                            key={next}
-                            size="sm"
-                            variant="outline"
-                            disabled={updateCreditApplicationMutation.isPending}
-                            onClick={() => {
-                              confirmAction(
-                                `Set credit application #${item.id} to ${next.replaceAll("_", " ")}?`,
-                                () => updateCreditApplicationMutation.mutate({ id: item.id, status: next }),
-                                "This updates credit status for both broker and customer."
-                              );
-                            }}
-                          >
-                            {(() => {
-                              const Icon = creditActionIcon(next);
-                              return <Icon className="h-3.5 w-3.5" />;
-                            })()}
-                            Set {next.replaceAll("_", " ")}
-                          </Button>
-                        ))}
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <Input
-                          value={creditNotes[item.id] ?? item.broker_note ?? ""}
-                          onChange={(e) => setCreditNotes((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                          placeholder="Broker note"
-                          className="max-w-xl"
-                        />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={updateCreditApplicationMutation.isPending}
-                          onClick={() => {
-                            confirmAction(
-                              `Save broker note for credit application #${item.id}?`,
-                              () =>
-                                updateCreditApplicationMutation.mutate({
-                                  id: item.id,
-                                  broker_note: creditNotes[item.id] ?? item.broker_note ?? ""
-                                }),
-                              "This note is visible in broker workflow."
-                            );
-                          }}
-                        >
-                          <FileSpreadsheet className="h-3.5 w-3.5" />
-                          Save note
-                        </Button>
-                      </div>
+                      {isSuperAdmin && (
+                        <div className="mt-2 rounded-xl border border-brand-200 bg-gradient-to-r from-brand-50 via-white to-ink-50 p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-700">
+                              Review Owner
+                            </p>
+                            <Badge className="border border-brand-200 bg-white text-brand-700">
+                              {item.reviewed_at ? "Reviewed" : "Pending review"}
+                            </Badge>
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-700">
+                            <span className="inline-flex items-center gap-1">
+                              <UserRoundCheck className="h-3.5 w-3.5 text-brand-700" />
+                              Approved/Reviewed by: {item.reviewed_by_name ?? "Not assigned"}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <Mail className="h-3.5 w-3.5 text-brand-700" />
+                              {item.reviewed_by_email ?? "No email"}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <CalendarClock className="h-3.5 w-3.5 text-brand-700" />
+                              Reviewed at: {formatDateTime(item.reviewed_at)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {!isSuperAdmin && (
+                        <>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {["in_review", "approved", "declined"].map((next) => (
+                              <Button
+                                key={next}
+                                size="sm"
+                                variant="outline"
+                                disabled={updateCreditApplicationMutation.isPending}
+                                onClick={() => {
+                                  confirmAction(
+                                    `Set credit application #${item.id} to ${next.replaceAll("_", " ")}?`,
+                                    () => updateCreditApplicationMutation.mutate({ id: item.id, status: next }),
+                                    "This updates credit status for both broker and customer."
+                                  );
+                                }}
+                              >
+                                {(() => {
+                                  const Icon = creditActionIcon(next);
+                                  return <Icon className="h-3.5 w-3.5" />;
+                                })()}
+                                Set {next.replaceAll("_", " ")}
+                              </Button>
+                            ))}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <Input
+                              value={creditNotes[item.id] ?? item.broker_note ?? ""}
+                              onChange={(e) => setCreditNotes((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                              placeholder="Broker note"
+                              className="max-w-xl"
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={updateCreditApplicationMutation.isPending}
+                              onClick={() => {
+                                confirmAction(
+                                  `Save broker note for credit application #${item.id}?`,
+                                  () =>
+                                    updateCreditApplicationMutation.mutate({
+                                      id: item.id,
+                                      broker_note: creditNotes[item.id] ?? item.broker_note ?? ""
+                                    }),
+                                  "This note is visible in broker workflow."
+                                );
+                              }}
+                            >
+                              <FileSpreadsheet className="h-3.5 w-3.5" />
+                              Save note
+                            </Button>
+                          </div>
+                        </>
+                      )}
                       <details className="mt-2 rounded border border-ink-200 bg-white p-2">
                         <summary className="cursor-pointer text-xs font-medium text-ink-700">View application payload</summary>
                         <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-xs text-ink-700">{prettyJson(item.payload_json)}</pre>
@@ -1789,6 +2262,32 @@ export default function AdminPage() {
                       <p className="text-xs text-ink-600">
                         Submitted: {formatDateTime(item.created_at)} | Contact: {item.customer_email ?? "-"}
                       </p>
+                      {isSuperAdmin && (
+                        <div className="mt-2 rounded-xl border border-brand-200 bg-gradient-to-r from-brand-50 via-white to-ink-50 p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-700">
+                              Review Owner
+                            </p>
+                            <Badge className="border border-brand-200 bg-white text-brand-700">
+                              {item.reviewed_at ? "Reviewed" : "Pending review"}
+                            </Badge>
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-700">
+                            <span className="inline-flex items-center gap-1">
+                              <UserRoundCheck className="h-3.5 w-3.5 text-brand-700" />
+                              Approved/Reviewed by: {item.reviewed_by_name ?? "Not assigned"}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <Mail className="h-3.5 w-3.5 text-brand-700" />
+                              {item.reviewed_by_email ?? "No email"}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <CalendarClock className="h-3.5 w-3.5 text-brand-700" />
+                              Reviewed at: {formatDateTime(item.reviewed_at)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Button size="sm" variant="outline" onClick={() => viewDoc(item.id, "drivers_license")}>
                           <Eye className="h-3.5 w-3.5" />
@@ -1799,51 +2298,55 @@ export default function AdminPage() {
                           View insurance
                         </Button>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {["in_review", "approved", "rejected"].map((next) => (
-                          <Button
-                            key={next}
-                            size="sm"
-                            variant="outline"
-                            disabled={updateDocSubmissionMutation.isPending}
-                            onClick={() => {
-                              confirmAction(
-                                `Set document submission #${item.id} to ${next.replaceAll("_", " ")}?`,
-                                () => updateDocSubmissionMutation.mutate({ id: item.id, status: next }),
-                                "This updates document status for both broker and customer."
-                              );
-                            }}
-                          >
-                            Set {next.replaceAll("_", " ")}
-                          </Button>
-                        ))}
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <Input
-                          value={docNotes[item.id] ?? item.broker_note ?? ""}
-                          onChange={(e) => setDocNotes((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                          placeholder="Broker note"
-                          className="max-w-xl"
-                        />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={updateDocSubmissionMutation.isPending}
-                          onClick={() => {
-                            confirmAction(
-                              `Save broker note for document submission #${item.id}?`,
-                              () =>
-                                updateDocSubmissionMutation.mutate({
-                                  id: item.id,
-                                  broker_note: docNotes[item.id] ?? item.broker_note ?? ""
-                                }),
-                              "This note is visible in broker workflow."
-                            );
-                          }}
-                        >
-                          Save note
-                        </Button>
-                      </div>
+                      {!isSuperAdmin && (
+                        <>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {["in_review", "approved", "rejected"].map((next) => (
+                              <Button
+                                key={next}
+                                size="sm"
+                                variant="outline"
+                                disabled={updateDocSubmissionMutation.isPending}
+                                onClick={() => {
+                                  confirmAction(
+                                    `Set document submission #${item.id} to ${next.replaceAll("_", " ")}?`,
+                                    () => updateDocSubmissionMutation.mutate({ id: item.id, status: next }),
+                                    "This updates document status for both broker and customer."
+                                  );
+                                }}
+                              >
+                                Set {next.replaceAll("_", " ")}
+                              </Button>
+                            ))}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <Input
+                              value={docNotes[item.id] ?? item.broker_note ?? ""}
+                              onChange={(e) => setDocNotes((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                              placeholder="Broker note"
+                              className="max-w-xl"
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={updateDocSubmissionMutation.isPending}
+                              onClick={() => {
+                                confirmAction(
+                                  `Save broker note for document submission #${item.id}?`,
+                                  () =>
+                                    updateDocSubmissionMutation.mutate({
+                                      id: item.id,
+                                      broker_note: docNotes[item.id] ?? item.broker_note ?? ""
+                                    }),
+                                  "This note is visible in broker workflow."
+                                );
+                              }}
+                            >
+                              Save note
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                   {docSubmissions.length === 0 && <p className="text-sm text-ink-600">No document submissions found.</p>}
@@ -1853,6 +2356,384 @@ export default function AdminPage() {
           </TabsContent>
 
           <TabsContent value="admin_data" className="space-y-6">
+        {isSuperAdmin && (
+        <Card className="border-ink-200 bg-white">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Flag className="h-4 w-4 text-brand-600" />
+              Homepage Featured Cars (6 slots)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-ink-600">
+              Pick and order the vehicles shown on the landing page. Set a month and save up to {homepageFeaturedLimit} VINs.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                type="month"
+                value={featuredMonth}
+                onChange={(e) => {
+                  setFeaturedMonth(e.target.value || currentMonthKey());
+                  setFeaturedDirty(false);
+                }}
+                className="max-w-[180px]"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={homepageFeaturedQuery.isFetching}
+                onClick={() => {
+                  setFeaturedDirty(false);
+                  homepageFeaturedQuery.refetch();
+                }}
+              >
+                Refresh
+              </Button>
+              <Button
+                size="sm"
+                disabled={saveHomepageFeaturedMutation.isPending || !featuredDirty}
+                onClick={() =>
+                  confirmAction(
+                    `Save featured homepage vehicles for ${featuredMonth}?`,
+                    saveHomepageFeatured,
+                    "This updates the landing page featured cars for the selected month."
+                  )
+                }
+              >
+                Save Featured Cars
+              </Button>
+              <Badge>{featuredVinsDraft.length}/{homepageFeaturedLimit}</Badge>
+              {featuredDirty && <Badge className="border-amber-200 bg-amber-50 text-amber-700">Unsaved</Badge>}
+            </div>
+
+            <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+              <Input
+                value={featuredVinInput}
+                onChange={(e) => setFeaturedVinInput(e.target.value.toUpperCase())}
+                placeholder="Add VIN"
+              />
+              <Button size="sm" onClick={addHomepageFeaturedVin} disabled={!featuredVinInput.trim()}>
+                Add VIN
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              {featuredVinsDraft.map((vin, index) => {
+                const vehicle = vehiclesByVin[vin];
+                const summary = featuredSummaryByVin[vin];
+                const title =
+                  vehicleTitle(vehicle, vin) !== `VIN ${vin}`
+                    ? vehicleTitle(vehicle, vin)
+                    : [summary?.year, summary?.make, summary?.model, summary?.trim].filter(Boolean).join(" ") || `VIN ${vin}`;
+                const monthly = vehicle?.monthly ?? summary?.monthly_payment;
+                return (
+                  <div key={vin} className="rounded-lg border border-ink-200 bg-ink-50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-ink-900">
+                        #{index + 1} {title}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" disabled={index === 0} onClick={() => moveHomepageFeaturedVin(vin, "up")}>
+                          Up
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={index === featuredVinsDraft.length - 1}
+                          onClick={() => moveHomepageFeaturedVin(vin, "down")}
+                        >
+                          Down
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => removeHomepageFeaturedVin(vin)}>
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-ink-600">
+                      VIN {vin}
+                      {typeof monthly === "number" ? ` | ${formatCurrency(monthly)}/mo` : ""}
+                    </p>
+                  </div>
+                );
+              })}
+              {featuredVinsDraft.length === 0 && (
+                <p className="text-sm text-ink-600">No featured cars selected for {featuredMonth}.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        )}
+
+        {isSuperAdmin && (
+        <Card className="border-ink-200 bg-white">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Flag className="h-4 w-4 text-brand-600" />
+              Manual Vehicle Control (Super Admin)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-ink-600">
+              Add vehicles manually by VIN when they are not available from the scrape feed, then feature them on the homepage.
+            </p>
+            <div className="grid gap-2 md:grid-cols-6">
+              <Input value={manualVin} onChange={(e) => setManualVin(e.target.value.toUpperCase())} placeholder="VIN*" />
+              <Input value={manualYear} onChange={(e) => setManualYear(e.target.value)} placeholder="Year" />
+              <Input value={manualMake} onChange={(e) => setManualMake(e.target.value)} placeholder="Make" />
+              <Input value={manualModel} onChange={(e) => setManualModel(e.target.value)} placeholder="Model" />
+              <Input value={manualTrim} onChange={(e) => setManualTrim(e.target.value)} placeholder="Trim" />
+              <div className="flex gap-2">
+                <Button size="sm" variant={manualVehicleType === "new" ? "default" : "outline"} onClick={() => setManualVehicleType("new")}>
+                  New
+                </Button>
+                <Button size="sm" variant={manualVehicleType === "used" ? "default" : "outline"} onClick={() => setManualVehicleType("used")}>
+                  Used
+                </Button>
+              </div>
+            </div>
+            <div className="grid gap-2 md:grid-cols-6">
+              <Input value={manualListedPrice} onChange={(e) => setManualListedPrice(e.target.value)} placeholder="Listed price" />
+              <Input value={manualMsrp} onChange={(e) => setManualMsrp(e.target.value)} placeholder="MSRP" />
+              <Input value={manualMileage} onChange={(e) => setManualMileage(e.target.value)} placeholder="Mileage" />
+              <Input value={manualCondition} onChange={(e) => setManualCondition(e.target.value)} placeholder="Condition (new/used/cpo)" />
+              <Input value={manualDealerName} onChange={(e) => setManualDealerName(e.target.value)} placeholder="Dealer name" />
+              <Input value={manualDealerPhone} onChange={(e) => setManualDealerPhone(e.target.value)} placeholder="Dealer phone" />
+            </div>
+            <div className="grid gap-2 md:grid-cols-4">
+              <Input value={manualListingUrl} onChange={(e) => setManualListingUrl(e.target.value)} placeholder="Listing URL" />
+              <Input value={manualPhotosCsv} onChange={(e) => setManualPhotosCsv(e.target.value)} placeholder="Photos CSV URLs" />
+              <Input value={manualDownPayment} onChange={(e) => setManualDownPayment(e.target.value)} placeholder="Down payment" />
+              <Input value={manualMonthlyPayment} onChange={(e) => setManualMonthlyPayment(e.target.value)} placeholder="Monthly payment" />
+            </div>
+            <div className="grid gap-2 md:grid-cols-4">
+              <Input value={manualDiscountedPrice} onChange={(e) => setManualDiscountedPrice(e.target.value)} placeholder="Discounted price" />
+              <div className="md:col-span-3 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  disabled={upsertManualVehicleMutation.isPending || !manualVin.trim()}
+                  onClick={() =>
+                    confirmAction(
+                      `Save manual vehicle ${manualVin.trim().toUpperCase()}?`,
+                      saveManualVehicle,
+                      "This will create or update a manual inventory vehicle."
+                    )
+                  }
+                >
+                  Save Manual Vehicle
+                </Button>
+                <Button size="sm" variant="outline" onClick={resetManualVehicleForm}>
+                  Clear Form
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={manualSearch}
+                onChange={(e) => setManualSearch(e.target.value.toUpperCase())}
+                placeholder="Search manual vehicles by VIN or Y/M/M"
+                className="max-w-md"
+              />
+              <Button size="sm" variant="outline" onClick={() => manualVehiclesQuery.refetch()} disabled={manualVehiclesQuery.isFetching}>
+                Refresh
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              {manualVehicles.map((item) => (
+                <div key={item.vin} className="rounded-lg border border-ink-200 bg-ink-50 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-ink-900">
+                      {item.year ?? "-"} {item.make ?? ""} {item.model ?? ""} {item.trim ?? ""}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" onClick={() => populateManualVehicleForm(item)}>
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={deleteManualVehicleMutation.isPending}
+                        onClick={() =>
+                          confirmAction(
+                            `Delete manual vehicle ${item.vin}?`,
+                            () => deleteManualVehicleMutation.mutate(item.vin),
+                            "This removes the manual vehicle record."
+                          )
+                        }
+                      >
+                        Delete
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const vin = item.vin?.trim().toUpperCase();
+                          if (!vin) return;
+                          if (featuredVinsDraft.includes(vin)) return;
+                          if (featuredVinsDraft.length >= homepageFeaturedLimit) {
+                            toast({
+                              variant: "error",
+                              title: "Featured list full",
+                              description: `You can select up to ${homepageFeaturedLimit} vehicles.`
+                            });
+                            return;
+                          }
+                          setFeaturedVinsDraft((prev) => [...prev, vin]);
+                          setFeaturedDirty(true);
+                        }}
+                      >
+                        Add to Featured
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-ink-600">
+                    VIN {item.vin} | {item.vehicle_type ?? "-"} | Price: {formatCurrency(item.listed_price ?? item.msrp)} | Monthly:{" "}
+                    {formatCurrency(item.monthly_payment)}
+                  </p>
+                </div>
+              ))}
+              {manualVehicles.length === 0 && <p className="text-sm text-ink-600">No manual vehicles found.</p>}
+            </div>
+          </CardContent>
+        </Card>
+        )}
+
+        {isSuperAdmin && (
+        <Card className="border-ink-200 bg-white">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Flag className="h-4 w-4 text-brand-600" />
+              SEO Settings (Super Admin)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-ink-600">
+              Manage page metadata manually. `site_default` applies globally; page-specific keys (like `home`) override it.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {SEO_PRESET_PAGE_KEYS.map((key) => (
+                <Button key={key} size="sm" variant={normalizedSeoPageKey === key ? "default" : "outline"} onClick={() => setSeoPageKey(key)}>
+                  {key}
+                </Button>
+              ))}
+            </div>
+
+            <div className="grid gap-2 md:grid-cols-[1fr_auto_auto_auto_auto]">
+              <Input
+                value={seoPageKey}
+                onChange={(e) => setSeoPageKey(e.target.value.toLowerCase())}
+                placeholder="page key (e.g. home, search, site_default)"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!isValidSeoPageKey || seoSettingQuery.isFetching}
+                onClick={() => seoSettingQuery.refetch()}
+              >
+                Load
+              </Button>
+              <Button
+                size="sm"
+                disabled={!isValidSeoPageKey || upsertSeoSettingMutation.isPending}
+                onClick={() =>
+                  confirmAction(
+                    `Save SEO setting for ${normalizedSeoPageKey}?`,
+                    saveSeoSetting,
+                    "This updates SEO metadata for this page key."
+                  )
+                }
+              >
+                Save SEO
+              </Button>
+              <Button size="sm" variant="outline" onClick={clearSeoForm}>
+                Clear Form
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!isValidSeoPageKey || deleteSeoSettingMutation.isPending}
+                onClick={() =>
+                  confirmAction(
+                    `Delete SEO setting for ${normalizedSeoPageKey}?`,
+                    () => deleteSeoSettingMutation.mutate(normalizedSeoPageKey),
+                    "This removes the SEO override for this page key."
+                  )
+                }
+              >
+                Delete
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <Badge className={isValidSeoPageKey ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}>
+                {isValidSeoPageKey ? "Valid page key" : "Invalid page key"}
+              </Badge>
+              {seoSettingQuery.isFetching && <Badge>Loading setting...</Badge>}
+              {seoSettingErrorStatus === 404 && <Badge className="border-amber-200 bg-amber-50 text-amber-700">New setting</Badge>}
+            </div>
+
+            <div className="grid gap-2 md:grid-cols-2">
+              <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} placeholder="Title" />
+              <Input value={seoKeywords} onChange={(e) => setSeoKeywords(e.target.value)} placeholder="Keywords (comma-separated)" />
+              <Input value={seoCanonicalUrl} onChange={(e) => setSeoCanonicalUrl(e.target.value)} placeholder="Canonical URL" />
+              <Input value={seoRobots} onChange={(e) => setSeoRobots(e.target.value)} placeholder="Robots (e.g. index,follow)" />
+              <Input value={seoOgTitle} onChange={(e) => setSeoOgTitle(e.target.value)} placeholder="OG title" />
+              <Input value={seoOgImageUrl} onChange={(e) => setSeoOgImageUrl(e.target.value)} placeholder="OG image URL" />
+            </div>
+
+            <Textarea
+              value={seoDescription}
+              onChange={(e) => setSeoDescription(e.target.value)}
+              placeholder="Meta description"
+              className="min-h-[84px]"
+            />
+            <Textarea
+              value={seoOgDescription}
+              onChange={(e) => setSeoOgDescription(e.target.value)}
+              placeholder="OG description"
+              className="min-h-[84px]"
+            />
+            <Textarea
+              value={seoJsonLd}
+              onChange={(e) => setSeoJsonLd(e.target.value)}
+              placeholder="JSON-LD structured data"
+              className="min-h-[160px] font-mono text-xs"
+            />
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-ink-700">Active:</span>
+              <Button size="sm" variant={seoIsActive ? "default" : "outline"} onClick={() => setSeoIsActive(true)}>
+                Yes
+              </Button>
+              <Button size="sm" variant={!seoIsActive ? "default" : "outline"} onClick={() => setSeoIsActive(false)}>
+                No
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-ink-800">Existing SEO Keys</p>
+              <div className="flex flex-wrap gap-2">
+                {seoSettings.map((item) => (
+                  <Button
+                    key={item.page_key}
+                    size="sm"
+                    variant={normalizedSeoPageKey === item.page_key ? "default" : "outline"}
+                    onClick={() => setSeoPageKey(item.page_key)}
+                  >
+                    {item.page_key}
+                  </Button>
+                ))}
+                {seoSettings.length === 0 && <p className="text-sm text-ink-600">No SEO settings saved yet.</p>}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        )}
+
+        {!isSuperAdmin && (
+        <>
         <Card className="border-ink-200 bg-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -2162,6 +3043,8 @@ export default function AdminPage() {
             </Table>
           </CardContent>
         </Card>
+        </>
+        )}
           </TabsContent>
         </Tabs>
 

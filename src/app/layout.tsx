@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import "@/styles/globals.css";
 import Providers from "@/components/providers";
+import { resolveSeoMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "NewCarSuperstore",
-  description: "Modern marketplace for new car deals.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return resolveSeoMetadata("site_default", {
+    title: "NewCarSuperstore",
+    description: "Modern marketplace for new car deals."
+  });
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -14,8 +15,19 @@ import { Button } from "@/components/ui/button";
 import SiteHeader from "@/components/site-header";
 import Logo from "@/components/logo";
 import LeaseSpecials from "@/components/lease-specials";
-import HomeHeroSearch from "@/components/home-hero-search";
 import HomeShopOptions from "@/components/home-shop-options";
+import { resolveSeoMetadata } from "@/lib/seo";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return resolveSeoMetadata("home", {
+    title: "Buy Any New Car in California Without the Dealership | NewCarSuperstore",
+    description: "Shop statewide inventory, get approved fast, and have your new car delivered to your door.",
+    openGraph: {
+      title: "Buy Any New Car in California Without the Dealership | NewCarSuperstore",
+      description: "Shop statewide inventory, get approved fast, and have your new car delivered to your door."
+    }
+  });
+}
 
 export default function HomePage() {
   return (
@@ -86,8 +98,6 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-
-            <HomeHeroSearch />
           </div>
         </section>
 

@@ -67,7 +67,8 @@ function CreditApplicationPageContent() {
   const initialMake = useMemo(() => searchParams.get("make") ?? "", [searchParams]);
   const initialModel = useMemo(() => searchParams.get("model") ?? "", [searchParams]);
   const initialTrim = useMemo(() => searchParams.get("trim") ?? "", [searchParams]);
-  const isStaffUser = user?.role === "dealer" || user?.role === "admin" || user?.role === "broker_admin";
+  const isStaffUser =
+    user?.role === "dealer" || user?.role === "admin" || user?.role === "broker_admin" || user?.role === "super_admin";
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -204,7 +205,7 @@ function CreditApplicationPageContent() {
                     <Link href="/dashboard/dealer">Go to Dealer Workspace</Link>
                   </Button>
                 )}
-                {(user?.role === "admin" || user?.role === "broker_admin") && (
+                {(user?.role === "admin" || user?.role === "broker_admin" || user?.role === "super_admin") && (
                   <Button asChild variant="outline">
                     <Link href="/admin">Go to Broker Workspace</Link>
                   </Button>

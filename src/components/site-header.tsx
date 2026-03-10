@@ -46,7 +46,8 @@ const dealerLinks = [
 ];
 
 const adminLinks = [
-  { href: "/admin", label: "Broker Workspace" }
+  { href: "/admin", label: "Admin Workspace" },
+  { href: "/search", label: "All Vehicles" }
 ];
 
 export default function SiteHeader() {
@@ -54,7 +55,7 @@ export default function SiteHeader() {
   const pathname = usePathname();
   const role = user?.role ?? "guest";
   const isDealer = role === "dealer";
-  const isAdmin = role === "admin" || role === "broker_admin";
+  const isAdmin = role === "admin" || role === "broker_admin" || role === "super_admin";
   const isCustomer = !!user && !isDealer && !isAdmin;
 
   const roleLinks = isAdmin ? adminLinks : isDealer ? dealerLinks : isCustomer ? customerLinks : guestLinks;

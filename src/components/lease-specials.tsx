@@ -12,7 +12,7 @@ import LeadFormButton from "@/components/lead-form-button";
 export default function LeaseSpecials() {
   const specialsQuery = useQuery({
     queryKey: ["homepage-lease-specials"],
-    queryFn: () => api.search({ vehicle_type: "new", page: 1, page_size: 6, sort: "best_deal" }),
+    queryFn: () => api.homepageSpecials({ limit: 6 }),
   });
 
   if (specialsQuery.isLoading) {

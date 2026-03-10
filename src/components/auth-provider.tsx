@@ -53,7 +53,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const currentPath = pathname ?? "/";
     if (currentPath === "/" && user) {
       const role = user.role ?? "";
-      if (role === "admin" || role === "broker_admin") {
+      if (role === "admin" || role === "broker_admin" || role === "super_admin") {
         router.replace("/admin");
         return;
       }

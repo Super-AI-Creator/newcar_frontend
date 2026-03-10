@@ -25,7 +25,10 @@ const WEIGHT_LABELS: Record<string, string> = {
 export default function RecommendationsPage() {
   const { user } = useAuth();
   const isDealerOrAdmin =
-    user?.role === "dealer" || user?.role === "admin" || user?.role === "broker_admin";
+    user?.role === "dealer" ||
+    user?.role === "admin" ||
+    user?.role === "broker_admin" ||
+    user?.role === "super_admin";
 
   const [fun, setFun] = useState(5);
   const [styling, setStyling] = useState(5);
@@ -94,7 +97,7 @@ export default function RecommendationsPage() {
                     <Link href="/dashboard/dealer">Dealer dashboard</Link>
                   </Button>
                 )}
-                {(user?.role === "admin" || user?.role === "broker_admin") && (
+                {(user?.role === "admin" || user?.role === "broker_admin" || user?.role === "super_admin") && (
                   <Button asChild variant="outline">
                     <Link href="/admin">Admin</Link>
                   </Button>
