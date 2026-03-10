@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { api, type Deal, type Vehicle } from "@/lib/api";
+import { api, type Deal, type LeadDeliveryRecord, type Vehicle } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -124,6 +124,15 @@ function vehicleTitle(vehicle?: Vehicle, fallbackVin?: string) {
 
 function formatStatusLabel(value?: string | null) {
   return (value ?? "not_submitted").toString().replaceAll("_", " ");
+}
+
+function leadDeliveryBadgeClass(status?: string | null) {
+  const value = (status ?? "").toLowerCase();
+  if (value === "sent") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (value === "failed") return "border-red-200 bg-red-50 text-red-700";
+  if (value === "pending") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (value === "skipped") return "border-zinc-200 bg-zinc-100 text-zinc-700";
+  return "border-ink-200 bg-white text-ink-600";
 }
 
 function statusTone(kind: "timeline" | "docs" | "credit", value?: string | null) {
@@ -542,6 +551,8 @@ export default function AdminPage() {
   const [offerDiscountedPrice, setOfferDiscountedPrice] = useState("");
   const [offerTermMonths, setOfferTermMonths] = useState("");
   const [offerMilesPerYear, setOfferMilesPerYear] = useState("");
+  const [leadDeliveryStatusFilter, setLeadDeliveryStatusFilter] = useState<"all" | "pending" | "sent" | "failed" | "skipped">("all");
+  const [leadDeliverySearch, setLeadDeliverySearch] = useState("");
   const [adminTab, setAdminTab] = useState<"broker_ops" | "credit_docs" | "admin_data">("broker_ops");
   const [confirmState, setConfirmState] = useState<{
     open: boolean;
@@ -561,6 +572,15 @@ export default function AdminPage() {
 
   const sourcesQuery = useQuery({ queryKey: ["admin-sources"], queryFn: api.adminSources });
   const statusQuery = useQuery({ queryKey: ["admin-sync-status"], queryFn: api.syncStatus });
+  const leadDeliveryQuery = useQuery({
+    queryKey: ["admin-lead-delivery", leadDeliveryStatusFilter, leadDeliverySearch],
+    queryFn: () =>
+      api.adminLeadDelivery({
+        status: leadDeliveryStatusFilter === "all" ? undefined : leadDeliveryStatusFilter,
+        q: leadDeliverySearch || undefined,
+        limit: 200
+      })
+  });
   const dealsQuery = useQuery({ queryKey: ["admin-deals-queue"], queryFn: api.brokerQueue });
   const messagesQuery = useQuery({ queryKey: ["admin-messages"], queryFn: api.messages });
   const lenderRatesQuery = useQuery({ queryKey: ["admin-lender-rates"], queryFn: api.lenderRates });
@@ -605,6 +625,15 @@ export default function AdminPage() {
       toast({ variant: "success", title: "Sheets synced" });
     },
     onError: (err: unknown) => toast({ variant: "error", title: "Sync failed", description: errorMessage(err, "Could not sync sheets.") })
+  });
+  const retryLeadDeliveryMutation = useMutation({
+    mutationFn: (leadId: number) => api.adminRetryLeadDelivery(leadId),
+    onSuccess: () => {
+      leadDeliveryQuery.refetch();
+      toast({ variant: "success", title: "Lead retry queued" });
+    },
+    onError: (err: unknown) =>
+      toast({ variant: "error", title: "Retry failed", description: errorMessage(err, "Could not queue lead retry.") })
   });
 
   const updateDealMutation = useMutation({
@@ -740,6 +769,7 @@ export default function AdminPage() {
 
   const deals = dealsQuery.data?.items ?? [];
   const offerOverrides = offerOverridesQuery.data?.items ?? [];
+  const leadDeliveryItems: LeadDeliveryRecord[] = leadDeliveryQuery.data?.items ?? [];
   const offerOverrideByVin = useMemo(() => {
     const map: Record<string, (typeof offerOverrides)[number]> = {};
     for (const item of offerOverrides) {
@@ -1949,6 +1979,101 @@ export default function AdminPage() {
               ))}
               {offerOverrides.length === 0 && <p className="text-sm text-ink-600">No lease specials found.</p>}
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-ink-200 bg-white">
+          <CardHeader>
+            <CardTitle>Lead Webhook Delivery Log</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={leadDeliverySearch}
+                onChange={(e) => setLeadDeliverySearch(e.target.value)}
+                placeholder="Search by email, phone, VIN, or name"
+                className="max-w-sm"
+              />
+              <div className="flex flex-wrap gap-2">
+                {(["all", "pending", "sent", "failed", "skipped"] as const).map((status) => (
+                  <Button
+                    key={status}
+                    size="sm"
+                    variant={leadDeliveryStatusFilter === status ? "default" : "outline"}
+                    onClick={() => setLeadDeliveryStatusFilter(status)}
+                  >
+                    {status}
+                  </Button>
+                ))}
+              </div>
+              <Button size="sm" variant="outline" onClick={() => leadDeliveryQuery.refetch()} disabled={leadDeliveryQuery.isFetching}>
+                Refresh
+              </Button>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Lead</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Attempts</TableHead>
+                  <TableHead>Delivered</TableHead>
+                  <TableHead>Last Error</TableHead>
+                  <TableHead>Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leadDeliveryItems.map((item) => (
+                  <TableRow key={item.lead_id}>
+                    <TableCell>
+                      <div className="text-sm font-medium text-ink-900">#{item.lead_id}</div>
+                      <div className="text-xs text-ink-500">{formatDateTime(item.created_at)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm text-ink-900">{item.name ?? "-"}</div>
+                      <div className="text-xs text-ink-600">{item.email ?? item.phone ?? "-"}</div>
+                      <div className="text-xs text-ink-500">VIN {item.vin ?? "-"}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={`border ${leadDeliveryBadgeClass(item.webhook_status)}`}>
+                        {formatStatusLabel(item.webhook_status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{item.webhook_attempts ?? 0}</TableCell>
+                    <TableCell className="text-xs text-ink-600">{formatDateTime(item.webhook_delivered_at)}</TableCell>
+                    <TableCell className="max-w-xs text-xs text-ink-600">{item.webhook_last_error ?? "-"}</TableCell>
+                    <TableCell>
+                      {item.webhook_status === "failed" || item.webhook_status === "skipped" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={retryLeadDeliveryMutation.isPending}
+                          onClick={() =>
+                            confirmAction(
+                              `Retry webhook delivery for lead #${item.lead_id}?`,
+                              () => retryLeadDeliveryMutation.mutate(item.lead_id),
+                              "This re-sends the lead payload to Make/Zapier."
+                            )
+                          }
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                          Retry
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-ink-500">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {leadDeliveryItems.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-sm text-ink-600">
+                      No lead delivery logs found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
 

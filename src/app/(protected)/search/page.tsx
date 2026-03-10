@@ -18,7 +18,7 @@ import { api, type Vehicle } from "@/lib/api";
 import { DEFAULT_CAR_IMAGE, pickVehicleImage } from "@/lib/vehicle-image";
 import LeadFormButton from "@/components/lead-form-button";
 import Link from "next/link";
-import { CarFront, CreditCard, Info, MapPin, MessageSquare, MoreVertical, RotateCcw, Search as SearchIcon, SlidersHorizontal, Tag } from "lucide-react";
+import { CarFront, CreditCard, Info, MessageSquare, MoreVertical, RotateCcw, Search as SearchIcon, SlidersHorizontal, Tag } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import DealSearchLoader from "@/components/deal-search-loader";
 
@@ -949,19 +949,12 @@ function VehicleCard({
   const monthlyPrice = vehicle.monthly ?? undefined;
   const fullName = `${vehicle.year ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""}`.trim();
   const subtitle = `${vehicle.trim ?? "Trim unavailable"} | ${isUsed ? "Used car" : "New car"}`;
-  const locationLine =
-    vehicle.city || vehicle.state
-      ? `${vehicle.city ?? ""}${vehicle.city && vehicle.state ? ", " : ""}${vehicle.state ?? ""}`.trim()
-      : "Location unavailable";
-  const distanceLine =
-    vehicle.distance_miles !== undefined && vehicle.distance_miles !== null
-      ? `${Math.round(vehicle.distance_miles)} mi away`
-      : "Distance unavailable";
   const dealerName = vehicle.dealer_name ?? "Sponsored dealer";
   const imageUrl = pickVehicleImage(vehicle);
   const detailsHref = `/vehicles/${encodeURIComponent(vehicle.vin)}`;
   const unlockPriceHref = `/login?returnUrl=${encodeURIComponent(searchReturnUrl)}`;
   const detailsActionHref = detailsHref;
+  const imageBadgeLeaseLabel = monthlyPrice !== undefined ? `$${monthlyPrice.toLocaleString()}/mo lease` : null;
   return (
     <Card className="search-card group overflow-hidden rounded-xl border border-ink-300 bg-[#f6f7f9] shadow-sm transition-[transform,box-shadow,border-color] duration-150 motion-safe:hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg">
       <CardContent className="p-0">
@@ -979,9 +972,11 @@ function VehicleCard({
               }}
             />
           </Link>
-          <div className="absolute bottom-3 right-3 hidden rounded-lg bg-white/95 px-2 py-1 text-[11px] font-semibold text-ink-700 shadow-sm sm:block">
-            {dealerName}
-          </div>
+          {imageBadgeLeaseLabel && (
+            <div className="absolute bottom-3 right-3 hidden rounded-lg bg-white/95 px-2 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm sm:block">
+              {imageBadgeLeaseLabel}
+            </div>
+          )}
         </div>
 
         <div className="space-y-2 px-3 pb-2.5 pt-3 sm:space-y-2.5 sm:px-3.5 sm:pb-3 sm:pt-3.5">
@@ -1026,14 +1021,6 @@ function VehicleCard({
                 : "Sign in to unlock payment details"}
               <Info className="h-4 w-4 text-ink-500" />
             </p>
-          </div>
-
-          <div className="hidden border-t border-ink-300 pt-3 sm:block">
-            <p className="inline-flex items-center gap-1 text-sm font-medium text-ink-900">
-              <MapPin className="h-4 w-4 text-ink-500" />
-              {locationLine}
-            </p>
-            <p className="text-xs text-ink-700">{distanceLine}</p>
           </div>
 
           <div className="border-t border-ink-300 pt-3">

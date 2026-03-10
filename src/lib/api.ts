@@ -815,6 +815,20 @@ export const api = {
       }
     };
   },
+  adminLeadDelivery: async (params?: { status?: "pending" | "sent" | "failed" | "skipped"; q?: string; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.status) query.set("status", params.status);
+    if (params?.q) query.set("q", params.q);
+    if (params?.limit) query.set("limit", String(params.limit));
+    const qs = query.toString();
+    const data = await apiFetch<{ items?: LeadDeliveryRecord[] }>(`/admin/lead-delivery${qs ? `?${qs}` : ""}`);
+    return { items: data.items ?? [] };
+  },
+  adminRetryLeadDelivery: async (leadId: number) => {
+    return apiFetch<{ queued: boolean; lead_id: number; webhook_status: string }>(`/admin/lead-delivery/${leadId}/retry`, {
+      method: "POST"
+    });
+  },
   adminOfferOverrides: async (params?: { source?: "sheet" | "dealer" | "broker"; q?: string; limit?: number }) => {
     const query = new URLSearchParams();
     if (params?.source) query.set("source", params.source);
@@ -1095,4 +1109,19 @@ export type OfferOverrideRecord = {
   term_months?: number | null;
   miles_per_year?: number | null;
   updated_at?: string | null;
+};
+
+export type LeadDeliveryRecord = {
+  lead_id: number;
+  created_at?: string | null;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  vin?: string | null;
+  source?: string | null;
+  webhook_status?: "pending" | "sent" | "failed" | "skipped" | string | null;
+  webhook_attempts?: number | null;
+  webhook_last_error?: string | null;
+  webhook_last_attempt_at?: string | null;
+  webhook_delivered_at?: string | null;
 };
