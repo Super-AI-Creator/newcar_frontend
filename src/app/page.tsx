@@ -105,8 +105,8 @@ export default function HomePage() {
 
         <section className="border-b border-ink-200 bg-white py-8 sm:py-10">
           <div className="container-wide">
-            <h2 className="font-display text-xl font-semibold text-ink-900 sm:text-2xl">Live lease specials</h2>
-            <p className="mt-1 text-sm text-ink-600">Real inventory plus VIN-matched offers from your sheet.</p>
+            <h2 className="font-display text-xl font-semibold text-ink-900 sm:text-2xl">Featured lease specials (6 cars)</h2>
+            <p className="mt-1 text-sm text-ink-600">Real inventory plus your curated Super Admin featured lineup.</p>
             <div className="mt-5">
               <LeaseSpecials />
             </div>

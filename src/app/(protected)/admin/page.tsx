@@ -69,6 +69,70 @@ const PIPELINE_STEPS: Array<{ key: string; label: string; icon: ComponentType<{ 
 
 const SEO_PRESET_PAGE_KEYS = ["site_default", "home", "search", "lease_specials", "reviews", "credit_application"] as const;
 
+type ManualVehicleUpsertPayload = {
+  vehicle_type?: "new" | "used";
+  year?: number | null;
+  make?: string | null;
+  model?: string | null;
+  trim?: string | null;
+  msrp?: number | null;
+  listed_price?: number | null;
+  mileage?: number | null;
+  condition?: string | null;
+  photos?: string[];
+  details?: Record<string, unknown> | null;
+  dealer_name?: string | null;
+  dealer_phone?: string | null;
+  listing_url?: string | null;
+  carfax_url?: string | null;
+  down_payment?: number | null;
+  monthly_payment?: number | null;
+  discounted_price?: number | null;
+  term_months?: number | null;
+  miles_per_year?: number | null;
+};
+
+function normalizePhotos(values: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    const url = typeof value === "string" ? value.trim() : "";
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    out.push(url);
+  }
+  return out;
+}
+
+function numberOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function toManualPayloadFromVehicle(vehicle: Vehicle | undefined): ManualVehicleUpsertPayload {
+  const conditionRaw = (vehicle?.condition ?? "").toString().trim().toLowerCase();
+  return {
+    vehicle_type: (vehicle?.vehicle_type ?? "new") === "used" ? "used" : "new",
+    year: typeof vehicle?.year === "number" ? vehicle.year : null,
+    make: vehicle?.make?.trim() || null,
+    model: vehicle?.model?.trim() || null,
+    trim: vehicle?.trim?.trim() || null,
+    listed_price: numberOrNull(vehicle?.listed_price),
+    msrp: numberOrNull(vehicle?.msrp),
+    mileage: typeof vehicle?.mileage === "number" ? vehicle.mileage : null,
+    condition: conditionRaw && conditionRaw !== "all" ? conditionRaw : null,
+    dealer_name: vehicle?.dealer_name?.trim() || null,
+    dealer_phone: vehicle?.dealer_phone?.trim() || null,
+    listing_url: vehicle?.listing_url?.trim() || null,
+    carfax_url: vehicle?.vehicle_history_url?.trim() || vehicle?.history_url?.trim() || null,
+    photos: normalizePhotos([...(vehicle?.photos ?? []), vehicle?.photo]),
+    down_payment: numberOrNull(vehicle?.down),
+    monthly_payment: numberOrNull(vehicle?.monthly),
+    discounted_price: numberOrNull(vehicle?.discounted),
+    term_months: typeof vehicle?.term_months === "number" ? vehicle.term_months : null,
+    miles_per_year: typeof vehicle?.miles_per_year === "number" ? vehicle.miles_per_year : null
+  };
+}
+
 function statusLabel(status: string) {
   return DEAL_STATUS_LABELS[status] ?? status;
 }
@@ -582,7 +646,7 @@ export default function AdminPage() {
   const [manualDealerName, setManualDealerName] = useState("");
   const [manualDealerPhone, setManualDealerPhone] = useState("");
   const [manualListingUrl, setManualListingUrl] = useState("");
-  const [manualPhotosCsv, setManualPhotosCsv] = useState("");
+  const [manualPhotoUrls, setManualPhotoUrls] = useState<string[]>([""]);
   const [manualDownPayment, setManualDownPayment] = useState("");
   const [manualMonthlyPayment, setManualMonthlyPayment] = useState("");
   const [manualDiscountedPrice, setManualDiscountedPrice] = useState("");
@@ -615,6 +679,7 @@ export default function AdminPage() {
   const dealPipelineRef = useRef<HTMLElement | null>(null);
   const conversationRef = useRef<HTMLElement | null>(null);
   const docsQueueRef = useRef<HTMLDivElement | null>(null);
+  const manualVehicleControlRef = useRef<HTMLDivElement | null>(null);
   const normalizedSeoPageKey = seoPageKey.trim().toLowerCase();
   const isValidSeoPageKey = /^[a-z0-9][a-z0-9_-]{0,63}$/.test(normalizedSeoPageKey);
 
@@ -830,25 +895,7 @@ export default function AdminPage() {
       toast({ variant: "error", title: "Save failed", description: errorMessage(err, "Could not save homepage featured cars.") })
   });
   const upsertManualVehicleMutation = useMutation({
-    mutationFn: (payload: {
-      vin: string;
-      vehicle_type: "new" | "used";
-      year?: number | null;
-      make?: string | null;
-      model?: string | null;
-      trim?: string | null;
-      msrp?: number | null;
-      listed_price?: number | null;
-      mileage?: number | null;
-      condition?: string | null;
-      dealer_name?: string | null;
-      dealer_phone?: string | null;
-      listing_url?: string | null;
-      photos?: string[];
-      down_payment?: number | null;
-      monthly_payment?: number | null;
-      discounted_price?: number | null;
-    }) =>
+    mutationFn: (payload: ManualVehicleUpsertPayload & { vin: string; vehicle_type: "new" | "used" }) =>
       api.upsertAdminManualVehicle(payload.vin, {
         vehicle_type: payload.vehicle_type,
         year: payload.year,
@@ -884,6 +931,19 @@ export default function AdminPage() {
     },
     onError: (err: unknown) =>
       toast({ variant: "error", title: "Delete failed", description: errorMessage(err, "Could not delete manual vehicle.") })
+  });
+  const saveInventoryVinToManualMutation = useMutation({
+    mutationFn: async ({ vin }: { vin: string }) => {
+      const vehicle = await api.getVehicle(vin);
+      const payload = toManualPayloadFromVehicle(vehicle);
+      return api.upsertAdminManualVehicle(vin, payload);
+    },
+    onError: (err: unknown) =>
+      toast({
+        variant: "error",
+        title: "Could not load VIN",
+        description: errorMessage(err, "Could not save this VIN into Manual Vehicle Control.")
+      })
   });
   const upsertSeoSettingMutation = useMutation({
     mutationFn: (payload: {
@@ -1399,6 +1459,23 @@ export default function AdminPage() {
     );
   };
 
+  const scrollToManualVehicleControl = () => {
+    setAdminTab("admin_data");
+    setTimeout(() => {
+      manualVehicleControlRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  };
+
+  const addVinToFeaturedDraft = (vin: string): "added" | "already" | "full" => {
+    const normalizedVin = vin.trim().toUpperCase();
+    if (!normalizedVin) return "already";
+    if (featuredVinsDraft.includes(normalizedVin)) return "already";
+    if (featuredVinsDraft.length >= homepageFeaturedLimit) return "full";
+    setFeaturedVinsDraft((prev) => [...prev, normalizedVin]);
+    setFeaturedDirty(true);
+    return "added";
+  };
+
   const addHomepageFeaturedVin = () => {
     const vin = featuredVinInput.trim().toUpperCase();
     if (!vin) return;
@@ -1406,11 +1483,12 @@ export default function AdminPage() {
       toast({ variant: "error", title: "Invalid VIN", description: "VIN must be at least 8 characters." });
       return;
     }
-    if (featuredVinsDraft.includes(vin)) {
+    const result = addVinToFeaturedDraft(vin);
+    if (result === "already") {
       toast({ variant: "error", title: "Already selected", description: `${vin} is already in the featured list.` });
       return;
     }
-    if (featuredVinsDraft.length >= homepageFeaturedLimit) {
+    if (result === "full") {
       toast({
         variant: "error",
         title: "List full",
@@ -1418,9 +1496,7 @@ export default function AdminPage() {
       });
       return;
     }
-    setFeaturedVinsDraft((prev) => [...prev, vin]);
     setFeaturedVinInput("");
-    setFeaturedDirty(true);
   };
 
   const removeHomepageFeaturedVin = (vin: string) => {
@@ -1439,6 +1515,77 @@ export default function AdminPage() {
       return next;
     });
     setFeaturedDirty(true);
+  };
+
+  const openManualVehicleEditorForVin = (vin: string, options?: { addToFeatured?: boolean }) => {
+    const normalizedVin = vin.trim().toUpperCase();
+    if (normalizedVin.length < 8) {
+      toast({ variant: "error", title: "Invalid VIN", description: "VIN must be at least 8 characters." });
+      return;
+    }
+
+    const existing = manualVehicles.find((item) => (item.vin ?? "").trim().toUpperCase() === normalizedVin);
+    if (existing) {
+      populateManualVehicleForm(existing);
+      if (options?.addToFeatured) {
+        const featuredResult = addVinToFeaturedDraft(normalizedVin);
+        if (featuredResult === "full") {
+          toast({
+            variant: "error",
+            title: "Featured list full",
+            description: `Manual record loaded. You can select up to ${homepageFeaturedLimit} featured vehicles.`
+          });
+        }
+      }
+      setFeaturedVinInput("");
+      scrollToManualVehicleControl();
+      toast({
+        variant: "success",
+        title: "Manual vehicle ready",
+        description: `VIN ${normalizedVin} is loaded in Manual Vehicle Control for photo and pricing edits.`
+      });
+      return;
+    }
+
+    saveInventoryVinToManualMutation.mutate(
+      { vin: normalizedVin },
+      {
+        onSuccess: (result) => {
+          manualVehiclesQuery.refetch();
+          homepageFeaturedQuery.refetch();
+          populateManualVehicleForm(result.item);
+
+          if (options?.addToFeatured) {
+            const featuredResult = addVinToFeaturedDraft(normalizedVin);
+            if (featuredResult === "full") {
+              toast({
+                variant: "error",
+                title: "Featured list full",
+                description: `Manual record saved. You can select up to ${homepageFeaturedLimit} featured vehicles.`
+              });
+            }
+          }
+
+          setFeaturedVinInput("");
+          scrollToManualVehicleControl();
+          toast({
+            variant: "success",
+            title: "Saved to Manual Vehicle Control",
+            description: `VIN ${normalizedVin} is now editable (photos, pricing, details) for your homepage specials.`
+          });
+        }
+      }
+    );
+  };
+
+  const saveFeaturedVinToManualAndFeatured = () => {
+    const vin = featuredVinInput.trim().toUpperCase();
+    if (!vin) return;
+    confirmAction(
+      `Save VIN ${vin} to Manual Vehicle Control and add it to homepage featured?`,
+      () => openManualVehicleEditorForVin(vin, { addToFeatured: true }),
+      "This creates/updates a manual record so you can edit photos and pricing, and adds the VIN to the featured draft list."
+    );
   };
 
   const saveHomepageFeatured = () => {
@@ -1463,7 +1610,7 @@ export default function AdminPage() {
     setManualDealerName("");
     setManualDealerPhone("");
     setManualListingUrl("");
-    setManualPhotosCsv("");
+    setManualPhotoUrls([""]);
     setManualDownPayment("");
     setManualMonthlyPayment("");
     setManualDiscountedPrice("");
@@ -1483,7 +1630,8 @@ export default function AdminPage() {
     setManualDealerName(item.dealer_name ?? "");
     setManualDealerPhone(item.dealer_phone ?? "");
     setManualListingUrl(item.listing_url ?? "");
-    setManualPhotosCsv(Array.isArray(item.photos) ? item.photos.join(", ") : "");
+    const nextPhotos = normalizePhotos(Array.isArray(item.photos) ? item.photos : []);
+    setManualPhotoUrls(nextPhotos.length > 0 ? nextPhotos : [""]);
     setManualDownPayment(item.down_payment != null ? String(item.down_payment) : "");
     setManualMonthlyPayment(item.monthly_payment != null ? String(item.monthly_payment) : "");
     setManualDiscountedPrice(item.discounted_price != null ? String(item.discounted_price) : "");
@@ -1495,6 +1643,7 @@ export default function AdminPage() {
       toast({ variant: "error", title: "Invalid VIN", description: "VIN must be at least 8 characters." });
       return;
     }
+    const cleanPhotoUrls = normalizePhotos(manualPhotoUrls);
     upsertManualVehicleMutation.mutate({
       vin,
       vehicle_type: manualVehicleType,
@@ -1509,13 +1658,36 @@ export default function AdminPage() {
       dealer_name: manualDealerName.trim() || null,
       dealer_phone: manualDealerPhone.trim() || null,
       listing_url: manualListingUrl.trim() || null,
-      photos: manualPhotosCsv
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
+      photos: cleanPhotoUrls,
       down_payment: manualDownPayment.trim() ? Number(manualDownPayment) : null,
       monthly_payment: manualMonthlyPayment.trim() ? Number(manualMonthlyPayment) : null,
       discounted_price: manualDiscountedPrice.trim() ? Number(manualDiscountedPrice) : null
+    });
+  };
+
+  const addManualPhotoInput = () => {
+    setManualPhotoUrls((prev) => [...prev, ""]);
+  };
+
+  const updateManualPhotoInput = (index: number, value: string) => {
+    setManualPhotoUrls((prev) => prev.map((photoUrl, idx) => (idx === index ? value : photoUrl)));
+  };
+
+  const removeManualPhotoInput = (index: number) => {
+    setManualPhotoUrls((prev) => {
+      if (prev.length === 1) return [""];
+      return prev.filter((_, idx) => idx !== index);
+    });
+  };
+
+  const makeManualPhotoPrimary = (index: number) => {
+    if (index <= 0) return;
+    setManualPhotoUrls((prev) => {
+      if (index >= prev.length) return prev;
+      const next = [...prev];
+      const [selected] = next.splice(index, 1);
+      next.unshift(selected);
+      return next;
     });
   };
 
@@ -2366,7 +2538,8 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-ink-600">
-              Pick and order the vehicles shown on the landing page. Set a month and save up to {homepageFeaturedLimit} VINs.
+              Pick and order the vehicles shown on the landing page. Set a month, save up to {homepageFeaturedLimit} VINs, and use
+              "Save VIN + Edit Photos" for static/manual specials you can fine-tune.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Input
@@ -2406,7 +2579,7 @@ export default function AdminPage() {
               {featuredDirty && <Badge className="border-amber-200 bg-amber-50 text-amber-700">Unsaved</Badge>}
             </div>
 
-            <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+            <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
               <Input
                 value={featuredVinInput}
                 onChange={(e) => setFeaturedVinInput(e.target.value.toUpperCase())}
@@ -2414,6 +2587,14 @@ export default function AdminPage() {
               />
               <Button size="sm" onClick={addHomepageFeaturedVin} disabled={!featuredVinInput.trim()}>
                 Add VIN
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!featuredVinInput.trim() || saveInventoryVinToManualMutation.isPending}
+                onClick={saveFeaturedVinToManualAndFeatured}
+              >
+                Save VIN + Edit Photos
               </Button>
             </div>
 
@@ -2433,6 +2614,14 @@ export default function AdminPage() {
                         #{index + 1} {title}
                       </p>
                       <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={saveInventoryVinToManualMutation.isPending}
+                          onClick={() => openManualVehicleEditorForVin(vin)}
+                        >
+                          Edit Photos
+                        </Button>
                         <Button size="sm" variant="outline" disabled={index === 0} onClick={() => moveHomepageFeaturedVin(vin, "up")}>
                           Up
                         </Button>
@@ -2465,7 +2654,7 @@ export default function AdminPage() {
         )}
 
         {isSuperAdmin && (
-        <Card className="border-ink-200 bg-white">
+        <Card ref={manualVehicleControlRef} className="border-ink-200 bg-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Flag className="h-4 w-4 text-brand-600" />
@@ -2474,7 +2663,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-ink-600">
-              Add vehicles manually by VIN when they are not available from the scrape feed, then feature them on the homepage.
+              Save VINs here to create editable static specials, then control the homepage featured 6 list.
             </p>
             <div className="grid gap-2 md:grid-cols-6">
               <Input value={manualVin} onChange={(e) => setManualVin(e.target.value.toUpperCase())} placeholder="VIN*" />
@@ -2499,11 +2688,60 @@ export default function AdminPage() {
               <Input value={manualDealerName} onChange={(e) => setManualDealerName(e.target.value)} placeholder="Dealer name" />
               <Input value={manualDealerPhone} onChange={(e) => setManualDealerPhone(e.target.value)} placeholder="Dealer phone" />
             </div>
-            <div className="grid gap-2 md:grid-cols-4">
+            <div className="grid gap-2 md:grid-cols-3">
               <Input value={manualListingUrl} onChange={(e) => setManualListingUrl(e.target.value)} placeholder="Listing URL" />
-              <Input value={manualPhotosCsv} onChange={(e) => setManualPhotosCsv(e.target.value)} placeholder="Photos CSV URLs" />
               <Input value={manualDownPayment} onChange={(e) => setManualDownPayment(e.target.value)} placeholder="Down payment" />
               <Input value={manualMonthlyPayment} onChange={(e) => setManualMonthlyPayment(e.target.value)} placeholder="Monthly payment" />
+            </div>
+            <div className="rounded-lg border border-ink-200 bg-ink-50 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-ink-900">Photos</p>
+                <Button size="sm" variant="outline" type="button" onClick={addManualPhotoInput}>
+                  Add Photo
+                </Button>
+              </div>
+              <p className="mb-2 text-xs text-ink-600">The first photo is used as the primary vehicle image.</p>
+              <div className="space-y-2">
+                {manualPhotoUrls.map((photoUrl, index) => (
+                  <div
+                    key={`manual-photo-${index}`}
+                    className={`grid gap-2 rounded-md p-2 md:grid-cols-[1fr_auto_auto_auto] md:items-center ${
+                      index === 0 ? "border border-brand-300 bg-brand-50/40" : "border border-transparent"
+                    }`}
+                  >
+                    <Input
+                      value={photoUrl}
+                      onChange={(e) => updateManualPhotoInput(index, e.target.value)}
+                      placeholder={`Photo URL ${index + 1}`}
+                    />
+                    <div className="h-14 w-20 overflow-hidden rounded-md border border-ink-200 bg-white">
+                      {photoUrl.trim() ? (
+                        <img src={photoUrl.trim()} alt={`Manual vehicle photo ${index + 1}`} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[10px] text-ink-400">Preview</div>
+                      )}
+                    </div>
+                    {index === 0 ? (
+                      <span className="justify-self-start rounded-full bg-brand-600 px-2 py-1 text-xs font-semibold text-white">
+                        Primary
+                      </span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        onClick={() => makeManualPhotoPrimary(index)}
+                        className="justify-self-start"
+                      >
+                        Make Primary
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" type="button" onClick={() => removeManualPhotoInput(index)} className="justify-self-start text-ink-600 hover:text-ink-900">
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="grid gap-2 md:grid-cols-4">
               <Input value={manualDiscountedPrice} onChange={(e) => setManualDiscountedPrice(e.target.value)} placeholder="Discounted price" />
@@ -2570,8 +2808,9 @@ export default function AdminPage() {
                         onClick={() => {
                           const vin = item.vin?.trim().toUpperCase();
                           if (!vin) return;
-                          if (featuredVinsDraft.includes(vin)) return;
-                          if (featuredVinsDraft.length >= homepageFeaturedLimit) {
+                          const result = addVinToFeaturedDraft(vin);
+                          if (result === "already") return;
+                          if (result === "full") {
                             toast({
                               variant: "error",
                               title: "Featured list full",
@@ -2579,8 +2818,6 @@ export default function AdminPage() {
                             });
                             return;
                           }
-                          setFeaturedVinsDraft((prev) => [...prev, vin]);
-                          setFeaturedDirty(true);
                         }}
                       >
                         Add to Featured

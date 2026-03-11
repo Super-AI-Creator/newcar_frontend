@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { api, type ManualVehicleRecord } from "@/lib/api";
+import { api, type ManualVehicleRecord, type Vehicle } from "@/lib/api";
 import { env } from "@/lib/env";
 import { DEFAULT_CAR_IMAGE, pickVehicleImage } from "@/lib/vehicle-image";
 import { useToast } from "@/components/toast-provider";
@@ -49,6 +49,25 @@ function currentMonthKey() {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;
+}
+
+function normalizePhotoUrls(values: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    const cleaned = typeof value === "string" ? value.trim() : "";
+    if (!cleaned || seen.has(cleaned)) continue;
+    seen.add(cleaned);
+    out.push(cleaned);
+  }
+  return out;
+}
+
+function inferManualVehicleType(vehicle?: Vehicle | null): "new" | "used" {
+  const rawType = (vehicle?.vehicle_type ?? "").toString().toLowerCase();
+  const rawCondition = (vehicle?.condition ?? "").toString().toLowerCase();
+  if (rawType === "used" || rawCondition === "used" || rawCondition === "cpo") return "used";
+  return "new";
 }
 
 export default function VehicleDetailPage() {
@@ -109,6 +128,32 @@ export default function VehicleDetailPage() {
     enabled: isSuperAdmin
   });
 
+  const buildBasicManualPayload = () => {
+    const base = vehicleQuery.data;
+    if (!base) return null;
+    const conditionRaw = (base.condition ?? "").toString().trim().toLowerCase();
+    return {
+      vehicle_type: inferManualVehicleType(base),
+      year: typeof base.year === "number" ? base.year : null,
+      make: base.make?.trim() || null,
+      model: base.model?.trim() || null,
+      trim: base.trim?.trim() || null,
+      listed_price: typeof base.listed_price === "number" ? base.listed_price : null,
+      msrp: typeof base.msrp === "number" ? base.msrp : null,
+      mileage: typeof base.mileage === "number" ? base.mileage : null,
+      condition: conditionRaw && conditionRaw !== "all" ? conditionRaw : null,
+      dealer_name: base.dealer_name?.trim() || null,
+      dealer_phone: base.dealer_phone?.trim() || null,
+      listing_url: base.listing_url?.trim() || null,
+      photos: normalizePhotoUrls([...(base.photos ?? []), base.photo]),
+      down_payment: typeof base.down === "number" ? base.down : null,
+      monthly_payment: typeof base.monthly === "number" ? base.monthly : null,
+      discounted_price: typeof base.discounted === "number" ? base.discounted : null,
+      term_months: typeof base.term_months === "number" ? base.term_months : null,
+      miles_per_year: typeof base.miles_per_year === "number" ? base.miles_per_year : null
+    };
+  };
+
   const estimateMutation = useMutation({
     mutationFn: () => api.estimatePayment({ vin, down, term, apr }),
     onSuccess: (data) => {
@@ -152,6 +197,63 @@ export default function VehicleDetailPage() {
     },
     onError: (error: any) => {
       toast({ variant: "error", title: "Update failed", description: error?.message ?? "Could not update vehicle." });
+    }
+  });
+  const saveBasicManualVehicleMutation = useMutation({
+    mutationFn: async () => {
+      const payload = buildBasicManualPayload();
+      if (!payload) throw new Error("Vehicle data is still loading.");
+      return api.upsertAdminManualVehicle(vin, payload);
+    },
+    onSuccess: () => {
+      vehicleQuery.refetch();
+      manualVehicleQuery.refetch();
+      toast({
+        variant: "success",
+        title: "Saved to static DB",
+        description: "Basic vehicle info was saved to manual inventory and can now be edited."
+      });
+    },
+    onError: (error: any) => {
+      toast({ variant: "error", title: "Save failed", description: error?.message ?? "Could not save static vehicle record." });
+    }
+  });
+  const saveBasicAndFeatureMutation = useMutation({
+    mutationFn: async () => {
+      const payload = buildBasicManualPayload();
+      if (!payload) throw new Error("Vehicle data is still loading.");
+      const normalizedVin = (vin ?? "").trim().toUpperCase();
+      if (!normalizedVin) throw new Error("VIN not found.");
+
+      await api.upsertAdminManualVehicle(vin, payload);
+      const featured = await api.adminHomepageFeatured({ month: featuredMonth });
+      const currentVins = (featured.vins ?? []).map((item) => item.trim().toUpperCase());
+      if (currentVins.includes(normalizedVin)) {
+        return { featuredAdded: false };
+      }
+      if (currentVins.length >= 6) {
+        throw new Error(`Featured list for ${featuredMonth} already has 6 vehicles.`);
+      }
+      await api.setAdminHomepageFeatured({
+        month: featuredMonth,
+        vins: [...currentVins, normalizedVin]
+      });
+      return { featuredAdded: true };
+    },
+    onSuccess: (result) => {
+      vehicleQuery.refetch();
+      manualVehicleQuery.refetch();
+      featuredQuery.refetch();
+      toast({
+        variant: "success",
+        title: result?.featuredAdded ? "Saved and featured" : "Saved to static DB",
+        description: result?.featuredAdded
+          ? `VIN ${vin} was saved and added to the homepage featured list for ${featuredMonth}.`
+          : `VIN ${vin} was saved. It is already featured for ${featuredMonth}.`
+      });
+    },
+    onError: (error: any) => {
+      toast({ variant: "error", title: "Action failed", description: error?.message ?? "Could not save and feature vehicle." });
     }
   });
   const addToFeaturedMutation = useMutation({
@@ -882,6 +984,22 @@ export default function VehicleDetailPage() {
                       <Button size="sm" onClick={() => addToFeaturedMutation.mutate()} disabled={addToFeaturedMutation.isPending}>
                         Add VIN to Landing Page
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => saveBasicManualVehicleMutation.mutate()}
+                        disabled={saveBasicManualVehicleMutation.isPending || !vehicleQuery.data}
+                      >
+                        Save Basic to Static DB
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => saveBasicAndFeatureMutation.mutate()}
+                        disabled={saveBasicAndFeatureMutation.isPending || !vehicleQuery.data}
+                      >
+                        Save Basic + Feature
+                      </Button>
                     </div>
                     <p className="mt-2 text-xs text-ink-600">
                       {(() => {
@@ -891,10 +1009,16 @@ export default function VehicleDetailPage() {
                         return `${featuredVins.length}/6 selected for ${featuredMonth}${inList ? " | This VIN is already featured." : ""}`;
                       })()}
                     </p>
+                    <p className="mt-1 text-xs text-ink-500">
+                      Save this live VIN to your internal static database first, then edit photos/pricing below and feature it when needed.
+                    </p>
                   </div>
 
                   <div className="rounded-lg border border-ink-200 bg-ink-50 p-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Edit Vehicle (Manual Override)</p>
+                    <p className="mt-1 text-xs text-ink-600">
+                      {manualVehicle ? "Manual static record exists for this VIN." : "No manual static record yet. Save basic info above to create one."}
+                    </p>
                     <div className="mt-2 grid gap-2 sm:grid-cols-2">
                       <div className="space-y-1">
                         <Label>Vehicle type</Label>

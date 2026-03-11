@@ -9,23 +9,25 @@ import { pickVehicleImage, DEFAULT_CAR_IMAGE } from "@/lib/vehicle-image";
 import DealSearchLoader from "@/components/deal-search-loader";
 import LeadFormButton from "@/components/lead-form-button";
 
+const HOMEPAGE_SPECIAL_LIMIT = 6;
+
 export default function LeaseSpecials() {
   const specialsQuery = useQuery({
     queryKey: ["homepage-lease-specials"],
-    queryFn: () => api.homepageSpecials({ limit: 6 }),
+    queryFn: () => api.homepageSpecials({ limit: HOMEPAGE_SPECIAL_LIMIT }),
   });
 
   if (specialsQuery.isLoading) {
     return <DealSearchLoader />;
   }
 
-  const vehicles = specialsQuery.data?.results ?? [];
+  const vehicles = (specialsQuery.data?.results ?? []).slice(0, HOMEPAGE_SPECIAL_LIMIT);
   if (vehicles.length === 0) {
     return <p className="text-sm text-ink-500">No live specials available right now.</p>;
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-3">
+    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {vehicles.map((vehicle) => {
         return (
           <Card key={vehicle.vin} className="search-card group overflow-hidden border-ink-200 bg-white transition-[transform,box-shadow,border-color] duration-150 motion-safe:hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg">

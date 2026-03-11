@@ -16,13 +16,34 @@ function sanitizeOptions(items: string[] | undefined) {
   return Array.from(new Set((items ?? []).map((item) => item?.trim()).filter((item): item is string => !!item)));
 }
 
+const PAYMENT_MIN = 200;
+const PAYMENT_MAX = 2000;
+const PAYMENT_STEP = 25;
+const PAYMENT_SLIDER_RANGE_STOPS = 9; // first 90% of slider is concrete payment values
+const PAYMENT_SLIDER_FULL = 10; // last stop is "Any"
+const PAYMENT_ANY_QUERY_VALUE = 10000;
+
+function paymentToSliderValue(payment: number) {
+  const clamped = Math.min(PAYMENT_MAX, Math.max(PAYMENT_MIN, payment));
+  return Math.round(((clamped - PAYMENT_MIN) / (PAYMENT_MAX - PAYMENT_MIN)) * PAYMENT_SLIDER_RANGE_STOPS);
+}
+
+function sliderValueToPayment(sliderValue: number): number | null {
+  if (sliderValue >= PAYMENT_SLIDER_FULL) return null;
+  const normalized = Math.min(PAYMENT_SLIDER_RANGE_STOPS, Math.max(0, sliderValue));
+  const raw = PAYMENT_MIN + ((PAYMENT_MAX - PAYMENT_MIN) * normalized) / PAYMENT_SLIDER_RANGE_STOPS;
+  const snapped = Math.round(raw / PAYMENT_STEP) * PAYMENT_STEP;
+  return Math.min(PAYMENT_MAX, Math.max(PAYMENT_MIN, snapped));
+}
+
 export default function HomeShopOptions() {
   const router = useRouter();
-  const [maxPayment, setMaxPayment] = useState(500);
+  const [paymentSliderValue, setPaymentSliderValue] = useState(() => paymentToSliderValue(500));
   const [paymentMode, setPaymentMode] = useState<"lease" | "finance">("lease");
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
   const [zipCode, setZipCode] = useState("");
+  const maxPayment = sliderValueToPayment(paymentSliderValue);
 
   const filtersQuery = useQuery<Awaited<ReturnType<typeof api.getFilters>>>({
     queryKey: ["home-shop-options-filters"] as const,
@@ -39,7 +60,7 @@ export default function HomeShopOptions() {
     const query = new URLSearchParams();
     query.set("vehicle_type", "new");
     query.set("mode", "payment");
-    query.set("max_payment", String(maxPayment));
+    query.set("max_payment", String(maxPayment ?? PAYMENT_ANY_QUERY_VALUE));
     if (paymentMode === "finance") query.set("estimate", "true");
     router.push(`/search?${query.toString()}`);
   };
@@ -65,10 +86,21 @@ export default function HomeShopOptions() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-2xl font-semibold leading-tight text-ink-900 sm:text-3xl">
-              ${maxPayment}
+              {maxPayment === null ? "Any" : `$${maxPayment.toLocaleString()}`}
               <span className="ml-1 text-base font-medium text-ink-500">/month</span>
             </p>
-            <Slider value={[maxPayment]} min={199} max={10000} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
+            <Slider
+              value={[paymentSliderValue]}
+              min={0}
+              max={PAYMENT_SLIDER_FULL}
+              step={1}
+              onValueChange={(v) => setPaymentSliderValue(v[0])}
+            />
+            <div className="relative h-4 text-[11px] text-ink-500">
+              <span className="absolute left-0">${PAYMENT_MIN}</span>
+              <span className="absolute left-[90%] -translate-x-1/2">${PAYMENT_MAX}</span>
+              <span className="absolute right-0">Any</span>
+            </div>
             <div className="flex gap-2">
               <Button variant={paymentMode === "lease" ? "default" : "outline"} size="sm" onClick={() => setPaymentMode("lease")}>
                 Lease
