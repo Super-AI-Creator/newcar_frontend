@@ -33,7 +33,7 @@ const sortOptions = [
   { value: "make_z_a", label: "Make Z to A" },
   { value: "model_a_z", label: "Model A to Z" },
   { value: "model_z_a", label: "Model Z to A" }
-];
+]; 
 const clientOnlySorts = new Set([
   "payment_low_high",
   "payment_high_low",
