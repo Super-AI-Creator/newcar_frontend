@@ -77,7 +77,7 @@ export default function HomePage() {
                     <Link href="/search?vehicle_type=new">Find My Car</Link>
                   </Button>
                   <Button asChild size="lg" variant="outline" className="rounded-xl border-white/40 bg-white/10 text-white hover:bg-white/20">
-                    <Link href="/credit-application">See What I Qualify For</Link>
+                    <a href="https://newcarsuperstore.typeform.com/to/lX0SiNPY" target="_blank" rel="noreferrer noopener">Trade in Value</a>
                   </Button>
                 </div>
               </div>

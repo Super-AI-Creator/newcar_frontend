@@ -46,6 +46,11 @@ export default function LeaseSpecials() {
                     }}
                   />
                 </Link>
+                {vehicle.monthly !== undefined && vehicle.monthly !== null && (
+                  <div className="absolute bottom-3 left-3 rounded-full bg-emerald-600/95 px-3 py-1 text-xs font-semibold text-white shadow">
+                    ${vehicle.monthly.toLocaleString()}/mo
+                  </div>
+                )}
               </div>
               <div className="space-y-3 p-4">
                 <h3 className="font-display text-xl font-semibold text-ink-900">

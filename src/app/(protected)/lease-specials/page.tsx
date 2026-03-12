@@ -768,6 +768,11 @@ function LeaseSpecialCard({
               }}
             />
           </Link>
+          {vehicle.monthly !== undefined && vehicle.monthly !== null && (
+            <div className="absolute bottom-2 left-2 rounded-full bg-emerald-600/95 px-2.5 py-1 text-[11px] font-semibold text-white shadow sm:bottom-3 sm:left-3 sm:text-xs">
+              ${vehicle.monthly.toLocaleString()}/mo
+            </div>
+          )}
         </div>
 
         <div className="space-y-2 px-3 pb-3 pt-3 sm:px-3.5 sm:pb-3.5">

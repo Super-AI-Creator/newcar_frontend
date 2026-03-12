@@ -343,11 +343,19 @@ export default function VehicleDetailPage() {
     },
     onError: (error: any) => {
       const rawMessage = String(error?.message ?? "").trim();
-      const needsLogin = rawMessage.toLowerCase() === "login to continue" || rawMessage.toLowerCase() === "not authenticated";
+      const normalizedMessage = rawMessage.toLowerCase();
+      const statusCode = Number(error?.status ?? 0);
+      const needsLogin =
+        statusCode === 401 ||
+        statusCode === 403 ||
+        normalizedMessage.includes("not authenticated") ||
+        normalizedMessage.includes("unauthorized") ||
+        normalizedMessage.includes("forbidden") ||
+        normalizedMessage.includes("login");
       toast({
         variant: "error",
-        title: needsLogin ? "Login to continue" : "Save failed",
-        description: needsLogin ? "Login to continue" : (rawMessage || "Unable to save favorite.")
+        title: needsLogin ? "Please login to save your favourite" : "Save failed",
+        description: needsLogin ? undefined : (rawMessage || "Unable to save favorite.")
       });
     }
   });

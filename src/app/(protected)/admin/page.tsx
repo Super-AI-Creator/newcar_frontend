@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type ComponentType, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, type ComponentType, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import SiteHeader from "@/components/site-header";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import {
   Phone,
   Search,
   Send,
+  Upload,
   XCircle,
   UserRoundCheck
 } from "lucide-react";
@@ -693,6 +694,11 @@ export default function AdminPage() {
     queryFn: api.syncStatus,
     enabled: isBrokerWorkspace
   });
+  const generalStatusQuery = useQuery({
+    queryKey: ["admin-general-status"],
+    queryFn: api.adminGeneralStatus,
+    enabled: isSuperAdmin
+  });
   const homepageFeaturedQuery = useQuery({
     queryKey: ["admin-homepage-featured", featuredMonth],
     queryFn: () => api.adminHomepageFeatured({ month: featuredMonth }),
@@ -922,6 +928,30 @@ export default function AdminPage() {
     onError: (err: unknown) =>
       toast({ variant: "error", title: "Save failed", description: errorMessage(err, "Could not save manual vehicle.") })
   });
+  const uploadManualVehiclePhotoMutation = useMutation({
+    mutationFn: (file: File) => api.uploadAdminManualVehiclePhoto(file),
+    onSuccess: (result) => {
+      const uploadedUrl = (result.url ?? "").trim();
+      if (!uploadedUrl) {
+        toast({ variant: "error", title: "Upload failed", description: "No image URL was returned." });
+        return;
+      }
+      setManualPhotoUrls((prev) => {
+        const next = [...prev];
+        const emptyIndex = next.findIndex((value) => !value.trim());
+        if (emptyIndex >= 0) {
+          next[emptyIndex] = uploadedUrl;
+        } else {
+          next.push(uploadedUrl);
+        }
+        const cleaned = normalizePhotos(next);
+        return cleaned.length > 0 ? cleaned : [""];
+      });
+      toast({ variant: "success", title: "Photo uploaded" });
+    },
+    onError: (err: unknown) =>
+      toast({ variant: "error", title: "Upload failed", description: errorMessage(err, "Could not upload image.") })
+  });
   const deleteManualVehicleMutation = useMutation({
     mutationFn: (vin: string) => api.deleteAdminManualVehicle(vin),
     onSuccess: () => {
@@ -1021,6 +1051,7 @@ export default function AdminPage() {
   const seoSettings: SeoPageSettingRecord[] = seoSettingsQuery.data?.items ?? [];
   const seoSettingErrorStatus = (seoSettingQuery.error as { status?: number } | null)?.status;
   const leadDeliveryItems: LeadDeliveryRecord[] = leadDeliveryQuery.data?.items ?? [];
+  const generalStatus = generalStatusQuery.data;
   const featuredSummaryByVin = useMemo(() => {
     const map: Record<string, (typeof homepageFeaturedItems)[number]["vehicle"]> = {};
     for (const item of homepageFeaturedItems) {
@@ -1667,6 +1698,13 @@ export default function AdminPage() {
 
   const addManualPhotoInput = () => {
     setManualPhotoUrls((prev) => [...prev, ""]);
+  };
+
+  const onManualPhotoFileSelected = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    uploadManualVehiclePhotoMutation.mutate(file);
   };
 
   const updateManualPhotoInput = (index: number, value: string) => {
@@ -2533,6 +2571,70 @@ export default function AdminPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Flag className="h-4 w-4 text-brand-600" />
+              General Feed Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-ink-600">
+              Super Admin overview of active feed dealers and active inventory counts. More status functions can be added here later.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => generalStatusQuery.refetch()} disabled={generalStatusQuery.isFetching}>
+                Refresh
+              </Button>
+              {generalStatus?.generated_at && <Badge>Updated {formatDateTime(generalStatus.generated_at)}</Badge>}
+            </div>
+
+            {generalStatusQuery.isLoading && <p className="text-sm text-ink-600">Loading general status...</p>}
+            {generalStatusQuery.isError && (
+              <p className="text-sm text-red-700">Could not load general status. Please refresh.</p>
+            )}
+
+            {!generalStatusQuery.isLoading && !generalStatusQuery.isError && generalStatus && (
+              <>
+                <div className="grid gap-3 md:grid-cols-4">
+                  <div className="rounded-xl border border-ink-200 bg-ink-50 p-3">
+                    <p className="text-xs uppercase tracking-wide text-ink-500">Active dealers</p>
+                    <p className="mt-1 text-2xl font-semibold text-ink-900">{generalStatus.dealers.active_count}</p>
+                  </div>
+                  <div className="rounded-xl border border-ink-200 bg-ink-50 p-3">
+                    <p className="text-xs uppercase tracking-wide text-ink-500">Active new cars</p>
+                    <p className="mt-1 text-2xl font-semibold text-ink-900">{generalStatus.vehicles.active_new_count}</p>
+                  </div>
+                  <div className="rounded-xl border border-ink-200 bg-ink-50 p-3">
+                    <p className="text-xs uppercase tracking-wide text-ink-500">Active used cars</p>
+                    <p className="mt-1 text-2xl font-semibold text-ink-900">{generalStatus.vehicles.active_used_count}</p>
+                  </div>
+                  <div className="rounded-xl border border-ink-200 bg-ink-50 p-3">
+                    <p className="text-xs uppercase tracking-wide text-ink-500">Active total cars</p>
+                    <p className="mt-1 text-2xl font-semibold text-ink-900">{generalStatus.vehicles.active_total_count}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-ink-200 bg-ink-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Active dealer names</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {generalStatus.dealers.names.map((name) => (
+                      <Badge key={name} className="border-ink-300 bg-white text-ink-700">
+                        {name}
+                      </Badge>
+                    ))}
+                    {generalStatus.dealers.names.length === 0 && (
+                      <p className="text-sm text-ink-600">No active dealers found in feed.</p>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        )}
+
+        {isSuperAdmin && (
+        <Card className="border-ink-200 bg-white">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Flag className="h-4 w-4 text-brand-600" />
               Homepage Featured Cars (6 slots)
             </CardTitle>
           </CardHeader>
@@ -2696,11 +2798,30 @@ export default function AdminPage() {
             <div className="rounded-lg border border-ink-200 bg-ink-50 p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <p className="text-sm font-medium text-ink-900">Photos</p>
-                <Button size="sm" variant="outline" type="button" onClick={addManualPhotoInput}>
-                  Add Photo
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" variant="outline" type="button" onClick={addManualPhotoInput}>
+                    Add Photo
+                  </Button>
+                  <label
+                    className={`inline-flex cursor-pointer items-center gap-1 rounded-md border px-3 py-2 text-xs font-medium ${
+                      uploadManualVehiclePhotoMutation.isPending
+                        ? "cursor-not-allowed border-ink-200 bg-ink-100 text-ink-400"
+                        : "border-ink-300 bg-white text-ink-800 hover:bg-ink-100"
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      disabled={uploadManualVehiclePhotoMutation.isPending}
+                      onChange={onManualPhotoFileSelected}
+                    />
+                    <Upload className="h-3.5 w-3.5" />
+                    {uploadManualVehiclePhotoMutation.isPending ? "Uploading..." : "Upload Photo"}
+                  </label>
+                </div>
               </div>
-              <p className="mb-2 text-xs text-ink-600">The first photo is used as the primary vehicle image.</p>
+              <p className="mb-2 text-xs text-ink-600">The first photo is used as the primary vehicle image. Upload supports JPG, PNG, WEBP.</p>
               <div className="space-y-2">
                 {manualPhotoUrls.map((photoUrl, index) => (
                   <div

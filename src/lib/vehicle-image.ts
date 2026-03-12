@@ -1,6 +1,6 @@
 import type { Vehicle } from "@/lib/api";
 
-export const DEFAULT_CAR_IMAGE = "/default-car.svg";
+export const DEFAULT_CAR_IMAGE = "/images/default.jpg";
 
 export function pickVehicleImage(vehicle: Pick<Vehicle, "photo" | "photos">): string {
   const primary = vehicle.photo?.trim();

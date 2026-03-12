@@ -839,6 +839,9 @@ export const api = {
       }
     };
   },
+  adminGeneralStatus: async () => {
+    return apiFetch<AdminGeneralStatus>("/admin/general-status");
+  },
   adminHomepageFeatured: async (params?: { month?: string }) => {
     const query = new URLSearchParams();
     if (params?.month) query.set("month", params.month);
@@ -862,6 +865,21 @@ export const api = {
     const qs = query.toString();
     const data = await apiFetch<{ items?: ManualVehicleRecord[] }>(`/admin/manual-vehicles${qs ? `?${qs}` : ""}`);
     return { items: data.items ?? [] };
+  },
+  uploadAdminManualVehiclePhoto: async (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const data = await apiFetch<{ url?: string; filename?: string; content_type?: string; size_bytes?: number }>(
+      "/admin/manual-vehicles/upload-photo",
+      {
+        method: "POST",
+        body: form
+      }
+    );
+    return {
+      ...data,
+      url: normalizeImageUrl(data.url) ?? data.url ?? ""
+    };
   },
   upsertAdminManualVehicle: async (
     vin: string,
@@ -1297,6 +1315,19 @@ export type LeadDeliveryRecord = {
   webhook_last_error?: string | null;
   webhook_last_attempt_at?: string | null;
   webhook_delivered_at?: string | null;
+};
+
+export type AdminGeneralStatus = {
+  generated_at?: string | null;
+  dealers: {
+    active_count: number;
+    names: string[];
+  };
+  vehicles: {
+    active_new_count: number;
+    active_used_count: number;
+    active_total_count: number;
+  };
 };
 
 export type SeoPageSettingRecord = {
