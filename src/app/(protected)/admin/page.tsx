@@ -975,6 +975,12 @@ export default function AdminPage() {
         description: errorMessage(err, "Could not save this VIN into Manual Vehicle Control.")
       })
   });
+
+  const generalStatus = generalStatusQuery.data;
+  const activeDealerCount = generalStatus?.dealers.active_count;
+  const activeNewCount = generalStatus?.vehicles.active_new_count;
+  const activeUsedCount = generalStatus?.vehicles.active_used_count;
+  const activeTotalCount = generalStatus?.vehicles.active_total_count;
   const upsertSeoSettingMutation = useMutation({
     mutationFn: (payload: {
       pageKey: string;
@@ -1051,7 +1057,6 @@ export default function AdminPage() {
   const seoSettings: SeoPageSettingRecord[] = seoSettingsQuery.data?.items ?? [];
   const seoSettingErrorStatus = (seoSettingQuery.error as { status?: number } | null)?.status;
   const leadDeliveryItems: LeadDeliveryRecord[] = leadDeliveryQuery.data?.items ?? [];
-  const generalStatus = generalStatusQuery.data;
   const featuredSummaryByVin = useMemo(() => {
     const map: Record<string, (typeof homepageFeaturedItems)[number]["vehicle"]> = {};
     for (const item of homepageFeaturedItems) {
@@ -1804,22 +1809,46 @@ export default function AdminPage() {
     <div className="app-page min-h-screen">
       <SiteHeader />
       <main className="app-main space-y-6">
-        <section className="w-full border-b border-ink-200 bg-white py-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <section className="tc-fade-up relative w-full overflow-hidden rounded-3xl border border-ink-200 bg-white px-5 py-6 shadow-sm sm:px-7">
+          <div className="pointer-events-none absolute inset-0 aurora-bg opacity-40" aria-hidden />
+          <div className="relative flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="market-kicker">Admin Console</p>
               <h1 className="market-heading text-3xl sm:text-4xl">
                 {isSuperAdmin ? "Super Admin Workspace" : "Broker Workspace"}
               </h1>
+              <p className="mt-1 text-sm text-ink-600">
+                {isSuperAdmin
+                  ? "Manage inventory, offers, SEO, and lead delivery across all dealers."
+                  : "Oversee deals, documents, and credit workflows for your brokers."}
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               {isSuperAdmin ? (
-                <Badge>Super admin controls</Badge>
+                <>
+                  <Badge className="border border-ink-200 bg-ink-100 text-ink-700">
+                    {typeof activeDealerCount === "number"
+                      ? `${activeDealerCount.toLocaleString()} active dealers`
+                      : "Dealer metrics loading"}
+                  </Badge>
+                  <Badge className="border border-ink-200 bg-ink-100 text-ink-700">
+                    {typeof activeTotalCount === "number"
+                      ? `${activeTotalCount.toLocaleString()} vehicles`
+                      : "Vehicle metrics loading"}
+                  </Badge>
+                  {typeof activeNewCount === "number" && typeof activeUsedCount === "number" && (
+                    <Badge className="border border-ink-200 bg-ink-100 text-ink-700">
+                      {activeNewCount.toLocaleString()} new · {activeUsedCount.toLocaleString()} used
+                    </Badge>
+                  )}
+                </>
               ) : (
                 <>
-                  <Badge>{totalDeals} deals</Badge>
+                  <Badge className="border border-ink-200 bg-ink-100 text-ink-700">
+                    {totalDeals.toLocaleString()} deals in queue
+                  </Badge>
                   <Button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
-                    Sync Sheets
+                    Sync sheets
                   </Button>
                 </>
               )}

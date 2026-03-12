@@ -23,16 +23,16 @@ import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
 
 const sortOptions = [
-  { value: "payment_low_high", label: "Payment: Low to High" },
-  { value: "payment_high_low", label: "Payment: High to Low" },
-  { value: "msrp_low_high", label: "Price: Low to High" },
-  { value: "price_high_low", label: "Price: High to Low" },
-  { value: "year_newest", label: "Year: Newest First" },
-  { value: "year_oldest", label: "Year: Oldest First" },
-  { value: "make_a_z", label: "Make: A to Z" },
-  { value: "make_z_a", label: "Make: Z to A" },
-  { value: "model_a_z", label: "Model: A to Z" },
-  { value: "model_z_a", label: "Model: Z to A" }
+  { value: "payment_low_high", label: "Lowest payment first" },
+  { value: "payment_high_low", label: "Highest payment first" },
+  { value: "msrp_low_high", label: "Lowest price first" },
+  { value: "price_high_low", label: "Highest price first" },
+  { value: "year_newest", label: "Newest year first" },
+  { value: "year_oldest", label: "Oldest year first" },
+  { value: "make_a_z", label: "Make A to Z" },
+  { value: "make_z_a", label: "Make Z to A" },
+  { value: "model_a_z", label: "Model A to Z" },
+  { value: "model_z_a", label: "Model Z to A" }
 ];
 const clientOnlySorts = new Set([
   "payment_low_high",
@@ -98,7 +98,7 @@ function LeaseSpecialsPageContent() {
 
   const filtersQuery = useQuery({
     queryKey: ["filters", "lease-specials"],
-    queryFn: () => api.getFilters({ vehicle_type: "new", offers_only: true }),
+    queryFn: () => api.getFilters({ vehicle_type: "all", offers_only: true }),
     staleTime: 60_000,
     refetchOnWindowFocus: false
   });
@@ -115,15 +115,15 @@ function LeaseSpecialsPageContent() {
 
   const params = useMemo(
     () => ({
-      vehicle_type: "new",
+      vehicle_type: "all",
       offers_only: true,
       make,
       model,
       max_payment: maxPayment,
       max_price: maxPrice,
       sort: getBackendSort(sort),
-      page,
-      page_size: pageSize
+      page: clientOnlySorts.has(sort) ? 1 : page,
+      page_size: clientOnlySorts.has(sort) ? 500 : pageSize
     }),
     [make, model, maxPayment, maxPrice, sort, page]
   );
@@ -162,7 +162,8 @@ function LeaseSpecialsPageContent() {
         }
         const aPrice = vehiclePrice(a, Number.MAX_SAFE_INTEGER);
         const bPrice = vehiclePrice(b, Number.MAX_SAFE_INTEGER);
-        return aPrice - bPrice;
+        if (aPrice !== bPrice) return aPrice - bPrice;
+        return (a.vin ?? "").localeCompare(b.vin ?? "");
       });
     } else if (sort === "payment_high_low") {
       items.sort((a, b) => {
@@ -177,10 +178,16 @@ function LeaseSpecialsPageContent() {
         }
         const aPrice = vehiclePrice(a, 0);
         const bPrice = vehiclePrice(b, 0);
-        return bPrice - aPrice;
+        if (aPrice !== bPrice) return bPrice - aPrice;
+        return (b.vin ?? "").localeCompare(a.vin ?? "");
       });
     } else if (sort === "price_high_low") {
-      items.sort((a, b) => vehiclePrice(b, 0) - vehiclePrice(a, 0));
+      items.sort((a, b) => {
+        const aPrice = vehiclePrice(a, 0);
+        const bPrice = vehiclePrice(b, 0);
+        if (aPrice !== bPrice) return bPrice - aPrice;
+        return (b.vin ?? "").localeCompare(a.vin ?? "");
+      });
     } else if (sort === "year_newest") {
       items.sort((a, b) => {
         const aYear = typeof a.year === "number" ? a.year : null;
@@ -190,7 +197,12 @@ function LeaseSpecialsPageContent() {
         } else if (aYear !== bYear) {
           return aYear === null ? 1 : -1;
         }
-        return byTextAsc(a.make, b.make) || byTextAsc(a.model, b.model);
+        const textOrder = byTextAsc(a.make, b.make) || byTextAsc(a.model, b.model);
+        if (textOrder !== 0) return textOrder;
+        const aPrice = vehiclePrice(a, Number.MAX_SAFE_INTEGER);
+        const bPrice = vehiclePrice(b, Number.MAX_SAFE_INTEGER);
+        if (aPrice !== bPrice) return aPrice - bPrice;
+        return (a.vin ?? "").localeCompare(b.vin ?? "");
       });
     } else if (sort === "year_oldest") {
       items.sort((a, b) => {
@@ -201,21 +213,76 @@ function LeaseSpecialsPageContent() {
         } else if (aYear !== bYear) {
           return aYear === null ? 1 : -1;
         }
-        return byTextAsc(a.make, b.make) || byTextAsc(a.model, b.model);
+        const textOrder = byTextAsc(a.make, b.make) || byTextAsc(a.model, b.model);
+        if (textOrder !== 0) return textOrder;
+        const aPrice = vehiclePrice(a, Number.MAX_SAFE_INTEGER);
+        const bPrice = vehiclePrice(b, Number.MAX_SAFE_INTEGER);
+        if (aPrice !== bPrice) return aPrice - bPrice;
+        return (a.vin ?? "").localeCompare(b.vin ?? "");
       });
     } else if (sort === "make_a_z") {
-      items.sort((a, b) => byTextAsc(a.make, b.make) || byTextAsc(a.model, b.model));
+      items.sort((a, b) => {
+        const primary =
+          byTextAsc(a.make, b.make) ||
+          byTextAsc(a.model, b.model);
+        if (primary !== 0) return primary;
+        const aPrice = vehiclePrice(a, Number.MAX_SAFE_INTEGER);
+        const bPrice = vehiclePrice(b, Number.MAX_SAFE_INTEGER);
+        if (aPrice !== bPrice) return aPrice - bPrice;
+        return (a.vin ?? "").localeCompare(b.vin ?? "");
+      });
     } else if (sort === "make_z_a") {
-      items.sort((a, b) => byTextAsc(b.make, a.make) || byTextAsc(b.model, a.model));
+      items.sort((a, b) => {
+        const primary =
+          byTextAsc(b.make, a.make) ||
+          byTextAsc(b.model, a.model);
+        if (primary !== 0) return primary;
+        const aPrice = vehiclePrice(a, 0);
+        const bPrice = vehiclePrice(b, 0);
+        if (aPrice !== bPrice) return bPrice - aPrice;
+        return (b.vin ?? "").localeCompare(a.vin ?? "");
+      });
     } else if (sort === "model_a_z") {
-      items.sort((a, b) => byTextAsc(a.model, b.model) || byTextAsc(a.make, b.make));
+      items.sort((a, b) => {
+        const primary =
+          byTextAsc(a.model, b.model) ||
+          byTextAsc(a.make, b.make);
+        if (primary !== 0) return primary;
+        const aPrice = vehiclePrice(a, Number.MAX_SAFE_INTEGER);
+        const bPrice = vehiclePrice(b, Number.MAX_SAFE_INTEGER);
+        if (aPrice !== bPrice) return aPrice - bPrice;
+        return (a.vin ?? "").localeCompare(b.vin ?? "");
+      });
     } else if (sort === "model_z_a") {
-      items.sort((a, b) => byTextAsc(b.model, a.model) || byTextAsc(b.make, a.make));
+      items.sort((a, b) => {
+        const primary =
+          byTextAsc(b.model, a.model) ||
+          byTextAsc(b.make, a.make);
+        if (primary !== 0) return primary;
+        const aPrice = vehiclePrice(a, 0);
+        const bPrice = vehiclePrice(b, 0);
+        if (aPrice !== bPrice) return bPrice - aPrice;
+        return (b.vin ?? "").localeCompare(a.vin ?? "");
+      });
     }
     return items;
   }, [resultItems, sort]);
-  const totalResults = resultsQuery.data?.total ?? resultItems.length;
+  const totalResults = clientOnlySorts.has(sort)
+    ? sortedResultItems.length
+    : resultsQuery.data?.total ?? sortedResultItems.length;
   const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
+  const activeFilters = useMemo(() => {
+    const chips: Array<{ key: string; label: string }> = [];
+    if (make) chips.push({ key: "make", label: `Make: ${make}` });
+    if (model) chips.push({ key: "model", label: `Model: ${model}` });
+    if (maxPayment !== defaultMaxPayment) chips.push({ key: "maxPayment", label: `Payment up to $${maxPayment}/mo` });
+    if (maxPrice !== defaultMaxPrice) chips.push({ key: "maxPrice", label: `Price up to $${maxPrice.toLocaleString()}` });
+    if (sort !== sortOptions[0].value) {
+      const sortLabel = sortOptions.find((s) => s.value === sort)?.label ?? sort;
+      chips.push({ key: "sort", label: `Sort: ${sortLabel}` });
+    }
+    return chips;
+  }, [make, model, maxPayment, maxPrice, sort]);
   const emptyStateMessage = useMemo(() => {
     const selection = [make, model].filter(Boolean).join(" ");
     if (selection) {
@@ -243,15 +310,15 @@ function LeaseSpecialsPageContent() {
     setMaxPrice(nextMaxPrice);
     setPage(nextPage);
     setAppliedParams({
-      vehicle_type: "new",
+      vehicle_type: "all",
       offers_only: true,
       make: nextMake,
       model: nextModel,
       max_payment: nextMaxPayment,
       max_price: nextMaxPrice,
       sort: getBackendSort(nextSort),
-      page: nextPage,
-      page_size: pageSize
+      page: clientOnlySorts.has(nextSort) ? 1 : nextPage,
+      page_size: clientOnlySorts.has(nextSort) ? 500 : pageSize
     });
   }, [searchParams]);
 
@@ -280,15 +347,15 @@ function LeaseSpecialsPageContent() {
     router.replace(`${pathname}?${query.toString()}`);
     setPage(nextPage);
     setAppliedParams({
-      vehicle_type: "new",
+      vehicle_type: "all",
       offers_only: true,
       make: nextMake,
       model: nextModel,
       max_payment: nextMaxPayment,
       max_price: nextMaxPrice,
       sort: getBackendSort(nextSort),
-      page: nextPage,
-      page_size: pageSize
+      page: clientOnlySorts.has(nextSort) ? 1 : nextPage,
+      page_size: clientOnlySorts.has(nextSort) ? 500 : pageSize
     });
   }
 
@@ -324,6 +391,35 @@ function LeaseSpecialsPageContent() {
     runSearch(1, { make: normalizedMake, model: normalizedModel });
   }, [filtersQuery.isLoading, makes, models, make, model]);
 
+  function clearSingleFilter(key: string) {
+    if (key === "make") {
+      setMake("");
+      setModel("");
+      runSearch(1, { make: "", model: "" });
+      return;
+    }
+    if (key === "model") {
+      setModel("");
+      runSearch(1, { model: "" });
+      return;
+    }
+    if (key === "maxPayment") {
+      setMaxPayment(defaultMaxPayment);
+      runSearch(1, { maxPayment: defaultMaxPayment });
+      return;
+    }
+    if (key === "maxPrice") {
+      setMaxPrice(defaultMaxPrice);
+      runSearch(1, { maxPrice: defaultMaxPrice });
+      return;
+    }
+    if (key === "sort") {
+      const defaultSort = sortOptions[0].value;
+      setSort(defaultSort);
+      runSearch(1, { sort: defaultSort });
+    }
+  }
+
   function clearFilters() {
     setMake("");
     setModel("");
@@ -358,13 +454,13 @@ function LeaseSpecialsPageContent() {
 
         <section className="tc-fade-up relative w-full overflow-hidden rounded-3xl border border-ink-200 bg-white px-4 pb-4 pt-4 shadow-sm sm:px-7 sm:pb-6 sm:pt-5">
           <div className="relative">
-            <p className="market-kicker">New Cars Only</p>
+            <p className="market-kicker">Lease Offers</p>
             <h1 className="market-heading flex items-center gap-2 text-2xl sm:text-4xl">
               <CarFront className="h-7 w-7 text-brand-700" />
               Lease Specials
             </h1>
             <p className="mt-2 hidden max-w-2xl text-sm text-ink-600 sm:block">
-              Live new-car inventory with real monthly lease offers. Use the narrow down menu to find your best deal fast.
+              Live inventory with active lease offers. Use the narrow down menu to find your best deal fast.
             </p>
           </div>
         </section>
@@ -495,9 +591,15 @@ function LeaseSpecialsPageContent() {
                   )}
                 </div>
 
-              <div className="space-y-2">
+                <div className="space-y-2">
                   <Label>Sort by</Label>
-                  <Select value={sort} onValueChange={setSort}>
+                  <Select
+                    value={sort}
+                    onValueChange={(value) => {
+                      setSort(value);
+                      runSearch(1, { sort: value });
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -626,7 +728,13 @@ function LeaseSpecialsPageContent() {
               </div>
               <div className="space-y-2">
                 <Label>Sort by</Label>
-                <Select value={sort} onValueChange={setSort}>
+                <Select
+                  value={sort}
+                  onValueChange={(value) => {
+                    setSort(value);
+                    runSearch(1, { sort: value });
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -655,6 +763,23 @@ function LeaseSpecialsPageContent() {
         </Card>
         <div className="space-y-4">
 
+        {activeFilters.length > 0 && (
+          <Card className="bg-white">
+            <CardContent className="flex flex-wrap gap-2 py-3">
+              {activeFilters.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => clearSingleFilter(chip.key)}
+                  className="rounded-full border border-ink-300 bg-ink-50 px-3 py-1 text-xs text-ink-700 hover:bg-white"
+                >
+                  {chip.label} x
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
         {resultsQuery.isLoading && (
           <Card className="bg-white">
             <CardContent>
@@ -668,27 +793,34 @@ function LeaseSpecialsPageContent() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 pb-3">
               <p className="flex items-center gap-1 text-sm font-medium text-ink-700">
                 <CircleDollarSign className="h-4 w-4 text-brand-700" />
-                {totalResults.toLocaleString()} matching new cars
+              {totalResults.toLocaleString()} matching cars
               </p>
               <div className="hidden text-sm text-ink-500 sm:block">Monthly, down payment, and discounted offers updated from your offer sheet</div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {resultItems.length === 0 && (
+            {(() => {
+              const pageItems = clientOnlySorts.has(sort)
+                ? sortedResultItems.slice((page - 1) * pageSize, page * pageSize)
+                : sortedResultItems;
+              return (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {pageItems.length === 0 && (
                 <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
                   <CardContent className="py-10 text-center text-ink-500">
                     {emptyStateMessage}
                   </CardContent>
                 </Card>
               )}
-              {sortedResultItems.map((vehicle) => (
+              {pageItems.map((vehicle) => (
                 <LeaseSpecialCard
                   key={vehicle.vin}
                   vehicle={vehicle}
                   returnUrl={searchReturnUrl}
                 />
               ))}
-            </div>
+                </div>
+              );
+            })()}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-200 pt-5">
               <p className="text-sm text-ink-500">Page {page} of {totalPages}</p>

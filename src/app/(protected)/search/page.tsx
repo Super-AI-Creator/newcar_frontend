@@ -23,10 +23,10 @@ import { useAuth } from "@/components/auth-provider";
 import DealSearchLoader from "@/components/deal-search-loader";
 
 const sortOptions = [
-  { value: "best_deal", label: "Best Match" },
-  { value: "newest", label: "Newest" },
-  { value: "msrp_low_high", label: "Price: Low to High" },
-  { value: "score_high_low", label: "Top Score" }
+  { value: "best_deal", label: "Best match" },
+  { value: "newest", label: "Newest year first" },
+  { value: "msrp_low_high", label: "Lowest price first" },
+  { value: "score_high_low", label: "Top score" }
 ];
 const defaultValues = {
   maxPrice: 45000,
@@ -75,7 +75,9 @@ function SearchPageContent() {
     queryVehicleType === "new" || queryVehicleType === "used" ? queryVehicleType : "new";
   const [vehicleType, setVehicleTypeState] = useState<VehicleTypeFilter>(initialVehicleType);
   const queryMode = searchParams.get("mode");
-  const [mode, setMode] = useState<"price" | "payment">(queryMode === "payment" ? "payment" : "price");
+  const initialMode: "price" | "payment" =
+    queryMode === "payment" ? "payment" : initialVehicleType === "new" ? "payment" : "price";
+  const [mode, setMode] = useState<"price" | "payment">(initialMode);
   const [estimate, setEstimate] = useState(false);
   const [maxPrice, setMaxPrice] = useState(parsePositiveNumber(searchParams.get("max_price"), defaultValues.maxPrice));
   const [maxPayment, setMaxPayment] = useState(parsePositiveNumber(searchParams.get("max_payment"), defaultValues.maxPayment));
@@ -147,7 +149,71 @@ function SearchPageContent() {
   }, [make, model, trimsByMakeModel, filtersQuery.data?.trims]);
   const showUsedFilters = vehicleType === "used";
   const resultItems = resultsQuery.data?.results ?? [];
-  const totalResults = resultsQuery.data?.total ?? resultItems.length;
+  const sortedResultItems = useMemo(() => {
+    const items = [...resultItems];
+    const byYearDesc = (a: Vehicle, b: Vehicle) => {
+      const ay = typeof a.year === "number" ? a.year : null;
+      const by = typeof b.year === "number" ? b.year : null;
+      if (ay !== null && by !== null) {
+        if (ay !== by) return by - ay;
+      } else if (ay !== by) {
+        return ay === null ? 1 : -1;
+      }
+      return 0;
+    };
+    const primaryPrice = (v: Vehicle) => {
+      const normalizedType = (v.vehicle_type ?? "new").toString().toLowerCase();
+      const normalizedCondition = (v.condition ?? "").toString().toLowerCase();
+      const inferredType =
+        normalizedCondition === "new"
+          ? "new"
+          : normalizedCondition === "used" || normalizedCondition === "cpo"
+            ? "used"
+            : normalizedType === "used"
+              ? "used"
+              : "new";
+      if (inferredType === "used") {
+        return v.listed_price ?? v.discounted ?? v.msrp ?? null;
+      }
+      return v.discounted ?? v.msrp ?? v.listed_price ?? null;
+    };
+
+    if (sort === "msrp_low_high") {
+      items.sort((a, b) => {
+        const ap = primaryPrice(a);
+        const bp = primaryPrice(b);
+        const aPrice = typeof ap === "number" ? ap : Number.MAX_SAFE_INTEGER;
+        const bPrice = typeof bp === "number" ? bp : Number.MAX_SAFE_INTEGER;
+        if (aPrice !== bPrice) return aPrice - bPrice;
+        return byYearDesc(a, b);
+      });
+    } else if (sort === "newest") {
+      items.sort((a, b) => {
+        const primary = byYearDesc(a, b);
+        if (primary !== 0) return primary;
+        const ap = primaryPrice(a);
+        const bp = primaryPrice(b);
+        const aPrice = typeof ap === "number" ? ap : Number.MAX_SAFE_INTEGER;
+        const bPrice = typeof bp === "number" ? bp : Number.MAX_SAFE_INTEGER;
+        return aPrice - bPrice;
+      });
+    }
+
+    // For "best_deal" and "score_high_low" we trust backend/api.search ordering.
+    return items;
+  }, [resultItems, sort]);
+  const backendTotal = resultsQuery.data?.total;
+  const totalResults = (() => {
+    if (!resultsQuery.data) return 0;
+    if (backendTotal == null) return sortedResultItems.length;
+    // If we're on the first page, have fewer items than the page size,
+    // and the backend total is larger than the items we actually received,
+    // treat the real total as the items we have (avoid mismatched big counts like 3,497 vs 2 cards).
+    if (page === 1 && sortedResultItems.length > 0 && sortedResultItems.length < pageSize && backendTotal > sortedResultItems.length) {
+      return sortedResultItems.length;
+    }
+    return backendTotal;
+  })();
   const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
   const searchReturnUrl = useMemo(() => {
     const query = searchParams.toString();
@@ -300,10 +366,10 @@ function SearchPageContent() {
 
   const emptyMessage =
     vehicleType === "used"
-      ? "No used cars match your filters."
+      ? "No used cars match your filters. Try raising your max price, increasing max mileage, or clearing make/model."
       : vehicleType === "new"
-        ? "No new cars match your filters."
-        : "No cars match your filters.";
+        ? "No new cars match your filters. Try raising your payment or price target, or clearing make/model."
+        : "No cars match your filters. Try clearing some filters or widening your budget.";
 
   return (
     <div className="app-page min-h-screen">
@@ -336,7 +402,19 @@ function SearchPageContent() {
                 <CarFront className="h-7 w-7 text-brand-700" />
                 Find your next car
               </h1>
-              <p className="mt-1 text-sm text-ink-600">Use the left filter panel to narrow results quickly.</p>
+              <p className="mt-1 text-sm text-ink-600">
+                {vehicleType === "used"
+                  ? `Showing used cars${usedMaxPrice ? ` up to $${usedMaxPrice.toLocaleString()}` : ""}${
+                      make ? `, ${make}` : ""
+                    }${model ? ` ${model}` : ""}.`
+                  : mode === "payment"
+                    ? `Showing new cars with payments up to $${maxPayment}/mo${
+                        make ? `, ${make}` : ""
+                      }${model ? ` ${model}` : ""}.`
+                    : `Showing new cars up to $${maxPrice.toLocaleString()}${
+                        make ? `, ${make}` : ""
+                      }${model ? ` ${model}` : ""}.`}
+              </p>
             </div>
           </div>
         </section>
@@ -878,12 +956,12 @@ function SearchPageContent() {
               </nav>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {resultItems.length === 0 && (
+              {sortedResultItems.length === 0 && (
                 <Card className="bg-white sm:col-span-2 xl:col-span-3 2xl:col-span-4">
                   <CardContent className="py-10 text-center text-ink-500">{emptyMessage}</CardContent>
                 </Card>
               )}
-              {resultItems.map((vehicle) => (
+              {sortedResultItems.map((vehicle) => (
                 <VehicleCard key={vehicle.vin} vehicle={vehicle} isLoggedIn={isLoggedIn} searchReturnUrl={searchReturnUrl} />
               ))}
             </div>
