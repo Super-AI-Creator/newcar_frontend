@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import matter from "gray-matter";
 
 const ARTICLES_DIR = path.join(process.cwd(), "content", "articles");
 
@@ -15,11 +14,27 @@ export type Article = ArticleMeta & {
   content: string;
 };
 
-function parseMeta(data: Record<string, unknown>): ArticleMeta {
-  const title = (data.title as string)?.trim() || "Untitled";
-  const description = (data.description as string)?.trim() || "";
-  const slug = (data.slug as string)?.trim() || title.toLowerCase().replace(/\s+/g, "-");
-  const date = (data.date as string)?.trim() || new Date().toISOString().slice(0, 10);
+/** Minimal YAML frontmatter parse: supports "key: value" lines (value can be in quotes). */
+function parseFrontmatter(raw: string): { data: Record<string, string>; content: string } {
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+  const data: Record<string, string> = {};
+  let content = raw;
+  if (match) {
+    const fm = match[1];
+    content = match[2].trim();
+    for (const line of fm.split(/\r?\n/)) {
+      const m = line.match(/^([a-z_]+):\s*(?:["']([^"']*)["']|(.+?))\s*$/);
+      if (m) data[m[1]] = (m[2] ?? m[3] ?? "").trim();
+    }
+  }
+  return { data, content };
+}
+
+function parseMeta(data: Record<string, string>): ArticleMeta {
+  const title = (data.title ?? "").trim() || "Untitled";
+  const description = (data.description ?? "").trim();
+  const slug = (data.slug ?? "").trim() || title.toLowerCase().replace(/\s+/g, "-");
+  const date = (data.date ?? "").trim() || new Date().toISOString().slice(0, 10);
   return { title, description, slug, date };
 }
 
@@ -45,8 +60,8 @@ export function getArticles(): ArticleMeta[] {
     if (!fs.existsSync(fullPath)) continue;
     try {
       const raw = fs.readFileSync(fullPath, "utf-8");
-      const { data } = matter(raw);
-      const meta = parseMeta(data as Record<string, unknown>);
+      const { data, content: _ } = parseFrontmatter(raw);
+      const meta = parseMeta(data);
       articles.push({ ...meta, slug: meta.slug });
     } catch {
       // skip invalid files
@@ -62,9 +77,9 @@ export function getArticleBySlug(slug: string): Article | null {
     const fullPath = path.join(ARTICLES_DIR, `${filename}.md`);
     try {
       const raw = fs.readFileSync(fullPath, "utf-8");
-      const { data, content } = matter(raw);
-      const meta = parseMeta(data as Record<string, unknown>);
-      if (meta.slug === slug) return { ...meta, slug, content: content.trim() };
+      const { data, content } = parseFrontmatter(raw);
+      const meta = parseMeta(data);
+      if (meta.slug === slug) return { ...meta, slug, content };
     } catch {
       // continue
     }
