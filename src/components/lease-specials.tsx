@@ -6,10 +6,31 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { pickVehicleImage, DEFAULT_CAR_IMAGE } from "@/lib/vehicle-image";
-import DealSearchLoader from "@/components/deal-search-loader";
 import LeadFormButton from "@/components/lead-form-button";
 
 const HOMEPAGE_SPECIAL_LIMIT = 6;
+
+function SkeletonCard() {
+  return (
+    <Card className="overflow-hidden border-ink-200 bg-white">
+      <CardContent className="p-0">
+        <div className="aspect-[16/10] w-full animate-pulse bg-ink-200" />
+        <div className="space-y-3 p-4">
+          <div className="h-6 w-3/4 animate-pulse rounded bg-ink-200" />
+          <div className="space-y-2">
+            <div className="h-4 w-1/2 animate-pulse rounded bg-ink-100" />
+            <div className="h-4 w-1/3 animate-pulse rounded bg-ink-100" />
+            <div className="h-4 w-1/4 animate-pulse rounded bg-ink-100" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-9 flex-1 animate-pulse rounded-full bg-ink-100" />
+            <div className="h-9 w-20 animate-pulse rounded-full bg-ink-100" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function LeaseSpecials() {
   const specialsQuery = useQuery({
@@ -17,19 +38,18 @@ export default function LeaseSpecials() {
     queryFn: () => api.homepageSpecials({ limit: HOMEPAGE_SPECIAL_LIMIT }),
   });
 
-  if (specialsQuery.isLoading) {
-    return <DealSearchLoader />;
-  }
-
   const vehicles = (specialsQuery.data?.results ?? []).slice(0, HOMEPAGE_SPECIAL_LIMIT);
-  if (vehicles.length === 0) {
+  const isLoading = specialsQuery.isLoading;
+
+  if (!isLoading && vehicles.length === 0) {
     return <p className="text-sm text-ink-500">No live specials available right now.</p>;
   }
 
   return (
     <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {vehicles.map((vehicle) => {
-        return (
+      {isLoading
+        ? Array.from({ length: HOMEPAGE_SPECIAL_LIMIT }, (_, i) => <SkeletonCard key={i} />)
+        : vehicles.map((vehicle) => (
           <Card key={vehicle.vin} className="search-card group overflow-hidden border-ink-200 bg-white transition-[transform,box-shadow,border-color] duration-150 motion-safe:hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg">
             <CardContent className="p-0">
               <div className="relative aspect-[16/10] w-full overflow-hidden bg-ink-100">
@@ -95,8 +115,7 @@ export default function LeaseSpecials() {
               </div>
             </CardContent>
           </Card>
-        );
-      })}
+        ))}
     </div>
   );
 }

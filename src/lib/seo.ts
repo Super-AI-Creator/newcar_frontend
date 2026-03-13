@@ -35,8 +35,9 @@ function parseRobots(raw?: string | null): Metadata["robots"] | undefined {
 async function fetchSeoPayload(pageKey: string): Promise<SeoPayload | null> {
   const base = (env.apiBaseUrl || "").trim();
   if (!base) return null;
+  const url = `${base.replace(/\/$/, "")}/seo/pages/${encodeURIComponent(pageKey)}`;
   try {
-    const response = await fetch(`${base}/seo/pages/${encodeURIComponent(pageKey)}`, {
+    const response = await fetch(url, {
       // Keep SEO edits reasonably fresh without forcing a no-store penalty on every request.
       next: { revalidate: 180 }
     });

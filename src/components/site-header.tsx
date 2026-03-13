@@ -21,6 +21,7 @@ import { useAuth } from "@/components/auth-provider";
 import Logo from "@/components/logo";
 
 const publicBrandLinks = [
+  { href: "/articles", label: "Articles" },
   { href: "/reviews", label: "Reviews" }
 ];
 

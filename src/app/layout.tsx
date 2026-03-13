@@ -4,10 +4,15 @@ import Providers from "@/components/providers";
 import { resolveSeoMetadata } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return resolveSeoMetadata("site_default", {
+  const fallback: Metadata = {
     title: "NewCarSuperstore",
     description: "Modern marketplace for new car deals."
-  });
+  };
+  try {
+    return await resolveSeoMetadata("site_default", fallback);
+  } catch {
+    return fallback;
+  }
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
