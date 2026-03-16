@@ -1018,8 +1018,33 @@ export const api = {
     });
   },
   getTestimonials: async () => {
-    const data = await apiFetch<Array<{ id: string; title?: string; quote: string; author: string }>>("/testimonials");
+    const data = await apiFetch<Array<{ id: string; title?: string; quote: string; author: string; image_url?: string | null }>>(
+      "/testimonials"
+    );
     return Array.isArray(data) ? data : [];
+  },
+  adminListTestimonials: async () => {
+    return apiFetch<{ items: Array<{ id: number; author: string; title?: string | null; quote: string; image_url?: string | null; sort_order: number }> }>(
+      "/admin/testimonials"
+    );
+  },
+  adminCreateTestimonial: async (payload: { author: string; quote: string; title?: string | null; image_url?: string | null; sort_order?: number }) => {
+    return apiFetch<{ status: string; item: { id: number; author: string; title?: string | null; quote: string; image_url?: string | null; sort_order: number } }>(
+      "/admin/testimonials",
+      { method: "POST", body: JSON.stringify(payload) }
+    );
+  },
+  adminUpdateTestimonial: async (
+    id: number,
+    payload: { author?: string; quote?: string; title?: string | null; image_url?: string | null; sort_order?: number }
+  ) => {
+    return apiFetch<{ status: string; item: { id: number; author: string; title?: string | null; quote: string; image_url?: string | null; sort_order: number } }>(
+      `/admin/testimonials/${encodeURIComponent(String(id))}`,
+      { method: "PUT", body: JSON.stringify(payload) }
+    );
+  },
+  adminDeleteTestimonial: async (id: number) => {
+    return apiFetch<{ deleted: boolean; id: number }>(`/admin/testimonials/${encodeURIComponent(String(id))}`, { method: "DELETE" });
   },
   forwardDocs: async (formData: FormData) => {
     const data = await apiFetch<{ status?: string; id?: number }>("/docs/forward", {

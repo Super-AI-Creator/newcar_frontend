@@ -26,6 +26,7 @@ const sortOptions = [
   { value: "best_deal", label: "Best match" },
   { value: "newest", label: "Newest year first" },
   { value: "msrp_low_high", label: "Lowest price first" },
+  { value: "price_high_low", label: "Highest price first" },
   { value: "score_high_low", label: "Top score" }
 ];
 const defaultValues = {
@@ -598,8 +599,8 @@ function SearchPageContent() {
                   ) : (
                     <Slider
                       value={[vehicleType === "new" ? maxPrice : usedMaxPrice]}
-                      min={vehicleType === "new" ? 15000 : 2000}
-                      max={1000000}
+                      min={0}
+                      max={200000}
                       step={500}
                       onValueChange={(v) => (vehicleType === "new" ? setMaxPrice(v[0]) : setUsedMaxPrice(v[0]))}
                     />

@@ -1834,6 +1834,9 @@ export default function AdminPage() {
                   <Button asChild variant="outline" size="sm">
                     <Link href="/admin/credit-unions">Credit Unions</Link>
                   </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/admin/testimonials">Testimonials</Link>
+                  </Button>
                   <Badge className="border border-ink-200 bg-ink-100 text-ink-700">
                     {typeof activeDealerCount === "number"
                       ? `${activeDealerCount.toLocaleString()} active dealers`
