@@ -16,8 +16,10 @@ import {
   type CreditUnionLoanProgramRecord,
   type CreditUnionDisclosureRecord,
 } from "@/lib/api";
-import { useToast, type ToastContextValue } from "@/components/toast-provider";
+import { useToast } from "@/components/toast-provider";
 import { Building2, Plus, Trash2 } from "lucide-react";
+
+type ToastHelper = ReturnType<typeof useToast>;
 
 export function CreditUnionsManager({ embedded }: { embedded?: boolean }) {
   const queryClient = useQueryClient();
@@ -87,7 +89,7 @@ function CreditUnionRow({
   cu: CreditUnionRecord;
   onUpdated: () => void;
   onDeleted: () => void;
-  toast: ToastContextValue;
+  toast: ToastHelper;
 }) {
   const [editing, setEditing] = React.useState(false);
   const [assignEmail, setAssignEmail] = React.useState("");
@@ -170,7 +172,7 @@ function CreditUnionEditForm({
   cu: CreditUnionRecord;
   onSaved: () => void;
   onCancel: () => void;
-  toast: ToastContextValue;
+  toast: ToastHelper;
 }) {
   const [name, setName] = React.useState(cu.name);
   const [slug, setSlug] = React.useState(cu.slug);
@@ -244,7 +246,7 @@ function CreateCreditUnionForm({
   toast,
 }: {
   onCreated: () => void;
-  toast: ToastContextValue;
+  toast: ToastHelper;
 }) {
   const [name, setName] = React.useState("");
   const [slug, setSlug] = React.useState("");
@@ -408,7 +410,7 @@ function DeleteCreditUnionButton({
 }: {
   id: number;
   onDeleted: () => void;
-  toast: ToastContextValue;
+  toast: ToastHelper;
 }) {
   const [confirm, setConfirm] = React.useState(false);
   const deleteMutation = useMutation({
