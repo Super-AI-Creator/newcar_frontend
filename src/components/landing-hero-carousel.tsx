@@ -12,39 +12,54 @@ const LANDING_SLIDES = [
 
 const ROTATE_MS = 5000;
 
+type Slide = { src: string; alt: string };
+
 type Props = {
   className?: string;
   imageClassName?: string;
   priority?: boolean;
+  slides?: Slide[];
 };
 
-export default function LandingHeroCarousel({ className = "", imageClassName = "", priority = false }: Props) {
+export default function LandingHeroCarousel({ className = "", imageClassName = "", priority = false, slides: slidesProp }: Props) {
+  const slides = (slidesProp?.length ? slidesProp : LANDING_SLIDES) as Slide[];
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
     const id = setInterval(() => {
-      setIndex((i) => (i + 1) % LANDING_SLIDES.length);
+      setIndex((i) => (i + 1) % slides.length);
     }, ROTATE_MS);
     return () => clearInterval(id);
-  }, []);
+  }, [slides.length]);
+
+  const isExternal = (src: string) => src.startsWith("http://") || src.startsWith("https://");
 
   return (
     <div className={`relative h-full w-full overflow-hidden ${className}`}>
-      {LANDING_SLIDES.map((slide, i) => (
+      {slides.map((slide, i) => (
         <div
           key={slide.src}
           className="absolute inset-0 transition-opacity duration-700 ease-in-out"
           style={{ opacity: i === index ? 1 : 0 }}
           aria-hidden={i !== index}
         >
-          <Image
-            src={slide.src}
-            alt={i === index ? slide.alt : ""}
-            fill
-            priority={priority && i === 0}
-            className={`object-cover object-center ${imageClassName}`}
-            sizes="100vw"
-          />
+          {isExternal(slide.src) ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={slide.src}
+              alt={i === index ? slide.alt : ""}
+              className={`absolute inset-0 h-full w-full object-cover object-center ${imageClassName}`}
+            />
+          ) : (
+            <Image
+              src={slide.src}
+              alt={i === index ? slide.alt : ""}
+              fill
+              priority={priority && i === 0}
+              className={`object-cover object-center ${imageClassName}`}
+              sizes="100vw"
+            />
+          )}
         </div>
       ))}
     </div>

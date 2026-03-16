@@ -46,9 +46,47 @@ const clientOnlySorts = new Set([
 ]);
 
 const paymentPresets = [399, 499, 599, 699, 799];
-const defaultMaxPayment = 10000;
-const defaultMaxPrice = 1000000;
 const pageSize = 12;
+
+// Max payment: 0–2000 then Any (match front page)
+const PAYMENT_MIN = 200;
+const PAYMENT_MAX = 2000;
+const PAYMENT_SLIDER_STOPS = 9;
+const PAYMENT_SLIDER_ANY = 10;
+const PAYMENT_ANY_VALUE = 10000;
+const defaultMaxPayment = PAYMENT_ANY_VALUE;
+
+function paymentToSliderValue(payment: number): number {
+  if (payment >= PAYMENT_ANY_VALUE || payment > PAYMENT_MAX) return PAYMENT_SLIDER_ANY;
+  const clamped = Math.min(PAYMENT_MAX, Math.max(PAYMENT_MIN, payment));
+  return Math.round(((clamped - PAYMENT_MIN) / (PAYMENT_MAX - PAYMENT_MIN)) * PAYMENT_SLIDER_STOPS);
+}
+function paymentSliderToValue(sliderVal: number): number {
+  if (sliderVal >= PAYMENT_SLIDER_ANY) return PAYMENT_ANY_VALUE;
+  const normalized = Math.min(PAYMENT_SLIDER_STOPS, Math.max(0, sliderVal));
+  const raw = PAYMENT_MIN + ((PAYMENT_MAX - PAYMENT_MIN) * normalized) / PAYMENT_SLIDER_STOPS;
+  return Math.round(raw / 25) * 25;
+}
+
+// Max vehicle price: 0–150k then Any
+const PRICE_MIN = 0;
+const PRICE_MAX = 150000;
+const PRICE_STEP = 5000;
+const PRICE_TICKS = Math.round((PRICE_MAX - PRICE_MIN) / PRICE_STEP); // 0..30 = 0 to 150k
+const PRICE_SLIDER_ANY = PRICE_TICKS + 1; // 31 = Any
+const PRICE_ANY_VALUE = 999999;
+const defaultMaxPrice = PRICE_ANY_VALUE;
+
+function priceToSliderValue(price: number): number {
+  if (price >= PRICE_ANY_VALUE) return PRICE_SLIDER_ANY;
+  const clamped = Math.min(PRICE_MAX, Math.max(PRICE_MIN, price));
+  return Math.round((clamped - PRICE_MIN) / PRICE_STEP);
+}
+function priceSliderToValue(sliderVal: number): number {
+  if (sliderVal >= PRICE_SLIDER_ANY) return PRICE_ANY_VALUE;
+  const normalized = Math.min(PRICE_TICKS, Math.max(0, Math.round(sliderVal)));
+  return PRICE_MIN + normalized * PRICE_STEP;
+}
 const ANY_MAKE = "__any_make__";
 const ANY_MODEL = "__any_model__";
 
@@ -517,7 +555,7 @@ function LeaseSpecialsPageContent() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label>Max monthly payment</Label>
-                    <Badge>${maxPayment}/mo</Badge>
+                    <Badge>{maxPayment >= PAYMENT_ANY_VALUE ? "Any" : `$${maxPayment}/mo`}</Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {paymentPresets.map((value) => (
@@ -525,16 +563,40 @@ function LeaseSpecialsPageContent() {
                         Up to ${value}
                       </Button>
                     ))}
+                    <Button variant="outline" size="sm" className="col-span-2" onClick={() => setMaxPayment(PAYMENT_ANY_VALUE)}>
+                      Any
+                    </Button>
                   </div>
-                  <Slider value={[maxPayment]} min={199} max={10000} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
+                  <Slider
+                    value={[paymentToSliderValue(maxPayment)]}
+                    min={0}
+                    max={PAYMENT_SLIDER_ANY}
+                    step={1}
+                    onValueChange={(v) => setMaxPayment(paymentSliderToValue(v[0]))}
+                  />
+                  <div className="relative h-4 text-[11px] text-ink-500">
+                    <span className="absolute left-0">${PAYMENT_MIN}</span>
+                    <span className="absolute left-[90%] -translate-x-1/2">${PAYMENT_MAX}</span>
+                    <span className="absolute right-0">Any</span>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label>Max vehicle price</Label>
-                    <Badge>${maxPrice.toLocaleString()}</Badge>
+                    <Badge>{maxPrice >= PRICE_ANY_VALUE ? "Any" : `$${maxPrice.toLocaleString()}`}</Badge>
                   </div>
-                  <Slider value={[maxPrice]} min={20000} max={1000000} step={500} onValueChange={(v) => setMaxPrice(v[0])} />
+                  <Slider
+                    value={[priceToSliderValue(maxPrice)]}
+                    min={0}
+                    max={PRICE_SLIDER_ANY}
+                    step={1}
+                    onValueChange={(v) => setMaxPrice(priceSliderToValue(v[0]))}
+                  />
+                  <div className="relative h-4 text-[11px] text-ink-500">
+                    <span className="absolute left-0">$0</span>
+                    <span className="absolute right-0">$150k / Any</span>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -653,7 +715,7 @@ function LeaseSpecialsPageContent() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>Max monthly payment</Label>
-                <Badge>${maxPayment}/mo</Badge>
+                <Badge>{maxPayment >= PAYMENT_ANY_VALUE ? "Any" : `$${maxPayment}/mo`}</Badge>
               </div>
               <div className="flex flex-wrap gap-2">
                 {paymentPresets.map((value) => (
@@ -661,16 +723,40 @@ function LeaseSpecialsPageContent() {
                     Up to ${value}
                   </Button>
                 ))}
+                <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => setMaxPayment(PAYMENT_ANY_VALUE)}>
+                  Any
+                </Button>
               </div>
-              <Slider value={[maxPayment]} min={199} max={10000} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
+              <Slider
+                value={[paymentToSliderValue(maxPayment)]}
+                min={0}
+                max={PAYMENT_SLIDER_ANY}
+                step={1}
+                onValueChange={(v) => setMaxPayment(paymentSliderToValue(v[0]))}
+              />
+              <div className="relative h-4 text-[11px] text-ink-500">
+                <span className="absolute left-0">${PAYMENT_MIN}</span>
+                <span className="absolute left-[90%] -translate-x-1/2">${PAYMENT_MAX}</span>
+                <span className="absolute right-0">Any</span>
+              </div>
             </div>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>Max vehicle price</Label>
-                <Badge>${maxPrice.toLocaleString()}</Badge>
+                <Badge>{maxPrice >= PRICE_ANY_VALUE ? "Any" : `$${maxPrice.toLocaleString()}`}</Badge>
               </div>
-              <Slider value={[maxPrice]} min={20000} max={1000000} step={500} onValueChange={(v) => setMaxPrice(v[0])} />
+              <Slider
+                value={[priceToSliderValue(maxPrice)]}
+                min={0}
+                max={PRICE_SLIDER_ANY}
+                step={1}
+                onValueChange={(v) => setMaxPrice(priceSliderToValue(v[0]))}
+              />
+              <div className="relative h-4 text-[11px] text-ink-500">
+                <span className="absolute left-0">$0</span>
+                <span className="absolute right-0">$150k / Any</span>
+              </div>
             </div>
 
             <div className="grid gap-3">

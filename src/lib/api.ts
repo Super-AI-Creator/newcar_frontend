@@ -178,7 +178,7 @@ export const api = {
       jwt: data.jwt ?? data.token ?? data.access_token
     };
   },
-  requestOtp: async (payload: { email: string; name: string; password: string; phone?: string; channel?: "email" | "sms" }) => {
+  requestOtp: async (payload: { email: string; name: string; password: string; phone?: string; channel?: "email" | "sms"; cu_signup_token?: string }) => {
     try {
       return await apiFetch<{ sent: boolean; delivery?: string; dev_code?: string }>("/auth/otp/request", {
         method: "POST",
@@ -193,18 +193,20 @@ export const api = {
       });
     }
   },
-  verifyOtp: async (email: string, code: string, channel: "email" | "sms" = "email") => {
+  verifyOtp: async (email: string, code: string, channel: "email" | "sms" = "email", cu_signup_token?: string) => {
+    const body = { email, code, channel } as Record<string, unknown>;
+    if (cu_signup_token) body.cu_signup_token = cu_signup_token;
     try {
       return await apiFetch<{ registered: boolean; message?: string }>("/auth/otp/verify", {
         method: "POST",
-        body: JSON.stringify({ email, code, channel })
+        body: JSON.stringify(body)
       });
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError?.status !== 404) throw error;
       return apiFetch<{ registered: boolean; message?: string }>("/auth/verify-otp", {
         method: "POST",
-        body: JSON.stringify({ email, code, channel })
+        body: JSON.stringify(body)
       });
     }
   },
@@ -1102,7 +1104,90 @@ export const api = {
     const match = disposition.match(/filename=\"?([^\";]+)\"?/i);
     const filename = match?.[1] ?? `${kind}-${submissionId}`;
     return { blob, filename };
-  }
+  },
+
+  // Credit Unions (admin + public white-label)
+  listCreditUnions: async (params?: { q?: string; include_inactive?: boolean; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.q) query.set("q", params.q);
+    if (params?.include_inactive) query.set("include_inactive", "true");
+    if (params?.limit) query.set("limit", String(params.limit));
+    const qs = query.toString();
+    const data = await apiFetch<{ items: CreditUnionRecord[] }>(`/admin/credit-unions${qs ? `?${qs}` : ""}`);
+    return data.items ?? [];
+  },
+  getCreditUnion: async (id: number) => {
+    return apiFetch<CreditUnionRecord>(`/admin/credit-unions/${id}`);
+  },
+  createCreditUnion: async (payload: CreditUnionCreatePayload) => {
+    const data = await apiFetch<{ item: CreditUnionRecord }>("/admin/credit-unions", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: { "Content-Type": "application/json" },
+    });
+    return data.item;
+  },
+  updateCreditUnion: async (id: number, payload: CreditUnionUpdatePayload) => {
+    const data = await apiFetch<{ item: CreditUnionRecord }>(`/admin/credit-unions/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+      headers: { "Content-Type": "application/json" },
+    });
+    return data.item;
+  },
+  deleteCreditUnion: async (id: number) => {
+    return apiFetch<{ deleted: boolean; id: number }>(`/admin/credit-unions/${id}`, { method: "DELETE" });
+  },
+  assignCreditUnionStaff: async (cuId: number, email: string) => {
+    return apiFetch<{ ok: boolean; message: string }>(`/admin/credit-unions/${cuId}/assign-staff`, {
+      method: "POST",
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      headers: { "Content-Type": "application/json" },
+    });
+  },
+  getCreditUnionBySlug: async (slug: string) => {
+    return apiFetch<CreditUnionRecord>(`/credit-unions/by-slug/${encodeURIComponent(slug)}`);
+  },
+  getCreditUnionByToken: async (token: string) => {
+    return apiFetch<CreditUnionRecord>(`/credit-unions/by-token?token=${encodeURIComponent(token)}`);
+  },
+
+  // Pre-approvals
+  createApproval: async (cuId: number, payload: ApprovalCreatePayload) => {
+    const data = await apiFetch<{ item: ApprovalRecord; approval_code: string; claim_url: string; join_url: string; sms_sent: boolean }>(
+      `/admin/credit-unions/${cuId}/approvals`,
+      { method: "POST", body: JSON.stringify(payload), headers: { "Content-Type": "application/json" } }
+    );
+    return data;
+  },
+  listMyApprovals: async () => {
+    const data = await apiFetch<{ items: ApprovalRecord[] }>("/approvals/mine");
+    return data.items ?? [];
+  },
+  getApprovalByCode: async (code: string) => {
+    return apiFetch<ApprovalRecord & { credit_union_name?: string; credit_union_slug?: string }>(`/approvals/by-code/${encodeURIComponent(code)}`);
+  },
+  claimApproval: async (code: string) => {
+    return apiFetch<{ item: ApprovalRecord; claimed?: boolean; already_claimed?: boolean }>(`/approvals/claim/${encodeURIComponent(code)}`, {
+      method: "PATCH",
+    });
+  },
+
+  // Landing page content (public GET; admin GET/PUT)
+  getLandingPage: async () => {
+    return apiFetch<LandingPageContentRecord>("/landing-page");
+  },
+  getAdminLandingPage: async () => {
+    return apiFetch<LandingPageContentRecord>("/admin/landing-page");
+  },
+  updateLandingPage: async (payload: LandingPageUpdatePayload) => {
+    const data = await apiFetch<{ status: string; content: LandingPageContentRecord }>("/admin/landing-page", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+      headers: { "Content-Type": "application/json" },
+    });
+    return data.content;
+  },
 };
 
 export type Vehicle = {
@@ -1344,4 +1429,100 @@ export type SeoPageSettingRecord = {
   is_active?: boolean;
   created_at?: string | null;
   updated_at?: string | null;
+};
+
+export type CreditUnionLoanProgramRecord = {
+  id?: number;
+  interest_rate: number;
+  max_term_months: number;
+  vehicle_type: string;
+};
+
+export type CreditUnionDisclosureRecord = {
+  id?: number;
+  sort_order: number;
+  text: string;
+};
+
+export type CreditUnionRecord = {
+  id: number;
+  name: string;
+  slug: string;
+  logo_url?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  contact_name?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  signup_token?: string | null;
+  signup_link?: string | null;
+  is_active: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+  loan_programs?: CreditUnionLoanProgramRecord[];
+  disclosures?: CreditUnionDisclosureRecord[];
+};
+
+export type CreditUnionCreatePayload = {
+  name: string;
+  slug?: string | null;
+  logo_url?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  contact_name?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  loan_programs?: CreditUnionLoanProgramRecord[];
+  disclosures?: CreditUnionDisclosureRecord[];
+};
+
+export type CreditUnionUpdatePayload = {
+  name?: string | null;
+  slug?: string | null;
+  logo_url?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  contact_name?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  is_active?: boolean | null;
+  loan_programs?: CreditUnionLoanProgramRecord[] | null;
+  disclosures?: CreditUnionDisclosureRecord[] | null;
+};
+
+export type ApprovalRecord = {
+  id: number;
+  credit_union_id: number;
+  user_id?: number | null;
+  loan_amount: number;
+  term_months: number;
+  special_notes?: string | null;
+  approval_code: string;
+  member_phone?: string | null;
+  member_email?: string | null;
+  status: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+  credit_union_name?: string | null;
+};
+
+export type ApprovalCreatePayload = {
+  loan_amount: number;
+  term_months: number;
+  special_notes?: string | null;
+  approval_code?: string | null;
+  member_phone?: string | null;
+  member_email?: string | null;
+};
+
+export type LandingPageContentRecord = {
+  hero?: { kicker?: string; headline?: string; subtext?: string; slide_urls?: string[] };
+  lease?: { title?: string; subtitle?: string };
+  how_it_works?: Array<{ image_url?: string; label?: string }>;
+};
+
+export type LandingPageUpdatePayload = {
+  hero?: { kicker?: string; headline?: string; subtext?: string; slide_urls?: string[] };
+  lease?: { title?: string; subtitle?: string };
+  how_it_works?: Array<{ image_url?: string; label?: string }>;
 };

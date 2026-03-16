@@ -38,6 +38,8 @@ import {
   XCircle,
   UserRoundCheck
 } from "lucide-react";
+import { LandingPageEditor } from "@/components/admin/landing-page-editor";
+import { CreditUnionsManager } from "@/components/admin/credit-unions-manager";
 
 const DEAL_STATUS_LABELS: Record<string, string> = {
   inquiry: "Inquiry",
@@ -664,7 +666,7 @@ export default function AdminPage() {
   const [seoIsActive, setSeoIsActive] = useState(true);
   const [leadDeliveryStatusFilter, setLeadDeliveryStatusFilter] = useState<"all" | "pending" | "sent" | "failed" | "skipped">("all");
   const [leadDeliverySearch, setLeadDeliverySearch] = useState("");
-  const [adminTab, setAdminTab] = useState<"broker_ops" | "credit_docs" | "admin_data">("broker_ops");
+  const [adminTab, setAdminTab] = useState<"broker_ops" | "credit_docs" | "admin_data" | "landing_page" | "credit_unions">("broker_ops");
   const [confirmState, setConfirmState] = useState<{
     open: boolean;
     title: string;
@@ -1826,6 +1828,12 @@ export default function AdminPage() {
             <div className="flex flex-wrap items-center gap-3">
               {isSuperAdmin ? (
                 <>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/admin/landing-page">Landing Page</Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/admin/credit-unions">Credit Unions</Link>
+                  </Button>
                   <Badge className="border border-ink-200 bg-ink-100 text-ink-700">
                     {typeof activeDealerCount === "number"
                       ? `${activeDealerCount.toLocaleString()} active dealers`
@@ -1856,7 +1864,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <Tabs value={adminTab} onValueChange={(value) => setAdminTab(value as "broker_ops" | "credit_docs" | "admin_data")} className="space-y-4">
+        <Tabs value={adminTab} onValueChange={(value) => setAdminTab(value as "broker_ops" | "credit_docs" | "admin_data" | "landing_page" | "credit_unions")} className="space-y-4">
           <TabsList className="bg-ink-100 p-1">
             {!isSuperAdmin && <TabsTrigger value="broker_ops">Broker Operations</TabsTrigger>}
             <TabsTrigger value="credit_docs">
@@ -1868,6 +1876,8 @@ export default function AdminPage() {
               )}
             </TabsTrigger>
             <TabsTrigger value="admin_data">{isSuperAdmin ? "Super Admin" : "Admin Data"}</TabsTrigger>
+            {isSuperAdmin && <TabsTrigger value="landing_page">Landing Page</TabsTrigger>}
+            {isSuperAdmin && <TabsTrigger value="credit_unions">Credit Unions</TabsTrigger>}
           </TabsList>
 
           {!isSuperAdmin && (
@@ -3433,6 +3443,17 @@ export default function AdminPage() {
         </>
         )}
           </TabsContent>
+
+          {isSuperAdmin && (
+          <TabsContent value="landing_page" className="space-y-6">
+            <LandingPageEditor embedded />
+          </TabsContent>
+          )}
+          {isSuperAdmin && (
+          <TabsContent value="credit_unions" className="space-y-6">
+            <CreditUnionsManager embedded />
+          </TabsContent>
+          )}
         </Tabs>
 
         <Dialog

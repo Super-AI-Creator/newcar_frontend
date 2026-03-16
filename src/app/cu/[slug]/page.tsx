@@ -1,0 +1,101 @@
+"use client";
+
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+
+type Props = { params: { slug: string } };
+
+export default function WhiteLabelCreditUnionPage({ params }: Props) {
+  const slugValue = params.slug ?? "";
+
+  const cuQuery = useQuery({
+    queryKey: ["credit-union", slugValue],
+    queryFn: () => api.getCreditUnionBySlug(slugValue),
+    enabled: !!slugValue,
+  });
+
+  const cu = cuQuery.data;
+  const isLoading = cuQuery.isLoading;
+  const notFound = !isLoading && !cu;
+
+  if (notFound) {
+    return (
+      <div className="min-h-screen bg-ink-50 flex items-center justify-center p-4">
+        <Card className="max-w-md border-ink-200 bg-white">
+          <CardContent className="py-10 text-center text-ink-600">
+            <p>Credit union not found or inactive.</p>
+            <Button asChild className="mt-4">
+              <Link href="/">Go to NewCarSuperstore</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-white text-ink-900">
+      <header className="border-b border-ink-200 bg-white py-4">
+        <div className="container-wide flex items-center justify-between">
+          {cu?.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={cu.logo_url} alt={cu.name ?? ""} className="h-10 w-auto object-contain" />
+          ) : (
+            <span className="font-display text-xl font-semibold text-ink-900">{cu?.name ?? "…"}</span>
+          )}
+          <Button asChild variant="outline" size="sm">
+            <Link href="/">Main site</Link>
+          </Button>
+        </div>
+      </header>
+
+      <main className="container-wide py-12">
+        {isLoading && (
+          <div className="py-20 text-center text-ink-500">Loading…</div>
+        )}
+        {cu && (
+          <div className="mx-auto max-w-2xl space-y-8">
+            <div className="text-center">
+              <h1 className="font-display text-3xl font-bold text-ink-900">{cu.name}</h1>
+              <p className="mt-2 text-ink-600">Vehicle shopping with your credit union&apos;s financing.</p>
+            </div>
+
+            <Card className="border-ink-200 bg-ink-50/50">
+              <CardContent className="p-6 space-y-4">
+                <p className="text-sm text-ink-700">Search new car inventory and use our finance calculator with rates from your credit union.</p>
+                <div className="flex flex-wrap gap-3">
+                  <Button asChild>
+                    <Link href={`/search?vehicle_type=new&mode=price&cu=${encodeURIComponent(cu.slug)}`}>
+                      Search new cars
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href={`/search?vehicle_type=used&mode=price&cu=${encodeURIComponent(cu.slug)}`}>
+                      Search used cars
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {cu.loan_programs && cu.loan_programs.length > 0 && (
+              <div className="rounded-xl border border-ink-200 bg-white p-4">
+                <h2 className="font-display text-lg font-semibold text-ink-900">Your credit union rates</h2>
+                <ul className="mt-2 space-y-1 text-sm text-ink-700">
+                  {cu.loan_programs.map((p, i) => (
+                    <li key={i}>
+                      {p.interest_rate}% APR, up to {p.max_term_months} months · {p.vehicle_type === "used" ? "Used" : "New"} vehicles
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

@@ -41,6 +41,7 @@ function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") || "/lease-specials";
+  const approvalCode = searchParams.get("approval") ?? "";
   const { loginWithToken, refresh } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -70,7 +71,18 @@ function LoginPageContent() {
       }
       loginWithToken(token, null);
       await refresh();
-      router.replace(returnUrl.startsWith("/") ? returnUrl : "/lease-specials");
+      const userData = await api.me();
+      const role = userData?.role ?? "";
+      if (role === "credit_union") {
+        const base = "/dashboard/credit-union";
+        const dest = approvalCode ? `${base}?claim=${encodeURIComponent(approvalCode)}` : base;
+        router.replace(dest);
+      } else {
+        const base = returnUrl.startsWith("/") ? returnUrl : "/lease-specials";
+        const sep = base.includes("?") ? "&" : "?";
+        const dest = approvalCode ? `${base}${sep}claim=${encodeURIComponent(approvalCode)}` : base;
+        router.replace(dest);
+      }
     } catch (error: any) {
       setMessage(error?.message ?? "Login failed.");
       setStatus("idle");

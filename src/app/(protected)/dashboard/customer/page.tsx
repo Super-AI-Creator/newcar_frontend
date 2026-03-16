@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import SiteHeader from "@/components/site-header";
@@ -11,8 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Circle, Clock3, CreditCard, FileText, Flag, Handshake, Heart, MessageSquare, Search, Upload, WalletCards } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Circle, Clock3, CreditCard, FileText, Flag, Handshake, Heart, MessageSquare, Search, Upload, WalletCards } from "lucide-react";
 import { api, type Vehicle } from "@/lib/api";
+import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
 
 function formatDateTime(value?: string | null) {
@@ -176,7 +178,17 @@ function VehicleMiniCard({ vehicle, vin }: { vehicle?: Vehicle; vin?: string }) 
 }
 
 export default function CustomerDashboard() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (user?.role === "credit_union") {
+      router.replace("/dashboard/credit-union");
+    }
+  }, [user?.role, router]);
   const [workspaceTab, setWorkspaceTab] = useState<"broker" | "tracker" | "favorites">("broker");
   const [selectedThreadKey, setSelectedThreadKey] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
@@ -208,6 +220,29 @@ export default function CustomerDashboard() {
     queryFn: () => api.myCreditApplications({ page_size: 100 }),
     refetchOnMount: "always"
   });
+  const approvalsQuery = useQuery({
+    queryKey: ["approvals-mine"],
+    queryFn: () => api.listMyApprovals(),
+  });
+
+  const claimCode = searchParams.get("claim");
+  const claimedCodeRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!claimCode?.trim() || claimedCodeRef.current === claimCode) return;
+    claimedCodeRef.current = claimCode;
+    (async () => {
+      try {
+        await api.claimApproval(claimCode.trim());
+        toast({ variant: "success", title: "Pre-approval claimed" });
+        approvalsQuery.refetch();
+      } catch {
+        toast({ variant: "error", title: "Could not claim approval" });
+      }
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("claim");
+      router.replace(params.toString() ? `${pathname}?${params}` : pathname ?? "/dashboard/customer");
+    })();
+  }, [claimCode, pathname, router, searchParams, toast]);
 
   const sendMessageMutation = useMutation({
     mutationFn: (payload: { vin?: string; message: string }) => api.sendMessage(payload),
@@ -434,6 +469,35 @@ export default function CustomerDashboard() {
             </Card>
           ))}
         </div>
+
+        {(approvalsQuery.data?.length ?? 0) > 0 && (
+          <Card className="bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BadgeCheck className="h-5 w-5 text-emerald-600" />
+                Pre-Approved
+              </CardTitle>
+              <p className="text-sm text-ink-600">Your credit union pre-approvals. Use your coupon when shopping.</p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {approvalsQuery.data?.map((a) => (
+                <Link
+                  key={a.id}
+                  href={`/approvals/${encodeURIComponent(a.approval_code)}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-200 bg-ink-50 px-4 py-3 text-sm transition hover:border-brand-300 hover:bg-white"
+                >
+                  <span className="font-medium text-ink-900">
+                    {formatCurrency(a.loan_amount)} · {a.term_months} mo
+                    {a.credit_union_name ? ` · ${a.credit_union_name}` : ""}
+                  </span>
+                  <span className="rounded-full border border-ink-200 bg-white px-2 py-0.5 text-xs text-ink-600">
+                    {a.approval_code}
+                  </span>
+                </Link>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-6 md:grid-cols-[260px_1fr]">
           <Card className="tc-fade-up bg-white shadow-sm">

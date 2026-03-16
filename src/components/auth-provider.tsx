@@ -10,6 +10,7 @@ export type User = {
   name?: string;
   email?: string;
   role?: string;
+  credit_union_id?: number | null;
 };
 
 type AuthContextValue = {
@@ -22,7 +23,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const publicPaths = new Set(["/", "/login", "/register", "/search", "/lease-specials"]);
+const publicPaths = new Set(["/", "/login", "/register", "/search", "/lease-specials", "/creditunions/join"]);
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -61,12 +62,17 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         router.replace("/dashboard/dealer");
         return;
       }
+      if (role === "credit_union") {
+        router.replace("/dashboard/credit-union");
+        return;
+      }
       router.replace("/dashboard/customer");
       return;
     }
     const isPublic =
       publicPaths.has(currentPath) ||
       currentPath.startsWith("/vehicles/") ||
+      currentPath.startsWith("/approvals/") ||
       currentPath === "/reviews" ||
       currentPath === "/credit-application" ||
       currentPath === "/testimonials" ||
