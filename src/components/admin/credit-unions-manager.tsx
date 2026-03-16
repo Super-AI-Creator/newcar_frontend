@@ -426,7 +426,15 @@ function DeleteCreditUnionButton({
   if (confirm) {
     return (
       <>
-        <Button size="sm" variant="destructive" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>Confirm delete</Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="bg-red-600 text-white hover:bg-red-700"
+          onClick={() => deleteMutation.mutate()}
+          disabled={deleteMutation.isPending}
+        >
+          Confirm delete
+        </Button>
         <Button size="sm" variant="outline" onClick={() => setConfirm(false)}>Cancel</Button>
       </>
     );
