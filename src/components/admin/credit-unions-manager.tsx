@@ -105,7 +105,7 @@ function CreditUnionRow({
         msg === "Failed to fetch"
           ? "Cannot reach the server. Is the backend running? Check NEXT_PUBLIC_API_BASE_URL (or API_BASE_URL) in the frontend .env."
           : msg || "User not found. They must register first.";
-      toast.toast({ title: "Failed", description, variant: "destructive" });
+      toast.toast({ title: "Failed", description, variant: "error" });
     },
   });
 
@@ -196,7 +196,7 @@ function CreditUnionEditForm({
       onSaved();
     },
     onError: (e: any) => {
-      toast.toast({ title: "Update failed", description: e?.message ?? "Please try again.", variant: "destructive" });
+      toast.toast({ title: "Update failed", description: e?.message ?? "Please try again.", variant: "error" });
     },
   });
   const handleSave = () => {
@@ -263,7 +263,7 @@ function CreateCreditUnionForm({
   const createMutation = useMutation({
     mutationFn: (payload: CreditUnionCreatePayload) => api.createCreditUnion(payload),
     onSuccess: () => {
-      toast.toast({ title: "Credit union created" });
+      toast.toast({ title: "Credit union created", variant: "success" });
       setName(""); setSlug(""); setLogoUrl(""); setPhone(""); setAddress("");
       setContactName(""); setContactPhone(""); setContactEmail("");
       setLoanPrograms([{ interest_rate: 0, max_term_months: 60, vehicle_type: "new" }]);
@@ -271,12 +271,12 @@ function CreateCreditUnionForm({
       onCreated();
     },
     onError: (e: any) => {
-      toast.toast({ title: "Create failed", description: e?.message ?? "Please try again.", variant: "destructive" });
+      toast.toast({ title: "Create failed", description: e?.message ?? "Please try again.", variant: "error" });
     },
   });
   const handleCreate = () => {
     if (!name.trim()) {
-      toast.toast({ title: "Enter a name", variant: "destructive" });
+      toast.toast({ title: "Enter a name", variant: "error" });
       return;
     }
     createMutation.mutate({
@@ -416,11 +416,11 @@ function DeleteCreditUnionButton({
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteCreditUnion(id),
     onSuccess: () => {
-      toast.toast({ title: "Credit union deleted" });
+      toast.toast({ title: "Credit union deleted", variant: "success" });
       onDeleted();
     },
     onError: (e: any) => {
-      toast.toast({ title: "Delete failed", description: e?.message ?? "Please try again.", variant: "destructive" });
+      toast.toast({ title: "Delete failed", description: e?.message ?? "Please try again.", variant: "error" });
     },
   });
   if (confirm) {
