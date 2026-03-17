@@ -43,8 +43,9 @@ export default function LandingPageSections() {
     return "50% 50%";
   };
   const slideUrls = (Array.isArray(hero.slide_urls) && hero.slide_urls.length ? hero.slide_urls : DEFAULT_HERO.slide_urls) ?? [];
-  const heroSlideFocus = (hero as { slide_focus?: string[] }).slide_focus;
-  const slideFocusRaw = Array.isArray(heroSlideFocus) && heroSlideFocus.length ? heroSlideFocus : DEFAULT_HERO.slide_focus ?? [];
+  const heroSlideFocus = (hero as { slide_focus?: string[] | undefined }).slide_focus;
+  const defaultSlideFocus: string[] = ["center", "center", "center", "center"];
+  const slideFocusRaw = Array.isArray(heroSlideFocus) && heroSlideFocus.length ? heroSlideFocus : defaultSlideFocus;
   const slides = slideUrls.map((src, i) => ({
     src,
     alt: `Slide ${i + 1}`,
