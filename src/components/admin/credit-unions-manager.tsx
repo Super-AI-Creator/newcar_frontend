@@ -177,6 +177,9 @@ function CreditUnionEditForm({
   const [name, setName] = React.useState(cu.name);
   const [slug, setSlug] = React.useState(cu.slug);
   const [logoUrl, setLogoUrl] = React.useState(cu.logo_url ?? "");
+  const [bannerUrl, setBannerUrl] = React.useState(cu.banner_url ?? "");
+  const [heroTitle, setHeroTitle] = React.useState(cu.hero_title ?? "");
+  const [heroSubtitle, setHeroSubtitle] = React.useState(cu.hero_subtitle ?? "");
   const [phone, setPhone] = React.useState(cu.phone ?? "");
   const [address, setAddress] = React.useState(cu.address ?? "");
   const [contactName, setContactName] = React.useState(cu.contact_name ?? "");
@@ -204,6 +207,9 @@ function CreditUnionEditForm({
       name,
       slug,
       logo_url: logoUrl || null,
+      banner_url: bannerUrl || null,
+      hero_title: heroTitle || null,
+      hero_subtitle: heroSubtitle || null,
       phone: phone || null,
       address: address || null,
       contact_name: contactName || null,
@@ -219,7 +225,10 @@ function CreditUnionEditForm({
       <div className="grid gap-2 sm:grid-cols-2">
         <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
         <div><Label>Slug (URL)</Label><Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="my-cu" /></div>
-        <div className="sm:col-span-2"><Label>Logo URL</Label><Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} /></div>
+        <div className="sm:col-span-2"><Label>Logo URL (header)</Label><Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…" /></div>
+        <div className="sm:col-span-2"><Label>Banner image URL</Label><Input value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)} placeholder="https://… (generic banner for their site)" /></div>
+        <div className="sm:col-span-2"><Label>Hero title (main headline)</Label><Input value={heroTitle} onChange={(e) => setHeroTitle(e.target.value)} placeholder="e.g. Member Auto Program" /></div>
+        <div className="sm:col-span-2"><Label>Hero subtitle (editable text under headline)</Label><Textarea value={heroSubtitle} onChange={(e) => setHeroSubtitle(e.target.value)} placeholder="e.g. Vehicle shopping with your credit union's financing." className="min-h-[80px]" /></div>
         <div><Label>Phone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
         <div><Label>Address</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
         <div><Label>Contact name</Label><Input value={contactName} onChange={(e) => setContactName(e.target.value)} /></div>
@@ -251,6 +260,9 @@ function CreateCreditUnionForm({
   const [name, setName] = React.useState("");
   const [slug, setSlug] = React.useState("");
   const [logoUrl, setLogoUrl] = React.useState("");
+  const [bannerUrl, setBannerUrl] = React.useState("");
+  const [heroTitle, setHeroTitle] = React.useState("");
+  const [heroSubtitle, setHeroSubtitle] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [address, setAddress] = React.useState("");
   const [contactName, setContactName] = React.useState("");
@@ -264,8 +276,8 @@ function CreateCreditUnionForm({
     mutationFn: (payload: CreditUnionCreatePayload) => api.createCreditUnion(payload),
     onSuccess: () => {
       toast.toast({ title: "Credit union created", variant: "success" });
-      setName(""); setSlug(""); setLogoUrl(""); setPhone(""); setAddress("");
-      setContactName(""); setContactPhone(""); setContactEmail("");
+      setName(""); setSlug(""); setLogoUrl(""); setBannerUrl(""); setHeroTitle(""); setHeroSubtitle("");
+      setPhone(""); setAddress(""); setContactName(""); setContactPhone(""); setContactEmail("");
       setLoanPrograms([{ interest_rate: 0, max_term_months: 60, vehicle_type: "new" }]);
       setDisclosures([{ sort_order: 0, text: "" }]);
       onCreated();
@@ -283,6 +295,9 @@ function CreateCreditUnionForm({
       name: name.trim(),
       slug: slug.trim() || undefined,
       logo_url: logoUrl.trim() || undefined,
+      banner_url: bannerUrl.trim() || undefined,
+      hero_title: heroTitle.trim() || undefined,
+      hero_subtitle: heroSubtitle.trim() || undefined,
       phone: phone.trim() || undefined,
       address: address.trim() || undefined,
       contact_name: contactName.trim() || undefined,
@@ -298,7 +313,10 @@ function CreateCreditUnionForm({
       <div className="grid gap-2 sm:grid-cols-2">
         <div><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="My Credit Union" /></div>
         <div><Label>Slug (optional)</Label><Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="my-cu" /></div>
-        <div className="sm:col-span-2"><Label>Logo URL</Label><Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} /></div>
+        <div className="sm:col-span-2"><Label>Logo URL (header)</Label><Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…" /></div>
+        <div className="sm:col-span-2"><Label>Banner image URL</Label><Input value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)} placeholder="https://…" /></div>
+        <div className="sm:col-span-2"><Label>Hero title (main headline)</Label><Input value={heroTitle} onChange={(e) => setHeroTitle(e.target.value)} placeholder="e.g. Member Auto Program" /></div>
+        <div className="sm:col-span-2"><Label>Hero subtitle</Label><Textarea value={heroSubtitle} onChange={(e) => setHeroSubtitle(e.target.value)} placeholder="e.g. Vehicle shopping with your credit union's financing." className="min-h-[80px]" /></div>
         <div><Label>Phone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
         <div><Label>Address</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
         <div><Label>Contact name</Label><Input value={contactName} onChange={(e) => setContactName(e.target.value)} /></div>

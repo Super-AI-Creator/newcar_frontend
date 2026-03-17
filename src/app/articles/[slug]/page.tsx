@@ -3,18 +3,30 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import SiteHeader from "@/components/site-header";
 import { ArticleBody } from "@/components/article-body";
-import { getArticleBySlug, getArticleSlugs } from "@/lib/articles";
+import { getArticleBySlug } from "@/lib/articles";
+import { env } from "@/lib/env";
 
 type Props = { params: Promise<{ slug: string }> };
 
-export async function generateStaticParams() {
-  const slugs = getArticleSlugs();
-  return slugs.map((slug) => ({ slug }));
+type ArticleData = { title: string; description?: string; slug: string; date: string; content: string };
+
+async function getArticleFromApi(slug: string): Promise<ArticleData | null> {
+  const base = (env.apiBaseUrl || "").trim();
+  if (!base) return null;
+  try {
+    const res = await fetch(`${base.replace(/\/$/, "")}/articles/by-slug/${encodeURIComponent(slug)}`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const article = getArticleBySlug(slug);
+  const article = await getArticleFromApi(slug) ?? getArticleBySlug(slug);
   if (!article) return { title: "Article | NewCarSuperstore" };
   return {
     title: `${article.title} | NewCarSuperstore`,
@@ -28,7 +40,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ArticlePage({ params }: Props) {
   const { slug } = await params;
-  const article = getArticleBySlug(slug);
+  const article = (await getArticleFromApi(slug)) ?? getArticleBySlug(slug);
   if (!article) notFound();
 
   return (

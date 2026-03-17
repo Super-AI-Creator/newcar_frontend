@@ -1046,6 +1046,38 @@ export const api = {
   adminDeleteTestimonial: async (id: number) => {
     return apiFetch<{ deleted: boolean; id: number }>(`/admin/testimonials/${encodeURIComponent(String(id))}`, { method: "DELETE" });
   },
+
+  // Articles (public + admin)
+  getArticles: async () => {
+    const data = await apiFetch<{ items: ArticleRecord[] }>("/articles");
+    return data.items ?? [];
+  },
+  getArticleBySlug: async (slug: string) => {
+    return apiFetch<ArticleRecord & { content: string }>(`/articles/by-slug/${encodeURIComponent(slug)}`);
+  },
+  adminListArticles: async () => {
+    const data = await apiFetch<{ items: ArticleRecord[] }>("/admin/articles");
+    return data.items ?? [];
+  },
+  adminCreateArticle: async (payload: ArticleUpsertPayload) => {
+    const data = await apiFetch<{ status: string; item: ArticleRecord & { content: string } }>("/admin/articles", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: { "Content-Type": "application/json" },
+    });
+    return data.item;
+  },
+  adminUpdateArticle: async (id: number, payload: ArticleUpsertPayload) => {
+    const data = await apiFetch<{ status: string; item: ArticleRecord & { content: string } }>(
+      `/admin/articles/${encodeURIComponent(String(id))}`,
+      { method: "PUT", body: JSON.stringify(payload), headers: { "Content-Type": "application/json" } }
+    );
+    return data.item;
+  },
+  adminDeleteArticle: async (id: number) => {
+    return apiFetch<{ deleted: boolean; id: number }>(`/admin/articles/${encodeURIComponent(String(id))}`, { method: "DELETE" });
+  },
+
   forwardDocs: async (formData: FormData) => {
     const data = await apiFetch<{ status?: string; id?: number }>("/docs/forward", {
       method: "POST",
@@ -1419,7 +1451,9 @@ export type LeadDeliveryRecord = {
   email?: string | null;
   phone?: string | null;
   vin?: string | null;
+  vehicle?: string | null;
   source?: string | null;
+  notes?: string | null;
   webhook_status?: "pending" | "sent" | "failed" | "skipped" | string | null;
   webhook_attempts?: number | null;
   webhook_last_error?: string | null;
@@ -1474,6 +1508,9 @@ export type CreditUnionRecord = {
   name: string;
   slug: string;
   logo_url?: string | null;
+  banner_url?: string | null;
+  hero_title?: string | null;
+  hero_subtitle?: string | null;
   phone?: string | null;
   address?: string | null;
   contact_name?: string | null;
@@ -1492,6 +1529,9 @@ export type CreditUnionCreatePayload = {
   name: string;
   slug?: string | null;
   logo_url?: string | null;
+  banner_url?: string | null;
+  hero_title?: string | null;
+  hero_subtitle?: string | null;
   phone?: string | null;
   address?: string | null;
   contact_name?: string | null;
@@ -1505,6 +1545,9 @@ export type CreditUnionUpdatePayload = {
   name?: string | null;
   slug?: string | null;
   logo_url?: string | null;
+  banner_url?: string | null;
+  hero_title?: string | null;
+  hero_subtitle?: string | null;
   phone?: string | null;
   address?: string | null;
   contact_name?: string | null;
@@ -1513,6 +1556,23 @@ export type CreditUnionUpdatePayload = {
   is_active?: boolean | null;
   loan_programs?: CreditUnionLoanProgramRecord[] | null;
   disclosures?: CreditUnionDisclosureRecord[] | null;
+};
+
+export type ArticleRecord = {
+  id: number;
+  title: string;
+  description?: string | null;
+  slug: string;
+  date: string;
+  content?: string;
+};
+
+export type ArticleUpsertPayload = {
+  title: string;
+  description?: string | null;
+  slug: string;
+  date: string;
+  content: string;
 };
 
 export type ApprovalRecord = {

@@ -53,11 +53,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     if (loading) return;
     const currentPath = pathname ?? "/";
     if (currentPath === "/" && user) {
-      const role = user.role ?? "";
-      if (role === "admin" || role === "broker_admin" || role === "super_admin") {
-        router.replace("/admin");
-        return;
-      }
+      const role = (user.role ?? "").toLowerCase();
+      // Admin/broker/super_admin can view the home page; only redirect other roles.
       if (role === "dealer") {
         router.replace("/dashboard/dealer");
         return;
@@ -66,7 +63,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         router.replace("/dashboard/credit-union");
         return;
       }
-      router.replace("/dashboard/customer");
+      if (role === "customer" || role === "broker") {
+        router.replace("/dashboard/customer");
+        return;
+      }
+      // admin, broker_admin, super_admin: stay on home so they can view the site
       return;
     }
     const isPublic =

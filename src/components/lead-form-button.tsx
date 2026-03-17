@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useMemo, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -34,6 +35,8 @@ export default function LeadFormButton({
   size,
   className
 }: LeadFormButtonProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -79,8 +82,21 @@ export default function LeadFormButton({
       });
       setSubmittedLeadId(lead.lead_id ?? null);
 
+      // If guest: prompt to create account with pre-filled lead info; pass returnUrl so after login they land back here.
+      if (!user) {
+        setOpen(false);
+        const params = new URLSearchParams();
+        if (name.trim()) params.set("name", name.trim());
+        if (email.trim()) params.set("email", email.trim());
+        if (phone.trim()) params.set("phone", phone.trim());
+        params.set("from", "lead");
+        if (pathname && pathname !== "/" && pathname.startsWith("/")) params.set("returnUrl", pathname);
+        router.push(`/register?${params.toString()}`);
+        return;
+      }
+
       // Keep existing authenticated deal workflow for broker queue visibility.
-      if (user && vin) {
+      if (vin) {
         try {
           const deal = await api.createDeal({
             vin,

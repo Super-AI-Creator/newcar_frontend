@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import SiteHeader from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -72,8 +72,11 @@ function inferManualVehicleType(vehicle?: Vehicle | null): "new" | "used" {
 
 export default function VehicleDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const vin = params?.vin as string;
   const { user } = useAuth();
+  const vehicleReturnUrl = `/vehicles/${encodeURIComponent(vin ?? "")}`;
+  const loginUrl = `/login?returnUrl=${encodeURIComponent(vehicleReturnUrl)}`;
   const normalizedRole = (user?.role ?? "").toLowerCase();
   const isBrokerUser = ["broker", "broker_admin", "admin", "super_admin", "dealer"].includes(normalizedRole);
   const isSuperAdmin = normalizedRole === "super_admin";
@@ -103,6 +106,7 @@ export default function VehicleDetailPage() {
   const [adminPhotoUrls, setAdminPhotoUrls] = useState<string[]>([""]);
   const [dragPhotoIndex, setDragPhotoIndex] = useState<number | null>(null);
   const [dragOverPhotoIndex, setDragOverPhotoIndex] = useState<number | null>(null);
+  const [dealDialogOpen, setDealDialogOpen] = useState(false);
   const [adminDownPayment, setAdminDownPayment] = useState("");
   const [adminMonthlyPayment, setAdminMonthlyPayment] = useState("");
   const [adminDiscountedPrice, setAdminDiscountedPrice] = useState("");
@@ -770,7 +774,13 @@ export default function VehicleDetailPage() {
                   <Button
                     variant="outline"
                     className="h-11 justify-center"
-                    onClick={() => confirmAvailabilityMutation.mutate()}
+                    onClick={() => {
+                      if (!user) {
+                        router.push(loginUrl);
+                        return;
+                      }
+                      confirmAvailabilityMutation.mutate();
+                    }}
                     disabled={confirmAvailabilityMutation.isPending}
                   >
                     <ShieldCheck className="mr-1 h-4 w-4" />
@@ -785,17 +795,35 @@ export default function VehicleDetailPage() {
                     Get Pre-Approved
                   </Link>
                 </Button>
-                <Button variant="outline" className="h-11 justify-center" onClick={() => favoriteMutation.mutate()}>
+                <Button
+                  variant="outline"
+                  className="h-11 justify-center"
+                  onClick={() => {
+                    if (!user) {
+                      router.push(loginUrl);
+                      return;
+                    }
+                    favoriteMutation.mutate();
+                  }}
+                >
                   <Heart className="mr-1 h-4 w-4" />
                   Save favorite
                 </Button>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="h-11 justify-center">
-                      <CheckCircle2 className="mr-1 h-4 w-4" />
-                      Start Deal
-                    </Button>
-                  </DialogTrigger>
+                <Dialog open={dealDialogOpen} onOpenChange={setDealDialogOpen}>
+                  <Button
+                    variant="outline"
+                    className="h-11 justify-center"
+                    onClick={() => {
+                      if (!user) {
+                        router.push(loginUrl);
+                        return;
+                      }
+                      setDealDialogOpen(true);
+                    }}
+                  >
+                    <CheckCircle2 className="mr-1 h-4 w-4" />
+                    Start Deal
+                  </Button>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Pre-verify before starting deal</DialogTitle>

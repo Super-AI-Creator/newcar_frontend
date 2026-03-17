@@ -47,6 +47,7 @@ const dealerLinks = [
 ];
 
 const adminLinks = [
+  { href: "/", label: "Home" },
   { href: "/admin", label: "Admin Workspace" },
   { href: "/search", label: "All Vehicles" }
 ];

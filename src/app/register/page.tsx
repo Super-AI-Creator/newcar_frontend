@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import SiteHeader from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,11 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import { z } from "zod";
+import { Suspense } from "react";
 
 const emailSchema = z.string().email();
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -26,6 +28,16 @@ export default function RegisterPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading">("idle");
   const [message, setMessage] = useState<string | null>(null);
+
+  // Pre-fill from URL (e.g. after Get Price lead submit).
+  useEffect(() => {
+    const n = searchParams.get("name")?.trim();
+    const e = searchParams.get("email")?.trim();
+    const p = searchParams.get("phone")?.trim();
+    if (n) setName(n);
+    if (e) setEmail(e);
+    if (p) setPhone(p);
+  }, [searchParams]);
 
   const canRequestOtp = useMemo(() => {
     const validEmail = emailSchema.safeParse(email).success;
@@ -75,13 +87,17 @@ export default function RegisterPage() {
     setStatus("loading");
     try {
       await api.verifyOtp(email, otp, channel);
-      setMessage("Registration complete. Redirecting to login...");
-      setTimeout(() => router.replace("/login"), 700);
+      setMessage("Registration complete. Redirecting to sign in...");
+      const returnUrl = searchParams.get("returnUrl")?.trim();
+      const loginPath = returnUrl && returnUrl.startsWith("/") ? `/login?returnUrl=${encodeURIComponent(returnUrl)}` : "/login";
+      setTimeout(() => router.replace(loginPath), 700);
     } catch (error: any) {
       setMessage(error?.message ?? "OTP verification failed.");
       setStatus("idle");
     }
   };
+
+  const fromLead = searchParams.get("from") === "lead";
 
   return (
     <div className="app-page min-h-screen">
@@ -90,7 +106,10 @@ export default function RegisterPage() {
         <div className="container-wide flex justify-center">
           <Card className="market-panel w-full max-w-xl bg-white">
             <CardHeader>
-              <CardTitle>Create Account</CardTitle>
+              <CardTitle>{fromLead ? "Create account to track your request" : "Create Account"}</CardTitle>
+              {fromLead && (
+                <p className="text-sm text-ink-600">We’ve pre-filled your details from your price request. Set a password to finish.</p>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               {message && <div className="rounded-xl border border-ink-200 bg-ink-100 px-4 py-3 text-sm text-ink-700">{message}</div>}
@@ -137,7 +156,13 @@ export default function RegisterPage() {
               </div>
               <div className="rounded-xl border border-ink-200 bg-ink-50 px-4 py-3 text-sm text-ink-600">
                 Already registered?{" "}
-                <Link href="/login" className="font-medium text-brand-700 hover:text-brand-800">
+                <Link
+                  href={(() => {
+                    const r = searchParams.get("returnUrl")?.trim();
+                    return r && r.startsWith("/") ? `/login?returnUrl=${encodeURIComponent(r)}` : "/login";
+                  })()}
+                  className="font-medium text-brand-700 hover:text-brand-800"
+                >
                   Sign in
                 </Link>
               </div>
@@ -146,5 +171,24 @@ export default function RegisterPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="app-page min-h-screen">
+        <SiteHeader />
+        <main className="w-full py-8 sm:py-12">
+          <div className="container-wide flex justify-center">
+            <Card className="market-panel w-full max-w-xl bg-white">
+              <CardContent className="py-10 text-center text-sm text-ink-600">Loading...</CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
+    }>
+      <RegisterForm />
+    </Suspense>
   );
 }

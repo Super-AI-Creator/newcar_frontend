@@ -2,13 +2,32 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "@/components/site-header";
 import { getArticles } from "@/lib/articles";
+import { env } from "@/lib/env";
+
+type ArticleMeta = { title: string; description?: string; slug: string; date: string };
+
+async function getArticlesFromApi(): Promise<ArticleMeta[]> {
+  const base = (env.apiBaseUrl || "").trim();
+  if (!base) return [];
+  try {
+    const res = await fetch(`${base.replace(/\/$/, "")}/articles`, { next: { revalidate: 60 } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data?.items) ? data.items : [];
+  } catch {
+    return [];
+  }
+}
+
 export const metadata: Metadata = {
   title: "Articles | NewCarSuperstore",
   description: "Guides and articles about leasing and buying new cars in California — without the dealership runaround.",
 };
 
 export default async function ArticlesIndexPage() {
-  const articles = getArticles();
+  const apiArticles = await getArticlesFromApi();
+  const fileArticles = getArticles();
+  const articles = apiArticles.length > 0 ? apiArticles : fileArticles;
 
   return (
     <div className="min-h-screen bg-white text-ink-900">
@@ -20,7 +39,7 @@ export default async function ArticlesIndexPage() {
         </p>
         <ul className="mt-8 space-y-4">
           {articles.length === 0 ? (
-            <li className="text-sm text-ink-500">No articles yet. Add markdown files in <code className="rounded bg-ink-100 px-1">content/articles/</code>.</li>
+            <li className="text-sm text-ink-500">No articles yet.</li>
           ) : (
             articles.map((a) => (
               <li key={a.slug}>

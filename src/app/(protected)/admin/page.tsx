@@ -666,7 +666,7 @@ export default function AdminPage() {
   const [seoIsActive, setSeoIsActive] = useState(true);
   const [leadDeliveryStatusFilter, setLeadDeliveryStatusFilter] = useState<"all" | "pending" | "sent" | "failed" | "skipped">("all");
   const [leadDeliverySearch, setLeadDeliverySearch] = useState("");
-  const [adminTab, setAdminTab] = useState<"broker_ops" | "credit_docs" | "admin_data" | "landing_page" | "credit_unions">("broker_ops");
+  const [adminTab, setAdminTab] = useState<"broker_ops" | "credit_docs" | "leads" | "applications" | "admin_data" | "landing_page" | "credit_unions">("broker_ops");
   const [confirmState, setConfirmState] = useState<{
     open: boolean;
     title: string;
@@ -730,7 +730,7 @@ export default function AdminPage() {
         q: leadDeliverySearch || undefined,
         limit: 200
       }),
-    enabled: isBrokerWorkspace
+    enabled: isBrokerWorkspace || isSuperAdmin
   });
   const dealsQuery = useQuery({ queryKey: ["admin-deals-queue"], queryFn: api.brokerQueue, enabled: isBrokerWorkspace });
   const messagesQuery = useQuery({ queryKey: ["admin-messages"], queryFn: api.messages, enabled: isBrokerWorkspace });
@@ -1837,6 +1837,9 @@ export default function AdminPage() {
                   <Button asChild variant="outline" size="sm">
                     <Link href="/admin/testimonials">Testimonials</Link>
                   </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/admin/articles">Articles</Link>
+                  </Button>
                   <Badge className="border border-ink-200 bg-ink-100 text-ink-700">
                     {typeof activeDealerCount === "number"
                       ? `${activeDealerCount.toLocaleString()} active dealers`
@@ -1867,9 +1870,18 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <Tabs value={adminTab} onValueChange={(value) => setAdminTab(value as "broker_ops" | "credit_docs" | "admin_data" | "landing_page" | "credit_unions")} className="space-y-4">
+        <Tabs value={adminTab} onValueChange={(value) => setAdminTab(value as "broker_ops" | "credit_docs" | "leads" | "applications" | "admin_data" | "landing_page" | "credit_unions")} className="space-y-4">
           <TabsList className="bg-ink-100 p-1">
             {!isSuperAdmin && <TabsTrigger value="broker_ops">Broker Operations</TabsTrigger>}
+            <TabsTrigger value="leads">Leads</TabsTrigger>
+            <TabsTrigger value="applications">
+              Applications
+              {(pendingCreditCount > 0 || pendingDocCount > 0) && (
+                <span className="ml-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] text-white">
+                  {pendingCreditCount + pendingDocCount}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="credit_docs">
               {isSuperAdmin ? "Forms & Results" : "Credit & Docs"}
               {(pendingCreditCount > 0 || pendingDocCount > 0) && (
@@ -1882,6 +1894,312 @@ export default function AdminPage() {
             {isSuperAdmin && <TabsTrigger value="landing_page">Landing Page</TabsTrigger>}
             {isSuperAdmin && <TabsTrigger value="credit_unions">Credit Unions</TabsTrigger>}
           </TabsList>
+
+          <TabsContent value="leads" className="space-y-6">
+            <Card className="border-ink-200 bg-white">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4 text-brand-600" />
+                  All Submitted Leads
+                </CardTitle>
+                <p className="text-sm text-ink-600">Get Price and other lead form submissions. Search and filter below.</p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    value={leadDeliverySearch}
+                    onChange={(e) => setLeadDeliverySearch(e.target.value)}
+                    placeholder="Search by email, phone, VIN, or name"
+                    className="max-w-sm"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    {(["all", "pending", "sent", "failed", "skipped"] as const).map((status) => (
+                      <Button
+                        key={status}
+                        size="sm"
+                        variant={leadDeliveryStatusFilter === status ? "default" : "outline"}
+                        onClick={() => setLeadDeliveryStatusFilter(status)}
+                      >
+                        {status}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => leadDeliveryQuery.refetch()} disabled={leadDeliveryQuery.isFetching}>
+                    Refresh
+                  </Button>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Lead</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Vehicle</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Attempts</TableHead>
+                      <TableHead>Delivered</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {leadDeliveryItems.map((item) => (
+                      <TableRow key={item.lead_id}>
+                        <TableCell>
+                          <div className="text-sm font-medium text-ink-900">#{item.lead_id}</div>
+                          <div className="text-xs text-ink-500">{formatDateTime(item.created_at)}</div>
+                          {item.source ? <div className="text-xs text-ink-500">Source: {item.source}</div> : null}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm text-ink-900">{item.name ?? "-"}</div>
+                          <div className="text-xs text-ink-600">{item.email ?? "-"}</div>
+                          <div className="text-xs text-ink-500">{item.phone ?? "-"}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm text-ink-900">{item.vehicle ?? (item.vin ? `VIN ${item.vin}` : "-")}</div>
+                          {item.notes ? <div className="max-w-xs truncate text-xs text-ink-500" title={item.notes}>{item.notes}</div> : null}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`border ${leadDeliveryBadgeClass(item.webhook_status)}`}>
+                            {formatStatusLabel(item.webhook_status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{item.webhook_attempts ?? 0}</TableCell>
+                        <TableCell className="text-xs text-ink-600">{formatDateTime(item.webhook_delivered_at)}</TableCell>
+                        <TableCell>
+                          {item.webhook_status === "failed" || item.webhook_status === "skipped" ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={retryLeadDeliveryMutation.isPending}
+                              onClick={() =>
+                                confirmAction(
+                                  `Retry webhook delivery for lead #${item.lead_id}?`,
+                                  () => retryLeadDeliveryMutation.mutate(item.lead_id),
+                                  "This re-sends the lead payload to Make/Zapier."
+                                )
+                              }
+                            >
+                              <Send className="h-3.5 w-3.5" />
+                              Retry
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-ink-500">-</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {leadDeliveryItems.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-sm text-ink-600">
+                          No leads found.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="applications" className="space-y-6">
+            <div>
+            <Card className="border-ink-200 bg-white">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-4 w-4 text-brand-600" />
+                  Credit Applications
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-ink-600">
+                  <Badge>{creditApplications.length} applications</Badge>
+                  <Badge className="bg-red-50 text-red-700">{pendingCreditCount} pending review</Badge>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Input
+                    value={creditSearch}
+                    onChange={(e) => setCreditSearch(e.target.value)}
+                    placeholder="Search by VIN or id"
+                    className="max-w-sm"
+                  />
+                  <div className="flex gap-2">
+                    {["all", "submitted", "in_review", "approved", "declined"].map((status) => (
+                      <Button
+                        key={status}
+                        size="sm"
+                        variant={creditStatusFilter === status ? "default" : "outline"}
+                        onClick={() => setCreditStatusFilter(status)}
+                      >
+                        {status.replaceAll("_", " ")}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {creditApplications.map((item) => (
+                    <div key={item.id} className="rounded-lg border border-ink-200 bg-ink-50 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-ink-900">
+                          App #{item.id} | {item.customer_name ?? item.customer_email ?? "Customer"} | VIN {item.vin ?? "-"}
+                        </p>
+                        <Badge>{item.status ?? "submitted"}</Badge>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-600">
+                        <span className="inline-flex items-center gap-1">
+                          <CalendarClock className="h-3.5 w-3.5" />
+                          Submitted: {formatDateTime(item.created_at)}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <FileSpreadsheet className="h-3.5 w-3.5" />
+                          Source: {item.source ?? "-"}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <Mail className="h-3.5 w-3.5" />
+                          Contact: {item.customer_email ?? "-"}
+                        </span>
+                      </div>
+                      {isSuperAdmin && (
+                        <div className="mt-2 rounded-xl border border-brand-200 bg-gradient-to-r from-brand-50 via-white to-ink-50 p-3">
+                          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-700">
+                            <span className="inline-flex items-center gap-1">
+                              <UserRoundCheck className="h-3.5 w-3.5 text-brand-700" />
+                              Reviewed by: {item.reviewed_by_name ?? "—"} · {formatDateTime(item.reviewed_at)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {!isSuperAdmin && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {["in_review", "approved", "declined"].map((next) => (
+                            <Button
+                              key={next}
+                              size="sm"
+                              variant="outline"
+                              disabled={updateCreditApplicationMutation.isPending}
+                              onClick={() => {
+                                confirmAction(
+                                  `Set credit application #${item.id} to ${next.replaceAll("_", " ")}?`,
+                                  () => updateCreditApplicationMutation.mutate({ id: item.id, status: next }),
+                                  "This updates credit status for both broker and customer."
+                                );
+                              }}
+                            >
+                              Set {next.replaceAll("_", " ")}
+                            </Button>
+                          ))}
+                          <Input
+                            value={creditNotes[item.id] ?? item.broker_note ?? ""}
+                            onChange={(e) => setCreditNotes((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                            placeholder="Broker note"
+                            className="max-w-xs"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={updateCreditApplicationMutation.isPending}
+                            onClick={() =>
+                              updateCreditApplicationMutation.mutate({
+                                id: item.id,
+                                broker_note: creditNotes[item.id] ?? item.broker_note ?? ""
+                              })
+                            }
+                          >
+                            Save note
+                          </Button>
+                        </div>
+                      )}
+                      <details className="mt-2 rounded border border-ink-200 bg-white p-2">
+                        <summary className="cursor-pointer text-xs font-medium text-ink-700">View payload</summary>
+                        <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-xs text-ink-700">{prettyJson(item.payload_json)}</pre>
+                      </details>
+                    </div>
+                  ))}
+                  {creditApplications.length === 0 && <p className="text-sm text-ink-600">No credit applications found.</p>}
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="mt-6 border-ink-200 bg-white">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FolderOpen className="h-4 w-4 text-brand-600" />
+                  Document Submissions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-ink-600">
+                  <Badge>{docSubmissions.length} submissions</Badge>
+                  <Badge className="bg-red-50 text-red-700">{pendingDocCount} pending review</Badge>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Input
+                    value={docSearch}
+                    onChange={(e) => setDocSearch(e.target.value)}
+                    placeholder="Search by VIN"
+                    className="max-w-sm"
+                  />
+                  <div className="flex gap-2">
+                    {["all", "submitted", "in_review", "approved", "rejected"].map((status) => (
+                      <Button
+                        key={status}
+                        size="sm"
+                        variant={docStatusFilter === status ? "default" : "outline"}
+                        onClick={() => setDocStatusFilter(status)}
+                      >
+                        {status.replaceAll("_", " ")}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {docSubmissions.map((item) => (
+                    <div key={item.id} className="rounded-lg border border-ink-200 bg-ink-50 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-ink-900">
+                          Docs #{item.id} | {item.customer_name ?? item.customer_email ?? "Customer"} | VIN {item.vin ?? "-"}
+                        </p>
+                        <Badge>{item.status ?? "submitted"}</Badge>
+                      </div>
+                      <p className="text-xs text-ink-600">
+                        Submitted: {formatDateTime(item.created_at)} | Contact: {item.customer_email ?? "-"}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" onClick={() => viewDoc(item.id, "drivers_license")}>
+                          <Eye className="h-3.5 w-3.5" />
+                          View DL
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => viewDoc(item.id, "insurance")}>
+                          <Eye className="h-3.5 w-3.5" />
+                          View insurance
+                        </Button>
+                        {!isSuperAdmin && (
+                          <>
+                            {["in_review", "approved", "rejected"].map((next) => (
+                              <Button
+                                key={next}
+                                size="sm"
+                                variant="outline"
+                                disabled={updateDocSubmissionMutation.isPending}
+                                onClick={() => {
+                                  confirmAction(
+                                    `Set document #${item.id} to ${next.replaceAll("_", " ")}?`,
+                                    () => updateDocSubmissionMutation.mutate({ id: item.id, status: next }),
+                                    "This updates document status."
+                                  );
+                                }}
+                              >
+                                Set {next.replaceAll("_", " ")}
+                              </Button>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {docSubmissions.length === 0 && <p className="text-sm text-ink-600">No document submissions found.</p>}
+                </div>
+              </CardContent>
+            </Card>
+            </div>
+          </TabsContent>
 
           {!isSuperAdmin && (
           <TabsContent value="broker_ops" className="space-y-6">
