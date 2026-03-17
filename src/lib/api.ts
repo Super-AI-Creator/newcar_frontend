@@ -178,6 +178,19 @@ export const api = {
       jwt: data.jwt ?? data.token ?? data.access_token
     };
   },
+  register: async (payload: { email: string; name: string; password: string; phone?: string; cu_signup_token?: string }) => {
+    return apiFetch<{ registered?: boolean; message?: string }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        email: payload.email,
+        name: payload.name,
+        password: payload.password,
+        phone: payload.phone,
+        channel: "email",
+        cu_signup_token: payload.cu_signup_token
+      })
+    });
+  },
   requestOtp: async (payload: { email: string; name: string; password: string; phone?: string; channel?: "email" | "sms"; cu_signup_token?: string }) => {
     try {
       return await apiFetch<{ sent: boolean; delivery?: string; dev_code?: string }>("/auth/otp/request", {
@@ -1601,13 +1614,13 @@ export type ApprovalCreatePayload = {
 };
 
 export type LandingPageContentRecord = {
-  hero?: { kicker?: string; headline?: string; subtext?: string; slide_urls?: string[] };
+  hero?: { kicker?: string; headline?: string; subtext?: string; slide_urls?: string[]; slide_focus?: string[] };
   lease?: { title?: string; subtitle?: string };
-  how_it_works?: Array<{ image_url?: string; label?: string }>;
+  how_it_works?: Array<{ image_url?: string; label?: string; image_focus?: string }>;
 };
 
 export type LandingPageUpdatePayload = {
-  hero?: { kicker?: string; headline?: string; subtext?: string; slide_urls?: string[] };
+  hero?: { kicker?: string; headline?: string; subtext?: string; slide_urls?: string[]; slide_focus?: string[] };
   lease?: { title?: string; subtitle?: string };
-  how_it_works?: Array<{ image_url?: string; label?: string }>;
+  how_it_works?: Array<{ image_url?: string; label?: string; image_focus?: string }>;
 };

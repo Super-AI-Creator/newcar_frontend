@@ -17,15 +17,16 @@ const DEFAULT_HERO = {
   headline: "Buy Any New Car in California Without the Dealership",
   subtext: "SHOP, GET APPROVED AND GET THE CAR DELIVERED TO YOUR DOOR WITH A RED BOW.",
   slide_urls: ["/images/landing_img (1).jpg", "/images/landing_img (2).jpg", "/images/landing_img (3).jpg", "/images/landing_img (4).jpg"],
+  slide_focus: ["center", "center", "center", "center"] as string[],
 };
 const DEFAULT_LEASE = {
   title: "Current Lease Specials Los Angeles",
   subtitle: "Shop and compare hundreds of lease offers, if they make it, we have it! 818-705-9200",
 };
 const DEFAULT_HOW = [
-  { image_url: "/images/hero-cars.jpg", label: "Browse Statewide Inventory" },
-  { image_url: "/images/deal-1.jpg", label: "Get Your Best Rate" },
-  { image_url: "/images/landing_img (1).jpg", label: "Home Delivery With a Bow" },
+  { image_url: "/images/hero-cars.jpg", label: "Browse Statewide Inventory", image_focus: "center" },
+  { image_url: "/images/deal-1.jpg", label: "Get Your Best Rate", image_focus: "center" },
+  { image_url: "/images/landing_img (1).jpg", label: "Home Delivery With a Bow", image_focus: "center" },
 ];
 
 export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
@@ -35,9 +36,10 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
   const [heroHeadline, setHeroHeadline] = useState(DEFAULT_HERO.headline);
   const [heroSubtext, setHeroSubtext] = useState(DEFAULT_HERO.subtext);
   const [slideUrls, setSlideUrls] = useState<string[]>(DEFAULT_HERO.slide_urls);
+  const [slideFocus, setSlideFocus] = useState<string[]>(DEFAULT_HERO.slide_focus);
   const [leaseTitle, setLeaseTitle] = useState(DEFAULT_LEASE.title);
   const [leaseSubtitle, setLeaseSubtitle] = useState(DEFAULT_LEASE.subtitle);
-  const [howSteps, setHowSteps] = useState<Array<{ image_url: string; label: string }>>(DEFAULT_HOW);
+  const [howSteps, setHowSteps] = useState<Array<{ image_url: string; label: string; image_focus?: string }>>(DEFAULT_HOW);
 
   const query = useQuery({
     queryKey: ["admin-landing-page"],
@@ -86,12 +88,20 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
       if (d.hero.headline != null) setHeroHeadline(d.hero.headline);
       if (d.hero.subtext != null) setHeroSubtext(d.hero.subtext);
       if (d.hero.slide_urls?.length) setSlideUrls(d.hero.slide_urls);
+      if (d.hero.slide_focus?.length) setSlideFocus(d.hero.slide_focus);
     }
     if (d.lease) {
       if (d.lease.title != null) setLeaseTitle(d.lease.title);
       if (d.lease.subtitle != null) setLeaseSubtitle(d.lease.subtitle);
     }
-    if (d.how_it_works?.length) setHowSteps(d.how_it_works.map((s) => ({ image_url: s.image_url ?? "", label: s.label ?? "" })));
+    if (d.how_it_works?.length)
+      setHowSteps(
+        d.how_it_works.map((s) => ({
+          image_url: s.image_url ?? "",
+          label: s.label ?? "",
+          image_focus: s.image_focus ?? "center",
+        }))
+      );
   }, [query.data]);
 
   const updateMutation = useMutation({
@@ -107,16 +117,22 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
 
   const handleSave = () => {
     updateMutation.mutate({
-      hero: { kicker: heroKicker, headline: heroHeadline, subtext: heroSubtext, slide_urls: slideUrls.filter(Boolean) },
+      hero: {
+        kicker: heroKicker,
+        headline: heroHeadline,
+        subtext: heroSubtext,
+        slide_urls: slideUrls.filter(Boolean),
+        slide_focus: slideFocus.slice(0, slideUrls.length),
+      },
       lease: { title: leaseTitle, subtitle: leaseSubtitle },
-      how_it_works: howSteps.map((s) => ({ image_url: s.image_url, label: s.label })),
+      how_it_works: howSteps.map((s) => ({ image_url: s.image_url, label: s.label, image_focus: s.image_focus ?? "center" })),
     });
   };
 
-  const setHowStep = (index: number, field: "image_url" | "label", value: string) => {
+  const setHowStep = (index: number, field: "image_url" | "label" | "image_focus", value: string) => {
     setHowSteps((prev) => {
       const next = [...prev];
-      while (next.length <= index) next.push({ image_url: "", label: "" });
+      while (next.length <= index) next.push({ image_url: "", label: "", image_focus: "center" });
       next[index] = { ...next[index], [field]: value };
       return next;
     });
@@ -179,6 +195,28 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
                       className="mt-1 h-16 w-24 rounded border border-ink-200 object-cover"
                     />
                   )}
+                  <div className="space-y-1 text-xs">
+                    <span className="text-ink-700">Image focus</span>
+                    <select
+                      className="mt-1 w-full rounded border border-ink-200 bg-white px-2 py-1 text-xs"
+                      value={slideFocus[i] ?? "center"}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setSlideFocus((prev) => {
+                          const next = [...prev];
+                          while (next.length <= i) next.push("center");
+                          next[i] = value;
+                          return next;
+                        });
+                      }}
+                    >
+                      <option value="center">Center</option>
+                      <option value="top">Top</option>
+                      <option value="bottom">Bottom</option>
+                      <option value="left">Left</option>
+                      <option value="right">Right</option>
+                    </select>
+                  </div>
                 </div>
               ))}
             </div>
@@ -239,6 +277,20 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
                     className="mt-1 h-16 w-24 rounded border border-ink-200 object-cover"
                   />
                 )}
+              </div>
+              <div className="space-y-1 text-xs">
+                <span className="text-ink-700">Image focus</span>
+                <select
+                  className="mt-1 w-full rounded border border-ink-200 bg-white px-2 py-1 text-xs"
+                  value={howSteps[i]?.image_focus ?? "center"}
+                  onChange={(e) => setHowStep(i, "image_focus", e.target.value)}
+                >
+                  <option value="center">Center</option>
+                  <option value="top">Top</option>
+                  <option value="bottom">Bottom</option>
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
               </div>
             </div>
           ))}

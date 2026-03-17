@@ -20,9 +20,9 @@ const DEFAULT_HERO = {
 };
 const DEFAULT_LEASE = { title: "Current Lease Specials Los Angeles", subtitle: "Shop and compare hundreds of lease offers, if they make it, we have it! 818-705-9200" };
 const DEFAULT_HOW = [
-  { image_url: "/images/hero-cars.jpg", label: "Browse Statewide Inventory" },
-  { image_url: "/images/deal-1.jpg", label: "Get Your Best Rate" },
-  { image_url: "/images/landing_img (1).jpg", label: "Home Delivery With a Bow" },
+  { image_url: "/images/hero-cars.jpg", label: "Browse Statewide Inventory", image_focus: "center" },
+  { image_url: "/images/deal-1.jpg", label: "Get Your Best Rate", image_focus: "center" },
+  { image_url: "/images/landing_img (1).jpg", label: "Home Delivery With a Bow", image_focus: "center" },
 ];
 
 export default function LandingPageSections() {
@@ -34,8 +34,21 @@ export default function LandingPageSections() {
   const hero = data?.hero ?? DEFAULT_HERO;
   const lease = data?.lease ?? DEFAULT_LEASE;
   const how = data?.how_it_works?.length ? data.how_it_works : DEFAULT_HOW;
-  const slideUrls = hero.slide_urls?.length ? hero.slide_urls : DEFAULT_HERO.slide_urls;
-  const slides = slideUrls.map((src, i) => ({ src, alt: `Slide ${i + 1}` }));
+  const imageFocusToCss = (focus?: string) => {
+    const v = (focus ?? "center").toLowerCase();
+    if (v === "top") return "50% 0%";
+    if (v === "bottom") return "50% 100%";
+    if (v === "left") return "0% 50%";
+    if (v === "right") return "100% 50%";
+    return "50% 50%";
+  };
+  const slideUrls = (Array.isArray(hero.slide_urls) && hero.slide_urls.length ? hero.slide_urls : DEFAULT_HERO.slide_urls) ?? [];
+  const slideFocusRaw = Array.isArray(hero.slide_focus) && hero.slide_focus.length ? hero.slide_focus : DEFAULT_HERO.slide_focus ?? [];
+  const slides = slideUrls.map((src, i) => ({
+    src,
+    alt: `Slide ${i + 1}`,
+    focus: slideFocusRaw[i] ?? "center",
+  }));
 
   return (
     <>
@@ -162,9 +175,20 @@ export default function LandingPageSections() {
                   <div className="relative h-32 overflow-hidden rounded-xl border border-ink-200 bg-ink-50">
                     {step.image_url?.startsWith("http") ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={step.image_url} alt={step.label ?? ""} className="h-full w-full object-cover" />
+                      <img
+                        src={step.image_url}
+                        alt={step.label ?? ""}
+                        className="h-full w-full object-cover"
+                        style={{ objectPosition: imageFocusToCss(step.image_focus) }}
+                      />
                     ) : (
-                      <Image src={step.image_url || "/images/hero-cars.jpg"} alt={step.label ?? ""} fill className="object-cover" />
+                      <Image
+                        src={step.image_url || "/images/hero-cars.jpg"}
+                        alt={step.label ?? ""}
+                        fill
+                        className="object-cover"
+                        style={{ objectPosition: imageFocusToCss(step.image_focus) }}
+                      />
                     )}
                   </div>
                   <p className="mt-3 text-base font-semibold text-ink-900 sm:text-lg">{step.label}</p>

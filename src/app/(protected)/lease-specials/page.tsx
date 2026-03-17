@@ -1027,12 +1027,12 @@ function LeaseSpecialCard({
               year={vehicle.year}
               source="lease_specials_get_price"
             >
-                <span className="max-[420px]:hidden">Get Price</span>
-                <span className="hidden max-[420px]:inline">Price</span>
+              <span className="max-[420px]:hidden">Check Availability</span>
+              <span className="hidden max-[420px]:inline">Check</span>
             </LeadFormButton>
             <Button size="sm" variant="outline" className="rounded-full" onClick={handleCheckAvailability}>
-              <span className="max-[420px]:hidden">Check availability</span>
-              <span className="hidden max-[420px]:inline">Check</span>
+              <span className="max-[420px]:hidden">Apply for financing</span>
+              <span className="hidden max-[420px]:inline">Apply</span>
             </Button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import SiteHeader from "@/components/site-header";
@@ -8,12 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import { z } from "zod";
-import { Suspense } from "react";
+import { ShieldCheck } from "lucide-react";
 
 const emailSchema = z.string().email();
+
+function randomCaptcha() {
+  const a = 2;
+  const b = 2;
+  return { a, b, answer: a + b };
+}
 
 function RegisterForm() {
   const router = useRouter();
@@ -23,11 +28,11 @@ function RegisterForm() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [channel, setChannel] = useState<"email" | "sms">("email");
-  const [otp, setOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const [captcha, setCaptcha] = useState<ReturnType<typeof randomCaptcha> | null>(null);
+  const [captchaInput, setCaptchaInput] = useState("");
+  const [captchaError, setCaptchaError] = useState(false);
 
   // Pre-fill from URL (e.g. after Get Price lead submit).
   useEffect(() => {
@@ -39,60 +44,51 @@ function RegisterForm() {
     if (p) setPhone(p);
   }, [searchParams]);
 
-  const canRequestOtp = useMemo(() => {
+  useEffect(() => {
+    setCaptcha(randomCaptcha());
+  }, []);
+
+  const captchaValid = useMemo(() => {
+    if (!captcha) return false;
+    const n = parseInt(captchaInput.trim(), 10);
+    return Number.isFinite(n) && n === captcha.answer;
+  }, [captcha, captchaInput]);
+
+  const canSubmit = useMemo(() => {
     const validEmail = emailSchema.safeParse(email).success;
     const validName = name.trim().length > 0;
     const validPassword = password.length >= 8;
     const passwordsMatch = password === confirmPassword;
-    const validPhone = channel === "email" || phone.trim().length > 0;
-    return validEmail && validName && validPassword && passwordsMatch && validPhone;
-  }, [email, name, password, confirmPassword, channel, phone]);
+    return validEmail && validName && validPassword && passwordsMatch && captchaValid && status !== "loading";
+  }, [email, name, password, confirmPassword, captchaValid, status]);
 
-  const requestOtp = async () => {
+  const handleRegister = async () => {
     setMessage(null);
-    if (!canRequestOtp) {
-      setMessage("Fill all required fields and ensure passwords match.");
+    if (!canSubmit) {
+      setMessage("Fill all required fields, ensure passwords match, and solve the security question.");
+      return;
+    }
+
+    if (!captchaValid) {
+      setCaptchaError(true);
+      setMessage("Please solve the security question correctly.");
       return;
     }
 
     setStatus("loading");
     try {
-      const otpRes = await api.requestOtp({
+      await api.register({
         email,
         name,
         password,
-        phone: phone.trim() || undefined,
-        channel
+        phone: phone.trim() || undefined
       });
-      setOtpSent(true);
-      if (otpRes.dev_code) {
-        setMessage(`OTP generated. Use this code: ${otpRes.dev_code}`);
-      } else {
-        setMessage("OTP sent. Enter the code to finish registration.");
-      }
-    } catch (error: any) {
-      setMessage(error?.message ?? "Could not send OTP.");
-    } finally {
-      setStatus("idle");
-    }
-  };
-
-  const verifyOtp = async () => {
-    setMessage(null);
-    if (!otp.trim()) {
-      setMessage("Enter OTP code.");
-      return;
-    }
-
-    setStatus("loading");
-    try {
-      await api.verifyOtp(email, otp, channel);
       setMessage("Registration complete. Redirecting to sign in...");
       const returnUrl = searchParams.get("returnUrl")?.trim();
       const loginPath = returnUrl && returnUrl.startsWith("/") ? `/login?returnUrl=${encodeURIComponent(returnUrl)}` : "/login";
       setTimeout(() => router.replace(loginPath), 700);
     } catch (error: any) {
-      setMessage(error?.message ?? "OTP verification failed.");
+      setMessage(error?.message ?? "Registration failed.");
       setStatus("idle");
     }
   };
@@ -122,7 +118,7 @@ function RegisterForm() {
                 <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@email.com" />
               </div>
               <div className="space-y-2">
-                <Label>Phone (required for SMS OTP)</Label>
+                <Label>Phone</Label>
                 <Input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+1 555 123 4567" />
               </div>
               <div className="space-y-2">
@@ -133,25 +129,52 @@ function RegisterForm() {
                 <Label>Confirm password</Label>
                 <Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Repeat password" />
               </div>
-              <div className="space-y-2">
-                <Label>OTP channel</Label>
-                <Select value={channel} onValueChange={(value) => setChannel(value as "email" | "sms")}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose OTP channel" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="email">Email OTP</SelectItem>
-                    <SelectItem value="sms">Phone OTP (SMS)</SelectItem>
-                  </SelectContent>
-                </Select>
+
+              <div className="rounded-xl border border-ink-200 bg-ink-50/50 p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
+                    <ShieldCheck className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-ink-900">Security check</h3>
+                      <p className="mt-0.5 text-sm text-ink-600">
+                        Please solve the simple math below so we know you&apos;re not a bot.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span
+                        className="inline-flex items-center justify-center rounded-lg border border-ink-200 bg-white px-4 py-2 font-mono text-lg font-semibold tabular-nums text-ink-900"
+                        aria-hidden
+                      >
+                        {captcha ? `${captcha.a} + ${captcha.b} = ?` : "Loading..."}
+                      </span>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        placeholder="Your answer"
+                        value={captchaInput}
+                        onChange={(e) => {
+                          setCaptchaInput(e.target.value);
+                          setCaptchaError(false);
+                        }}
+                        className={`w-28 font-mono tabular-nums ${captchaError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                        aria-label="Answer to the security question"
+                        aria-invalid={captchaError}
+                      />
+                    </div>
+                    {captchaError && (
+                      <p className="text-sm font-medium text-red-600" role="alert">
+                        Incorrect. Please try again.
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
+
               <div className="flex flex-wrap gap-3">
-                <Button variant="outline" onClick={requestOtp} disabled={!canRequestOtp || status === "loading"}>
-                  Request OTP
-                </Button>
-                <Input value={otp} onChange={(event) => setOtp(event.target.value)} placeholder="Enter OTP" className="max-w-[220px]" disabled={!otpSent} />
-                <Button onClick={verifyOtp} disabled={!otpSent || !otp.trim() || status === "loading"}>
-                  Verify OTP
+                <Button onClick={handleRegister} disabled={!canSubmit}>
+                  {status === "loading" ? "Creating account..." : "Create account"}
                 </Button>
               </div>
               <div className="rounded-xl border border-ink-200 bg-ink-50 px-4 py-3 text-sm text-ink-600">
@@ -176,18 +199,20 @@ function RegisterForm() {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={
-      <div className="app-page min-h-screen">
-        <SiteHeader />
-        <main className="w-full py-8 sm:py-12">
-          <div className="container-wide flex justify-center">
-            <Card className="market-panel w-full max-w-xl bg-white">
-              <CardContent className="py-10 text-center text-sm text-ink-600">Loading...</CardContent>
-            </Card>
-          </div>
-        </main>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="app-page min-h-screen">
+          <SiteHeader />
+          <main className="w-full py-8 sm:py-12">
+            <div className="container-wide flex justify-center">
+              <Card className="market-panel w-full max-w-xl bg-white">
+                <CardContent className="py-10 text-center text-sm text-ink-600">Loading...</CardContent>
+              </Card>
+            </div>
+          </main>
+        </div>
+      }
+    >
       <RegisterForm />
     </Suspense>
   );
