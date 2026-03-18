@@ -191,6 +191,18 @@ export const api = {
       })
     });
   },
+  updateProfile: async (payload: { name: string; phone?: string }) => {
+    return apiFetch<User>("/auth/me/profile", {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    });
+  },
+  changePassword: async (payload: { current_password: string; new_password: string }) => {
+    return apiFetch<{ changed: boolean }>("/auth/me/change-password", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+  },
   requestOtp: async (payload: { email: string; name: string; password: string; phone?: string; channel?: "email" | "sms"; cu_signup_token?: string }) => {
     try {
       return await apiFetch<{ sent: boolean; delivery?: string; dev_code?: string }>("/auth/otp/request", {
@@ -857,6 +869,24 @@ export const api = {
   adminGeneralStatus: async () => {
     return apiFetch<AdminGeneralStatus>("/admin/general-status");
   },
+  adminUsers: async () => {
+    return apiFetch<User[]>(`/admin/users`);
+  },
+  adminUpdateUser: async (
+    userId: number,
+    payload: {
+      name?: string;
+      phone?: string | null;
+      role?: string;
+      is_email_verified?: boolean;
+      is_phone_verified?: boolean;
+    }
+  ) => {
+    return apiFetch<User>(`/admin/users/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
   adminHomepageFeatured: async (params?: { month?: string }) => {
     const query = new URLSearchParams();
     if (params?.month) query.set("month", params.month);
@@ -1485,6 +1515,17 @@ export type AdminGeneralStatus = {
     active_used_count: number;
     active_total_count: number;
   };
+};
+
+export type User = {
+  id: number;
+  email: string;
+  phone?: string | null;
+  name: string;
+  role: string;
+  credit_union_id?: number | null;
+  is_phone_verified: boolean;
+  is_email_verified: boolean;
 };
 
 export type SeoPageSettingRecord = {

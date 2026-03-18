@@ -513,7 +513,7 @@ export default function CustomerDashboard() {
                 }`}
               >
                 <MessageSquare className="h-4 w-4" />
-                Broker Workspace
+                Chat with Broker
               </button>
               <button
                 type="button"
@@ -572,7 +572,7 @@ export default function CustomerDashboard() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <MessageSquare className="h-5 w-5 text-brand-700" />
-                    Broker Workspace
+                    Chat with Broker
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm text-ink-600">

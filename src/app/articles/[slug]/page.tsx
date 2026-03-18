@@ -10,17 +10,24 @@ type Props = { params: Promise<{ slug: string }> };
 
 type ArticleData = { title: string; description?: string; slug: string; date: string; content: string };
 
+const API_FETCH_TIMEOUT_MS = 5000;
+
 async function getArticleFromApi(slug: string): Promise<ArticleData | null> {
   const base = (env.apiBaseUrl || "").trim();
   if (!base) return null;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(`${base.replace(/\/$/, "")}/articles/by-slug/${encodeURIComponent(slug)}`, {
+      signal: controller.signal,
       next: { revalidate: 60 },
     });
     if (!res.ok) return null;
     return await res.json();
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

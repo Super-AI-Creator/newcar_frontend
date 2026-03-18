@@ -39,6 +39,7 @@ import {
   UserRoundCheck
 } from "lucide-react";
 import { LandingPageEditor } from "@/components/admin/landing-page-editor";
+import UserManagement from "@/components/admin/user-management";
 import { CreditUnionsManager } from "@/components/admin/credit-unions-manager";
 
 const DEAL_STATUS_LABELS: Record<string, string> = {
@@ -666,7 +667,7 @@ export default function AdminPage() {
   const [seoIsActive, setSeoIsActive] = useState(true);
   const [leadDeliveryStatusFilter, setLeadDeliveryStatusFilter] = useState<"all" | "pending" | "sent" | "failed" | "skipped">("all");
   const [leadDeliverySearch, setLeadDeliverySearch] = useState("");
-  const [adminTab, setAdminTab] = useState<"broker_ops" | "credit_docs" | "leads" | "applications" | "admin_data" | "landing_page" | "credit_unions">("broker_ops");
+  const [adminTab, setAdminTab] = useState<"broker_ops" | "credit_docs" | "leads" | "applications" | "admin_data" | "landing_page" | "credit_unions" | "users">("broker_ops");
   const [confirmState, setConfirmState] = useState<{
     open: boolean;
     title: string;
@@ -1870,7 +1871,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <Tabs value={adminTab} onValueChange={(value) => setAdminTab(value as "broker_ops" | "credit_docs" | "leads" | "applications" | "admin_data" | "landing_page" | "credit_unions")} className="space-y-4">
+          <Tabs value={adminTab} onValueChange={(value) => setAdminTab(value as "broker_ops" | "credit_docs" | "leads" | "applications" | "admin_data" | "landing_page" | "credit_unions" | "users")} className="space-y-4">
           <TabsList className="bg-ink-100 p-1">
             {!isSuperAdmin && <TabsTrigger value="broker_ops">Broker Operations</TabsTrigger>}
             <TabsTrigger value="leads">Leads</TabsTrigger>
@@ -1892,6 +1893,7 @@ export default function AdminPage() {
             </TabsTrigger>
             <TabsTrigger value="admin_data">{isSuperAdmin ? "Super Admin" : "Admin Data"}</TabsTrigger>
             {isSuperAdmin && <TabsTrigger value="landing_page">Landing Page</TabsTrigger>}
+            {isSuperAdmin && <TabsTrigger value="users">User Management</TabsTrigger>}
             {isSuperAdmin && <TabsTrigger value="credit_unions">Credit Unions</TabsTrigger>}
           </TabsList>
 
@@ -3768,6 +3770,11 @@ export default function AdminPage() {
           {isSuperAdmin && (
           <TabsContent value="landing_page" className="space-y-6">
             <LandingPageEditor embedded />
+          </TabsContent>
+          )}
+          {isSuperAdmin && (
+          <TabsContent value="users" className="space-y-6">
+            <UserManagement />
           </TabsContent>
           )}
           {isSuperAdmin && (

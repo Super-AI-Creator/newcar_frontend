@@ -86,12 +86,23 @@ export default function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-ink-200 bg-white">
       <div className="container-wide flex h-14 items-center justify-between gap-4">
-        <Link href={homeHref} className="flex shrink-0" aria-label="NewCarSuperstore home">
-          <Logo />
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href={homeHref} className="flex shrink-0" aria-label="NewCarSuperstore home">
+            <Logo />
+          </Link>
+          <a
+            href="tel:18187059200"
+            className="hidden text-sm font-semibold text-ink-800 sm:inline-block"
+          >
+            818-705-9200
+          </a>
+        </div>
         <div className="flex shrink-0 items-center gap-3">
           {user ? (
             <>
+              <Button asChild variant="outline" size="sm" className="hidden rounded-full px-4 md:inline-flex">
+                <Link href="/settings">Profile</Link>
+              </Button>
               <span
                 className="hidden max-w-[160px] truncate text-sm text-ink-500 md:inline"
                 title={user.email ?? undefined}

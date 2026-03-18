@@ -6,16 +6,25 @@ import { env } from "@/lib/env";
 
 type ArticleMeta = { title: string; description?: string; slug: string; date: string };
 
+const API_FETCH_TIMEOUT_MS = 5000;
+
 async function getArticlesFromApi(): Promise<ArticleMeta[]> {
   const base = (env.apiBaseUrl || "").trim();
   if (!base) return [];
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(`${base.replace(/\/$/, "")}/articles`, { next: { revalidate: 60 } });
+    const res = await fetch(`${base.replace(/\/$/, "")}/articles`, {
+      signal: controller.signal,
+      next: { revalidate: 60 },
+    });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data?.items) ? data.items : [];
   } catch {
     return [];
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

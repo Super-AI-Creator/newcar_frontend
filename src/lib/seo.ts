@@ -32,19 +32,25 @@ function parseRobots(raw?: string | null): Metadata["robots"] | undefined {
   };
 }
 
+const SEO_FETCH_TIMEOUT_MS = 5000;
+
 async function fetchSeoPayload(pageKey: string): Promise<SeoPayload | null> {
   const base = (env.apiBaseUrl || "").trim();
   if (!base) return null;
   const url = `${base.replace(/\/$/, "")}/seo/pages/${encodeURIComponent(pageKey)}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), SEO_FETCH_TIMEOUT_MS);
   try {
     const response = await fetch(url, {
-      // Keep SEO edits reasonably fresh without forcing a no-store penalty on every request.
+      signal: controller.signal,
       next: { revalidate: 180 }
     });
     if (!response.ok) return null;
     return (await response.json()) as SeoPayload;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
