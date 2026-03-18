@@ -36,8 +36,23 @@ export default function RecommendationsPage() {
   const [practical, setPractical] = useState(5);
   const [value, setValue] = useState(5);
   const [vehicleType, setVehicleType] = useState<"new" | "used" | "all">("all");
+  const [make, setMake] = useState("");
+  const [model, setModel] = useState("");
+  const [sortBy, setSortBy] = useState<"best" | "price" | "payment">("best");
   const [maxPayment, setMaxPayment] = useState<number | "">("");
   const [requestParams, setRequestParams] = useState<Record<string, unknown> | null>(null);
+
+  const filtersQuery = useQuery({
+    queryKey: ["recommendations-filters", vehicleType],
+    queryFn: () => api.getFilters({ vehicle_type: vehicleType }),
+    enabled: !isDealerOrAdmin,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false
+  });
+
+  const makes = filtersQuery.data?.makes ?? [];
+  const modelsByMake = filtersQuery.data?.models_by_make ?? {};
+  const modelOptions = make ? modelsByMake[make] ?? [] : [];
 
   const recQuery = useQuery({
     queryKey: ["recommendations", requestParams],
@@ -49,6 +64,9 @@ export default function RecommendationsPage() {
         practical: requestParams?.practical as number,
         value: requestParams?.value as number,
         vehicle_type: requestParams?.vehicle_type as "new" | "used" | "all",
+        make: typeof requestParams?.make === "string" ? requestParams.make : undefined,
+        model: typeof requestParams?.model === "string" ? requestParams.model : undefined,
+        sort_by: (requestParams?.sort_by as "best" | "price" | "payment" | undefined) ?? "best",
         max_payment: typeof requestParams?.max_payment === "number" ? requestParams.max_payment : undefined,
         limit: 12
       }),
@@ -63,7 +81,10 @@ export default function RecommendationsPage() {
       practical,
       value,
       vehicle_type: vehicleType,
-      max_payment: maxPayment === "" ? undefined : Number(maxPayment)
+      max_payment: maxPayment === "" ? undefined : Number(maxPayment),
+      make: make || undefined,
+      model: model || undefined,
+      sort_by: sortBy
     });
   };
 
@@ -154,7 +175,11 @@ export default function RecommendationsPage() {
                 <Label>Vehicle type</Label>
                 <select
                   value={vehicleType}
-                  onChange={(e) => setVehicleType(e.target.value as "new" | "used" | "all")}
+                  onChange={(e) => {
+                    setVehicleType(e.target.value as "new" | "used" | "all");
+                    setMake("");
+                    setModel("");
+                  }}
                   className="rounded-md border border-ink-300 bg-white px-3 py-2 text-sm"
                 >
                   <option value="all">All</option>
@@ -173,6 +198,52 @@ export default function RecommendationsPage() {
                   onChange={(e) => setMaxPayment(e.target.value === "" ? "" : Number(e.target.value))}
                   className="w-32 rounded-md border border-ink-300 bg-white px-3 py-2 text-sm"
                 />
+              </div>
+              <div className="space-y-1">
+                <Label>Make</Label>
+                <select
+                  value={make}
+                  onChange={(e) => {
+                    setMake(e.target.value);
+                    setModel("");
+                  }}
+                  className="w-44 rounded-md border border-ink-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">Any make</option>
+                  {makes.map((m: string) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Model</Label>
+                <select
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  disabled={!make}
+                  className="w-44 rounded-md border border-ink-300 bg-white px-3 py-2 text-sm disabled:opacity-60"
+                >
+                  <option value="">Any model</option>
+                  {modelOptions.map((m: string) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Sort</Label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as "best" | "price" | "payment")}
+                  className="rounded-md border border-ink-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="best">Best match</option>
+                  <option value="price">Price</option>
+                  <option value="payment">Payment</option>
+                </select>
               </div>
               <Button onClick={handleGetRecommendations} className="mt-4">
                 Get recommendations

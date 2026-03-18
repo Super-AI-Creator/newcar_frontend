@@ -7,6 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { api } from "@/lib/api";
 import { env } from "@/lib/env";
+import { Quote } from "lucide-react";
+
+function getInitials(author: string): string {
+  return author
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
 
 export default function ReviewsPage() {
   const { data: testimonials, isLoading, error } = useQuery({
@@ -82,9 +92,29 @@ export default function ReviewsPage() {
               {testimonials.map((item) => (
                 <Card key={item.id} className="border-ink-200 bg-white shadow-sm">
                   <CardContent className="flex flex-col gap-3 py-5">
-                    {item.title && <h3 className="text-sm font-semibold uppercase tracking-wide text-brand-700">{item.title}</h3>}
+                    <div className="flex items-start gap-3">
+                      <div className="relative h-10 w-10 overflow-hidden rounded-full border border-ink-200 bg-ink-900 text-white shadow-sm">
+                        {item.image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.image_url} alt={item.author} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-xs font-semibold">
+                            {getInitials(item.author || "") || <Quote className="h-4 w-4" aria-hidden />}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1">
+                        {item.title && (
+                          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">
+                            {item.title}
+                          </h3>
+                        )}
+                        <p className="text-sm font-medium text-ink-800">{item.author}</p>
+                      </div>
+                    </div>
+
                     <p className="flex-1 text-sm leading-relaxed text-ink-700">&ldquo;{item.quote}&rdquo;</p>
-                    <p className="text-sm font-semibold text-ink-900">- {item.author}</p>
                   </CardContent>
                 </Card>
               ))}

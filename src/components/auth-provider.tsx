@@ -6,11 +6,14 @@ import { api } from "@/lib/api";
 import { authStore } from "@/lib/auth-store";
 
 export type User = {
-  id: string;
+  id: number | string;
   name?: string;
   email?: string;
   role?: string;
   credit_union_id?: number | null;
+  phone?: string | null;
+  is_phone_verified?: boolean;
+  is_email_verified?: boolean;
 };
 
 type AuthContextValue = {

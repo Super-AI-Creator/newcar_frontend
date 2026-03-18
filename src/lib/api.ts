@@ -508,6 +508,9 @@ export const api = {
     practical?: number;
     value?: number;
     vehicle_type?: "new" | "used" | "all";
+    make?: string;
+    model?: string;
+    sort_by?: "best" | "price" | "payment";
     max_price?: number;
     max_payment?: number;
     limit?: number;

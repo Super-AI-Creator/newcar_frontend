@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import SiteHeader from "@/components/site-header";
@@ -62,6 +62,7 @@ function CreditApplicationPageFallback() {
 
 function CreditApplicationPageContent() {
   const { user, loading } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialVin = useMemo(() => searchParams.get("vin") ?? "", [searchParams]);
   const initialMake = useMemo(() => searchParams.get("make") ?? "", [searchParams]);
@@ -176,6 +177,16 @@ function CreditApplicationPageContent() {
       return api.publicCreditApplication(payload);
     },
   });
+
+  // After a successful submission, leave the form page.
+  useEffect(() => {
+    if (!submitMutation.isSuccess) return;
+    if (user) {
+      router.replace("/dashboard/customer");
+    } else {
+      router.replace(`/login?returnUrl=${encodeURIComponent("/dashboard/customer")}`);
+    }
+  }, [submitMutation.isSuccess, router, user]);
 
   const canSubmit =
     !!firstName?.trim() &&
@@ -322,7 +333,7 @@ function CreditApplicationPageContent() {
                 </SelectContent>
               </Select>
             </div>
-            <Field label="Monthly Payment or Rent" type="number" value={monthlyHousingPayment} setValue={setMonthlyHousingPayment} />
+            <Field label="Monthly Payment" type="number" value={monthlyHousingPayment} setValue={setMonthlyHousingPayment} />
             <Field label="Salesperson Name" value={salespersonName} setValue={setSalespersonName} />
             <Field label="Electronic Signature" value={electronicSignature} setValue={setElectronicSignature} />
             <div className="sm:col-span-2 space-y-2">
