@@ -29,6 +29,14 @@ const DEFAULT_HOW = [
   { image_url: "/images/landing_img (1).jpg", label: "Home Delivery With a Bow", image_focus: "center" },
 ];
 
+const DEFAULT_FOOTER = {
+  facebook_url: "https://www.facebook.com/newcarsuperstore/",
+  twitter_url: "https://twitter.com/autobrokerla",
+  google_plus_url: "https://plus.google.com/101810114903929491113",
+  instagram_url: "https://www.instagram.com/newcarsuperstore/",
+  youtube_url: "https://www.youtube.com/channel/UCfnPH7n_x1cHc5WXDb0zMJQ",
+};
+
 export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -40,6 +48,12 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
   const [leaseTitle, setLeaseTitle] = useState(DEFAULT_LEASE.title);
   const [leaseSubtitle, setLeaseSubtitle] = useState(DEFAULT_LEASE.subtitle);
   const [howSteps, setHowSteps] = useState<Array<{ image_url: string; label: string; image_focus?: string }>>(DEFAULT_HOW);
+
+  const [facebookUrl, setFacebookUrl] = useState(DEFAULT_FOOTER.facebook_url);
+  const [twitterUrl, setTwitterUrl] = useState(DEFAULT_FOOTER.twitter_url);
+  const [googlePlusUrl, setGooglePlusUrl] = useState(DEFAULT_FOOTER.google_plus_url);
+  const [instagramUrl, setInstagramUrl] = useState(DEFAULT_FOOTER.instagram_url);
+  const [youtubeUrl, setYoutubeUrl] = useState(DEFAULT_FOOTER.youtube_url);
 
   const query = useQuery({
     queryKey: ["admin-landing-page"],
@@ -102,6 +116,14 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
           image_focus: s.image_focus ?? "center",
         }))
       );
+
+    if (d.footer) {
+      setFacebookUrl(d.footer.facebook_url ?? DEFAULT_FOOTER.facebook_url);
+      setTwitterUrl(d.footer.twitter_url ?? DEFAULT_FOOTER.twitter_url);
+      setGooglePlusUrl(d.footer.google_plus_url ?? DEFAULT_FOOTER.google_plus_url);
+      setInstagramUrl(d.footer.instagram_url ?? DEFAULT_FOOTER.instagram_url);
+      setYoutubeUrl(d.footer.youtube_url ?? DEFAULT_FOOTER.youtube_url);
+    }
   }, [query.data]);
 
   const updateMutation = useMutation({
@@ -126,6 +148,13 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
       },
       lease: { title: leaseTitle, subtitle: leaseSubtitle },
       how_it_works: howSteps.map((s) => ({ image_url: s.image_url, label: s.label, image_focus: s.image_focus ?? "center" })),
+      footer: {
+        facebook_url: facebookUrl.trim(),
+        twitter_url: twitterUrl.trim(),
+        google_plus_url: googlePlusUrl.trim(),
+        instagram_url: instagramUrl.trim(),
+        youtube_url: youtubeUrl.trim(),
+      },
     });
   };
 
@@ -294,6 +323,37 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
               </div>
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      <Card className="border-ink-200 bg-white">
+        <CardHeader>
+          <CardTitle className="text-lg">Footer social links</CardTitle>
+          <p className="text-sm font-normal text-ink-600">These links appear in the site footer.</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Facebook URL</Label>
+              <Input value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} placeholder="https://facebook.com/..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Twitter URL</Label>
+              <Input value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} placeholder="https://twitter.com/..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Google+ URL</Label>
+              <Input value={googlePlusUrl} onChange={(e) => setGooglePlusUrl(e.target.value)} placeholder="https://plus.google.com/..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Instagram URL</Label>
+              <Input value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)} placeholder="https://instagram.com/..." />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>YouTube URL</Label>
+              <Input value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/..." />
+            </div>
+          </div>
         </CardContent>
       </Card>
 

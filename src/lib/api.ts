@@ -1658,10 +1658,24 @@ export type LandingPageContentRecord = {
   hero?: { kicker?: string; headline?: string; subtext?: string; slide_urls?: string[]; slide_focus?: string[] };
   lease?: { title?: string; subtitle?: string };
   how_it_works?: Array<{ image_url?: string; label?: string; image_focus?: string }>;
+  footer?: {
+    facebook_url?: string;
+    twitter_url?: string;
+    google_plus_url?: string;
+    instagram_url?: string;
+    youtube_url?: string;
+  };
 };
 
 export type LandingPageUpdatePayload = {
   hero?: { kicker?: string; headline?: string; subtext?: string; slide_urls?: string[]; slide_focus?: string[] };
   lease?: { title?: string; subtitle?: string };
   how_it_works?: Array<{ image_url?: string; label?: string; image_focus?: string }>;
+  footer?: {
+    facebook_url?: string;
+    twitter_url?: string;
+    google_plus_url?: string;
+    instagram_url?: string;
+    youtube_url?: string;
+  };
 };

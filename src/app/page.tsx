@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import SiteHeader from "@/components/site-header";
-import Logo from "@/components/logo";
 import LandingPageSections from "@/components/landing-page-sections";
 import { resolveSeoMetadata } from "@/lib/seo";
+import { SiteFooter } from "@/components/site-footer";
 
 export async function generateMetadata(): Promise<Metadata> {
   return resolveSeoMetadata("home", {
@@ -23,13 +23,7 @@ export default function HomePage() {
       <main>
         <LandingPageSections />
       </main>
-
-      <footer className="border-t border-ink-200 bg-white py-8">
-        <div className="container-wide flex flex-col items-center justify-between gap-3 sm:flex-row">
-          <Logo />
-          <p className="text-sm text-ink-500">Copyright {new Date().getFullYear()} NewCarSuperstore</p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

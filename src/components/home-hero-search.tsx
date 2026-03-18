@@ -9,7 +9,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const priceOptions = [25000, 35000, 45000, 60000, 80000];
+const priceOptions = [25000, 35000, 45000, 60000, 80000, 100000, 120000, 150000, 200000];
 
 function sanitizeOptions(items: string[] | undefined) {
   return Array.from(new Set((items ?? []).map((item) => item?.trim()).filter((item): item is string => !!item)));
@@ -20,7 +20,16 @@ export default function HomeHeroSearch() {
   const [vehicleType, setVehicleType] = useState<"new" | "used">("new");
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
-  const [maxPrice, setMaxPrice] = useState(45000);
+  const [maxPrice, setMaxPrice] = useState(100000);
+
+  const leaseSpecialsHref = useMemo(() => {
+    const query = new URLSearchParams();
+    if (make) query.set("make", make);
+    if (model) query.set("model", model);
+    if (maxPrice > 0) query.set("max_price", String(maxPrice));
+    const qs = query.toString();
+    return `/lease-specials${qs ? `?${qs}` : ""}`;
+  }, [make, model, maxPrice]);
 
   const filtersQuery = useQuery<Awaited<ReturnType<typeof api.getFilters>>>({
     queryKey: ["home-hero-filters"] as const,
@@ -47,7 +56,7 @@ export default function HomeHeroSearch() {
 
   return (
     <div className="mt-6 max-w-4xl rounded-2xl border border-ink-200 bg-white p-3 shadow-card sm:mt-8 sm:p-5">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <div className="rounded-xl border border-ink-200 px-3 py-2">
           <p className="text-xs text-ink-500">Buy</p>
           <Select value={vehicleType} onValueChange={(value) => setVehicleType(value as "new" | "used")}>
@@ -131,6 +140,10 @@ export default function HomeHeroSearch() {
             </SelectContent>
           </Select>
         </div>
+
+        <Button asChild className="hidden h-full min-h-10 rounded-xl text-sm font-semibold sm:flex" variant="outline">
+          <Link href={leaseSpecialsHref}>Lease Specials</Link>
+        </Button>
 
         <Button onClick={runSearch} className="h-full min-h-10 rounded-xl text-sm font-semibold">
           <span className="max-[420px]:hidden">Find Cars</span>

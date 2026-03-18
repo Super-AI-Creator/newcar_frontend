@@ -6,10 +6,22 @@ import { resolveSeoMetadata } from "@/lib/seo";
 export async function generateMetadata(): Promise<Metadata> {
   const fallback: Metadata = {
     title: "NewCarSuperstore",
-    description: "Modern marketplace for new car deals."
+    description: "Modern marketplace for new car deals.",
+    icons: {
+      icon: "/images/logo.png"
+    }
   };
   try {
-    return await resolveSeoMetadata("site_default", fallback);
+    const resolved = await resolveSeoMetadata("site_default", fallback);
+    const resolvedIcons =
+      typeof resolved.icons === "object" && resolved.icons !== null ? resolved.icons : undefined;
+    return {
+      ...resolved,
+      icons: {
+        ...(resolvedIcons ?? {}),
+        icon: "/images/logo.png",
+      }
+    };
   } catch {
     return fallback;
   }

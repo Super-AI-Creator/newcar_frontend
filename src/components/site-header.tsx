@@ -156,7 +156,9 @@ export default function SiteHeader() {
               <div className="mt-3 space-y-2 border-t border-ink-200 pt-3">
                 {user ? (
                   <>
-                    <p className="truncate rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">{user.email ?? user.name ?? "Member"}</p>
+                    <p className="truncate rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">
+                      {user.email ?? user.name ?? "Member"}
+                    </p>
                     <Button variant="outline" onClick={logout} className="h-10 w-full rounded-full">
                       Sign out
                     </Button>

@@ -30,14 +30,33 @@ const sortOptions = [
   { value: "score_high_low", label: "Top score" }
 ];
 const defaultValues = {
-  maxPrice: 45000,
+  maxPrice: 100000,
   maxPayment: 650,
-  usedMaxPrice: 35000,
+  usedMaxPrice: 100000,
   maxMileage: 60000
 };
 const ANY_MAKE = "__any_make__";
 const ANY_MODEL = "__any_model__";
 const ANY_TRIM = "__any_trim__";
+
+// Max vehicle price: 0–200k then Any
+const PRICE_MIN = 0;
+const PRICE_MAX = 200000;
+const PRICE_STEP = 500; // matches the old slider step
+const PRICE_TICKS = Math.round((PRICE_MAX - PRICE_MIN) / PRICE_STEP); // 0..400 = 0..200k
+const PRICE_SLIDER_ANY = PRICE_TICKS + 1; // 401 = Any
+const PRICE_ANY_VALUE = 999999;
+
+function priceToSliderValue(price: number): number {
+  if (price >= PRICE_ANY_VALUE) return PRICE_SLIDER_ANY;
+  const clamped = Math.min(PRICE_MAX, Math.max(PRICE_MIN, price));
+  return Math.round((clamped - PRICE_MIN) / PRICE_STEP);
+}
+function priceSliderToValue(sliderVal: number): number {
+  if (sliderVal >= PRICE_SLIDER_ANY) return PRICE_ANY_VALUE;
+  const normalized = Math.min(PRICE_TICKS, Math.max(0, Math.round(sliderVal)));
+  return PRICE_MIN + normalized * PRICE_STEP;
+}
 
 type VehicleTypeFilter = "new" | "used";
 
@@ -337,9 +356,17 @@ function SearchPageContent() {
     if (trim) chips.push({ key: "trim", label: `Trim: ${trim}` });
     if (sort !== sortOptions[0].value) chips.push({ key: "sort", label: `Sort: ${sortOptions.find((s) => s.value === sort)?.label ?? sort}` });
     if (mode === "payment" && maxPayment !== defaultValues.maxPayment) chips.push({ key: "maxPayment", label: `Payment <= $${maxPayment}` });
-    if (mode === "price" && maxPrice !== defaultValues.maxPrice && vehicleType === "new") chips.push({ key: "maxPrice", label: `Price <= $${maxPrice.toLocaleString()}` });
+    if (mode === "price" && maxPrice !== defaultValues.maxPrice && vehicleType === "new") {
+      chips.push({
+        key: "maxPrice",
+        label: maxPrice >= PRICE_ANY_VALUE ? "Price: Any" : `Price <= $${maxPrice.toLocaleString()}`
+      });
+    }
     if (vehicleType === "used" && usedMaxPrice !== defaultValues.usedMaxPrice) {
-      chips.push({ key: "usedMaxPrice", label: `Used <= $${usedMaxPrice.toLocaleString()}` });
+      chips.push({
+        key: "usedMaxPrice",
+        label: usedMaxPrice >= PRICE_ANY_VALUE ? "Used: Any" : `Used <= $${usedMaxPrice.toLocaleString()}`
+      });
     }
     if (vehicleType === "used" && maxMileage !== defaultValues.maxMileage) {
       chips.push({ key: "maxMileage", label: `Mileage <= ${maxMileage.toLocaleString()}` });
@@ -591,19 +618,31 @@ function SearchPageContent() {
                     <Badge>
                       {mode === "payment"
                         ? `$${maxPayment}/mo`
-                        : `$${(vehicleType === "new" ? maxPrice : usedMaxPrice).toLocaleString()}`}
+                        : (vehicleType === "new" ? maxPrice : usedMaxPrice) >= PRICE_ANY_VALUE
+                          ? "Any"
+                          : `$${(vehicleType === "new" ? maxPrice : usedMaxPrice).toLocaleString()}`}
                     </Badge>
                   </div>
                   {mode === "payment" ? (
                     <Slider value={[maxPayment]} min={150} max={10000} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
                   ) : (
-                    <Slider
-                      value={[vehicleType === "new" ? maxPrice : usedMaxPrice]}
-                      min={0}
-                      max={200000}
-                      step={500}
-                      onValueChange={(v) => (vehicleType === "new" ? setMaxPrice(v[0]) : setUsedMaxPrice(v[0]))}
-                    />
+                    <div className="space-y-2">
+                      <Slider
+                        value={[priceToSliderValue(vehicleType === "new" ? maxPrice : usedMaxPrice)]}
+                        min={0}
+                        max={PRICE_SLIDER_ANY}
+                        step={1}
+                        onValueChange={(v) =>
+                          vehicleType === "new"
+                            ? setMaxPrice(priceSliderToValue(v[0]))
+                            : setUsedMaxPrice(priceSliderToValue(v[0]))
+                        }
+                      />
+                      <div className="relative h-4 text-[11px] text-ink-500">
+                        <span className="absolute left-0">$0</span>
+                        <span className="absolute right-0">$200k / Any</span>
+                      </div>
+                    </div>
                   )}
                 </div>
                 {vehicleType === "new" && mode === "payment" && (
@@ -820,26 +859,50 @@ function SearchPageContent() {
                   <Badge>
                     {mode === "payment"
                       ? `$${maxPayment}/mo`
-                      : `$${(vehicleType === "new" ? maxPrice : usedMaxPrice).toLocaleString()}`}
+                        : (vehicleType === "new" ? maxPrice : usedMaxPrice) >= PRICE_ANY_VALUE
+                          ? "Any"
+                          : `$${(vehicleType === "new" ? maxPrice : usedMaxPrice).toLocaleString()}`}
                   </Badge>
                 </div>
                 {mode === "payment" ? (
                   <Slider value={[maxPayment]} min={150} max={10000} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
                 ) : (
-                  <Slider
-                    value={[vehicleType === "new" ? maxPrice : usedMaxPrice]}
-                    min={vehicleType === "new" ? 15000 : 2000}
-                    max={1000000}
-                    step={500}
-                    onValueChange={(v) => (vehicleType === "new" ? setMaxPrice(v[0]) : setUsedMaxPrice(v[0]))}
-                  />
+                    <div className="space-y-2">
+                      <Slider
+                        value={[priceToSliderValue(vehicleType === "new" ? maxPrice : usedMaxPrice)]}
+                        min={0}
+                        max={PRICE_SLIDER_ANY}
+                        step={1}
+                        onValueChange={(v) =>
+                          vehicleType === "new"
+                            ? setMaxPrice(priceSliderToValue(v[0]))
+                            : setUsedMaxPrice(priceSliderToValue(v[0]))
+                        }
+                      />
+                      <div className="relative h-4 text-[11px] text-ink-500">
+                        <span className="absolute left-0">$0</span>
+                        <span className="absolute right-0">$200k / Any</span>
+                      </div>
+                    </div>
                 )}
                 <Input
                   className="h-10"
                   type="number"
-                  value={vehicleType === "new" ? (mode === "payment" ? maxPayment : maxPrice) : mode === "payment" ? maxPayment : usedMaxPrice}
+                    value={
+                      vehicleType === "new"
+                        ? mode === "payment"
+                          ? maxPayment
+                          : maxPrice >= PRICE_ANY_VALUE
+                            ? PRICE_MAX
+                            : maxPrice
+                        : mode === "payment"
+                          ? maxPayment
+                          : usedMaxPrice >= PRICE_ANY_VALUE
+                            ? PRICE_MAX
+                            : usedMaxPrice
+                    }
                   onChange={(event) => {
-                    const nextValue = Math.max(0, Number(event.target.value) || 0);
+                      const nextValue = Math.min(PRICE_MAX, Math.max(0, Number(event.target.value) || 0));
                     if (mode === "payment") {
                       setMaxPayment(nextValue);
                     } else if (vehicleType === "new") {
@@ -1033,6 +1096,11 @@ function VehicleCard({
   const detailsHref = `/vehicles/${encodeURIComponent(vehicle.vin)}`;
   const unlockPriceHref = `/login?returnUrl=${encodeURIComponent(searchReturnUrl)}`;
   const detailsActionHref = detailsHref;
+  const verifyAvailabilityHref = isLoggedIn
+    ? `/credit-application?vin=${encodeURIComponent(vehicle.vin)}&make=${encodeURIComponent(vehicle.make ?? "")}&model=${encodeURIComponent(
+      vehicle.model ?? ""
+    )}&trim=${encodeURIComponent(vehicle.trim ?? "")}`
+    : unlockPriceHref;
   const imageBadgeLeaseLabel = monthlyPrice !== undefined ? `$${monthlyPrice.toLocaleString()}/mo lease` : null;
   return (
     <Card className="search-card group overflow-hidden rounded-xl border border-ink-300 bg-[#f6f7f9] shadow-sm transition-[transform,box-shadow,border-color] duration-150 motion-safe:hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg">
@@ -1127,10 +1195,10 @@ function VehicleCard({
                   <span className="hidden max-[420px]:inline">Price</span>
               </LeadFormButton>
               <Button asChild variant="outline" className="h-9 rounded-full border-ink-700 px-3 text-xs font-semibold sm:px-4">
-                <Link href={`/credit-application?vin=${encodeURIComponent(vehicle.vin)}&make=${encodeURIComponent(vehicle.make ?? "")}&model=${encodeURIComponent(vehicle.model ?? "")}&trim=${encodeURIComponent(vehicle.trim ?? "")}`}>
+                <Link href={verifyAvailabilityHref}>
                   <CreditCard className="mr-1 h-4 w-4" />
-                  <span className="max-[420px]:hidden">Verify Availability</span>
-                  <span className="hidden max-[420px]:inline">Verify</span>
+                  <span className="max-[420px]:hidden">More details</span>
+                  <span className="hidden max-[420px]:inline">More details</span>
                 </Link>
               </Button>
             </div>

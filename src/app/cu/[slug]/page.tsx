@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SiteFooter } from "@/components/site-footer";
 
 type Props = { params: { slug: string } };
 
@@ -32,9 +33,7 @@ export default function WhiteLabelCreditUnionPage({ params }: Props) {
             </Button>
           </CardContent>
         </Card>
-        <footer className="mt-8 text-center text-xs text-ink-400">
-          Powered by New Car Superstore
-        </footer>
+        <SiteFooter poweredBy="Powered by New Car Superstore" />
       </div>
     );
   }
@@ -128,12 +127,7 @@ export default function WhiteLabelCreditUnionPage({ params }: Props) {
         )}
       </main>
 
-      {/* Footer: only NCS reference */}
-      <footer className="mt-auto border-t border-ink-200 bg-ink-50 py-4 shrink-0">
-        <div className="container-wide text-center text-xs text-ink-500">
-          Powered by New Car Superstore
-        </div>
-      </footer>
+      <SiteFooter poweredBy="Powered by New Car Superstore" />
     </div>
   );
 }

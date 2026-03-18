@@ -109,7 +109,7 @@ export default function LeaseSpecials() {
                     Verify Availability
                   </LeadFormButton>
                   <Button asChild className="rounded-full">
-                    <Link href={`/vehicles/${encodeURIComponent(vehicle.vin)}`}>View</Link>
+                    <Link href={`/vehicles/${encodeURIComponent(vehicle.vin)}`}>More details</Link>
                   </Button>
                 </div>
               </div>

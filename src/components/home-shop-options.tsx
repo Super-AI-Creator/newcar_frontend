@@ -110,8 +110,8 @@ export default function HomeShopOptions() {
               </Button>
             </div>
             <Button onClick={goByPayment} className="h-10 w-full text-sm">
-              <span className="max-[420px]:hidden">See Cars I Qualify For</span>
-              <span className="hidden max-[420px]:inline">See Cars</span>
+              <span className="max-[420px]:hidden">See your matches</span>
+              <span className="hidden max-[420px]:inline">See your matches</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
           </CardContent>
@@ -176,8 +176,8 @@ export default function HomeShopOptions() {
               <Input value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="90001" inputMode="numeric" />
             </div>
             <Button onClick={goByMakeModel} className="h-10 w-full text-sm">
-              <span className="max-[420px]:hidden">View Available Cars</span>
-              <span className="hidden max-[420px]:inline">View Cars</span>
+              <span className="max-[420px]:hidden">See your matches</span>
+              <span className="hidden max-[420px]:inline">See your matches</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
           </CardContent>
