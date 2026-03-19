@@ -133,7 +133,9 @@ export default function LandingPageSections() {
               <ul className="mt-4 space-y-3 text-sm text-ink-800">
                 <li className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />Shop inventory from dealers all across California</li>
                 <li className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />Get instantly pre-approved for financing in minutes</li>
+                <br></br>
                 <li className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />Complete everything online from home</li>
+                <br></br>
                 <li className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />Your new car arrives at your door with a red bow</li>
               </ul>
             </div>

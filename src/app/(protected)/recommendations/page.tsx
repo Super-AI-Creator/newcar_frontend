@@ -170,7 +170,7 @@ export default function RecommendationsPage() {
                 <Slider value={[val]} min={0} max={10} step={1} onValueChange={(v) => set(v[0] ?? 5)} />
               </div>
             ))}
-            <div className="flex flex-wrap items-center gap-4 border-t border-ink-200 pt-4">
+            <div className="grid grid-cols-1 gap-4 border-t border-ink-200 pt-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>Vehicle type</Label>
                 <select
@@ -180,15 +180,16 @@ export default function RecommendationsPage() {
                     setMake("");
                     setModel("");
                   }}
-                  className="rounded-md border border-ink-300 bg-white px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm"
                 >
                   <option value="all">All</option>
                   <option value="new">New</option>
                   <option value="used">Used</option>
                 </select>
               </div>
+
               <div className="space-y-1">
-                <Label>Max monthly payment ($)</Label>
+                <Label>Max monthly payment</Label>
                 <input
                   type="number"
                   min={0}
@@ -196,9 +197,10 @@ export default function RecommendationsPage() {
                   placeholder="Optional"
                   value={maxPayment}
                   onChange={(e) => setMaxPayment(e.target.value === "" ? "" : Number(e.target.value))}
-                  className="w-32 rounded-md border border-ink-300 bg-white px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm"
                 />
               </div>
+
               <div className="space-y-1">
                 <Label>Make</Label>
                 <select
@@ -207,7 +209,7 @@ export default function RecommendationsPage() {
                     setMake(e.target.value);
                     setModel("");
                   }}
-                  className="w-44 rounded-md border border-ink-300 bg-white px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm"
                 >
                   <option value="">Any make</option>
                   {makes.map((m: string) => (
@@ -217,13 +219,14 @@ export default function RecommendationsPage() {
                   ))}
                 </select>
               </div>
+
               <div className="space-y-1">
                 <Label>Model</Label>
                 <select
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
                   disabled={!make}
-                  className="w-44 rounded-md border border-ink-300 bg-white px-3 py-2 text-sm disabled:opacity-60"
+                  className="w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm disabled:opacity-60"
                 >
                   <option value="">Any model</option>
                   {modelOptions.map((m: string) => (
@@ -233,19 +236,21 @@ export default function RecommendationsPage() {
                   ))}
                 </select>
               </div>
+
               <div className="space-y-1">
                 <Label>Sort</Label>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as "best" | "price" | "payment")}
-                  className="rounded-md border border-ink-300 bg-white px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm"
                 >
                   <option value="best">Best match</option>
                   <option value="price">Price</option>
                   <option value="payment">Payment</option>
                 </select>
               </div>
-              <Button onClick={handleGetRecommendations} className="mt-4">
+
+              <Button onClick={handleGetRecommendations} className="sm:col-span-2">
                 Get recommendations
               </Button>
             </div>

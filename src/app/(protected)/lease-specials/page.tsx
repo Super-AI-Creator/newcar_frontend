@@ -576,8 +576,7 @@ function LeaseSpecialsPageContent() {
                   />
                   <div className="relative h-4 text-[11px] text-ink-500">
                     <span className="absolute left-0">${PAYMENT_MIN}</span>
-                    <span className="absolute left-[90%] -translate-x-1/2">${PAYMENT_MAX}</span>
-                    <span className="absolute right-0">Any</span>
+                    <span className="absolute right-0 text-right">${PAYMENT_MAX.toLocaleString()} / Any</span>
                   </div>
                 </div>
 
@@ -736,8 +735,7 @@ function LeaseSpecialsPageContent() {
               />
               <div className="relative h-4 text-[11px] text-ink-500">
                 <span className="absolute left-0">${PAYMENT_MIN}</span>
-                <span className="absolute left-[90%] -translate-x-1/2">${PAYMENT_MAX}</span>
-                <span className="absolute right-0">Any</span>
+                <span className="absolute right-0 text-right">${PAYMENT_MAX.toLocaleString()} / Any</span>
               </div>
             </div>
 

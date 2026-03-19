@@ -29,9 +29,18 @@ const sortOptions = [
   { value: "price_high_low", label: "Highest price first" },
   { value: "score_high_low", label: "Top score" }
 ];
+
+// Max monthly payment: $1–$2000 then Any (sentinel for API = no practical cap)
+const PAYMENT_MIN = 1;
+const PAYMENT_MAX = 2000;
+/** Slider indices 0..PAYMENT_TICKS map ~$1 → $2000 */
+const PAYMENT_TICKS = 79;
+const PAYMENT_SLIDER_ANY = PAYMENT_TICKS + 1;
+const PAYMENT_ANY_VALUE = 10000;
+
 const defaultValues = {
   maxPrice: 100000,
-  maxPayment: 650,
+  maxPayment: PAYMENT_ANY_VALUE,
   usedMaxPrice: 100000,
   maxMileage: 60000
 };
@@ -58,12 +67,33 @@ function priceSliderToValue(sliderVal: number): number {
   return PRICE_MIN + normalized * PRICE_STEP;
 }
 
+function paymentToSliderValue(payment: number): number {
+  if (payment >= PAYMENT_ANY_VALUE) return PAYMENT_SLIDER_ANY;
+  const clamped = Math.min(PAYMENT_MAX, Math.max(PAYMENT_MIN, payment));
+  return Math.round(((clamped - PAYMENT_MIN) / (PAYMENT_MAX - PAYMENT_MIN)) * PAYMENT_TICKS);
+}
+function paymentSliderToValue(sliderVal: number): number {
+  if (sliderVal >= PAYMENT_SLIDER_ANY) return PAYMENT_ANY_VALUE;
+  const normalized = Math.min(PAYMENT_TICKS, Math.max(0, Math.round(sliderVal)));
+  return Math.round(PAYMENT_MIN + (normalized / PAYMENT_TICKS) * (PAYMENT_MAX - PAYMENT_MIN));
+}
+
 type VehicleTypeFilter = "new" | "used";
 
 function parsePositiveNumber(value: string | null, fallback: number): number {
   if (value == null) return fallback;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseMaxPaymentFromSearchParam(value: string | null, fallback: number): number {
+  if (value == null) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  if (parsed >= PAYMENT_ANY_VALUE) return PAYMENT_ANY_VALUE;
+  // Legacy URLs used e.g. 650–10000; anything above $2000 means "no cap"
+  if (parsed > PAYMENT_MAX) return PAYMENT_ANY_VALUE;
+  return Math.max(PAYMENT_MIN, Math.round(parsed));
 }
 
 export default function SearchPage() {
@@ -100,7 +130,7 @@ function SearchPageContent() {
   const [mode, setMode] = useState<"price" | "payment">(initialMode);
   const [estimate, setEstimate] = useState(false);
   const [maxPrice, setMaxPrice] = useState(parsePositiveNumber(searchParams.get("max_price"), defaultValues.maxPrice));
-  const [maxPayment, setMaxPayment] = useState(parsePositiveNumber(searchParams.get("max_payment"), defaultValues.maxPayment));
+  const [maxPayment, setMaxPayment] = useState(parseMaxPaymentFromSearchParam(searchParams.get("max_payment"), defaultValues.maxPayment));
   const [usedMaxPrice, setUsedMaxPrice] = useState(parsePositiveNumber(searchParams.get("max_price"), defaultValues.usedMaxPrice));
   const [maxMileage, setMaxMileage] = useState(parsePositiveNumber(searchParams.get("max_mileage"), defaultValues.maxMileage));
   const [make, setMake] = useState(searchParams.get("make") ?? "");
@@ -261,7 +291,7 @@ function SearchPageContent() {
     const nextSort = searchParams.get("sort") ?? sortOptions[0].value;
     const nextEstimate = searchParams.get("estimate") === "true" || searchParams.get("estimate") === "1";
     const nextMaxMileage = parsePositiveNumber(searchParams.get("max_mileage"), defaultValues.maxMileage);
-    const nextMaxPayment = parsePositiveNumber(searchParams.get("max_payment"), defaultValues.maxPayment);
+    const nextMaxPayment = parseMaxPaymentFromSearchParam(searchParams.get("max_payment"), defaultValues.maxPayment);
     const nextMaxPrice = parsePositiveNumber(searchParams.get("max_price"), defaultValues.maxPrice);
     const nextUsedMaxPrice = parsePositiveNumber(searchParams.get("max_price"), defaultValues.usedMaxPrice);
 
@@ -355,7 +385,12 @@ function SearchPageContent() {
     if (model) chips.push({ key: "model", label: `Model: ${model}` });
     if (trim) chips.push({ key: "trim", label: `Trim: ${trim}` });
     if (sort !== sortOptions[0].value) chips.push({ key: "sort", label: `Sort: ${sortOptions.find((s) => s.value === sort)?.label ?? sort}` });
-    if (mode === "payment" && maxPayment !== defaultValues.maxPayment) chips.push({ key: "maxPayment", label: `Payment <= $${maxPayment}` });
+    if (mode === "payment" && maxPayment !== defaultValues.maxPayment) {
+      chips.push({
+        key: "maxPayment",
+        label: maxPayment >= PAYMENT_ANY_VALUE ? "Payment: Any" : `Payment <= $${maxPayment}/mo`
+      });
+    }
     if (mode === "price" && maxPrice !== defaultValues.maxPrice && vehicleType === "new") {
       chips.push({
         key: "maxPrice",
@@ -436,9 +471,9 @@ function SearchPageContent() {
                       make ? `, ${make}` : ""
                     }${model ? ` ${model}` : ""}.`
                   : mode === "payment"
-                    ? `Showing new cars with payments up to $${maxPayment}/mo${
-                        make ? `, ${make}` : ""
-                      }${model ? ` ${model}` : ""}.`
+                    ? `Showing new cars with ${
+                        maxPayment >= PAYMENT_ANY_VALUE ? "any monthly payment" : `payments up to $${maxPayment}/mo`
+                      }${make ? `, ${make}` : ""}${model ? ` ${model}` : ""}.`
                     : `Showing new cars up to $${maxPrice.toLocaleString()}${
                         make ? `, ${make}` : ""
                       }${model ? ` ${model}` : ""}.`}
@@ -617,14 +652,28 @@ function SearchPageContent() {
                     <Label>{mode === "payment" ? "Max payment" : "Max price"}</Label>
                     <Badge>
                       {mode === "payment"
-                        ? `$${maxPayment}/mo`
+                        ? maxPayment >= PAYMENT_ANY_VALUE
+                          ? "Any"
+                          : `$${maxPayment}/mo`
                         : (vehicleType === "new" ? maxPrice : usedMaxPrice) >= PRICE_ANY_VALUE
                           ? "Any"
                           : `$${(vehicleType === "new" ? maxPrice : usedMaxPrice).toLocaleString()}`}
                     </Badge>
                   </div>
                   {mode === "payment" ? (
-                    <Slider value={[maxPayment]} min={150} max={10000} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
+                    <div className="space-y-2">
+                      <Slider
+                        value={[paymentToSliderValue(maxPayment)]}
+                        min={0}
+                        max={PAYMENT_SLIDER_ANY}
+                        step={1}
+                        onValueChange={(v) => setMaxPayment(paymentSliderToValue(v[0]))}
+                      />
+                      <div className="relative h-4 text-[11px] text-ink-500">
+                        <span className="absolute left-0">${PAYMENT_MIN}</span>
+                        <span className="absolute right-0">${PAYMENT_MAX.toLocaleString()} / Any</span>
+                      </div>
+                    </div>
                   ) : (
                     <div className="space-y-2">
                       <Slider
@@ -858,14 +907,28 @@ function SearchPageContent() {
                   <Label>{mode === "payment" ? "Max payment" : "Max price"}</Label>
                   <Badge>
                     {mode === "payment"
-                      ? `$${maxPayment}/mo`
-                        : (vehicleType === "new" ? maxPrice : usedMaxPrice) >= PRICE_ANY_VALUE
-                          ? "Any"
-                          : `$${(vehicleType === "new" ? maxPrice : usedMaxPrice).toLocaleString()}`}
+                      ? maxPayment >= PAYMENT_ANY_VALUE
+                        ? "Any"
+                        : `$${maxPayment}/mo`
+                      : (vehicleType === "new" ? maxPrice : usedMaxPrice) >= PRICE_ANY_VALUE
+                        ? "Any"
+                        : `$${(vehicleType === "new" ? maxPrice : usedMaxPrice).toLocaleString()}`}
                   </Badge>
                 </div>
                 {mode === "payment" ? (
-                  <Slider value={[maxPayment]} min={150} max={10000} step={25} onValueChange={(v) => setMaxPayment(v[0])} />
+                  <div className="space-y-2">
+                    <Slider
+                      value={[paymentToSliderValue(maxPayment)]}
+                      min={0}
+                      max={PAYMENT_SLIDER_ANY}
+                      step={1}
+                      onValueChange={(v) => setMaxPayment(paymentSliderToValue(v[0]))}
+                    />
+                    <div className="relative h-4 text-[11px] text-ink-500">
+                      <span className="absolute left-0">${PAYMENT_MIN}</span>
+                      <span className="absolute right-0">${PAYMENT_MAX.toLocaleString()} / Any</span>
+                    </div>
+                  </div>
                 ) : (
                     <div className="space-y-2">
                       <Slider
@@ -891,24 +954,37 @@ function SearchPageContent() {
                     value={
                       vehicleType === "new"
                         ? mode === "payment"
-                          ? maxPayment
+                          ? maxPayment >= PAYMENT_ANY_VALUE
+                            ? PAYMENT_MAX
+                            : maxPayment
                           : maxPrice >= PRICE_ANY_VALUE
                             ? PRICE_MAX
                             : maxPrice
                         : mode === "payment"
-                          ? maxPayment
+                          ? maxPayment >= PAYMENT_ANY_VALUE
+                            ? PAYMENT_MAX
+                            : maxPayment
                           : usedMaxPrice >= PRICE_ANY_VALUE
                             ? PRICE_MAX
                             : usedMaxPrice
                     }
                   onChange={(event) => {
-                      const nextValue = Math.min(PRICE_MAX, Math.max(0, Number(event.target.value) || 0));
                     if (mode === "payment") {
-                      setMaxPayment(nextValue);
-                    } else if (vehicleType === "new") {
-                      setMaxPrice(nextValue);
+                      const raw = Number(event.target.value);
+                      if (!Number.isFinite(raw) || raw <= 0) {
+                        setMaxPayment(PAYMENT_MIN);
+                      } else if (raw > PAYMENT_MAX) {
+                        setMaxPayment(PAYMENT_ANY_VALUE);
+                      } else {
+                        setMaxPayment(Math.round(raw));
+                      }
                     } else {
-                      setUsedMaxPrice(nextValue);
+                      const nextValue = Math.min(PRICE_MAX, Math.max(0, Number(event.target.value) || 0));
+                      if (vehicleType === "new") {
+                        setMaxPrice(nextValue);
+                      } else {
+                        setUsedMaxPrice(nextValue);
+                      }
                     }
                   }}
                   onKeyDown={(event) => {

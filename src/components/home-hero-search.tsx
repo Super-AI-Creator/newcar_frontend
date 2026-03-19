@@ -153,7 +153,7 @@ export default function HomeHeroSearch() {
       </div>
       <div className="mt-2 flex justify-end sm:mt-3">
         <Button asChild variant="outline" className="h-9 rounded-xl px-3 text-[13px] sm:h-10 sm:px-4 sm:text-sm">
-          <Link href="/search?vehicle_type=new&mode=payment&max_payment=650">
+          <Link href="/search?vehicle_type=new&mode=payment">
             <span className="max-[420px]:hidden">Shop by payment</span>
             <span className="hidden max-[420px]:inline">By payment</span>
           </Link>

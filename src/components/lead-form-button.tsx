@@ -101,7 +101,7 @@ export default function LeadFormButton({
           const deal = await api.createDeal({
             vin,
             customer_note: [
-              "Lead from Get Price",
+              `Lead from ${title}`,
               `Name: ${name.trim()}`,
               `Email: ${email.trim()}`,
               `Phone: ${phone.trim()}`,

@@ -880,10 +880,11 @@ export default function VehicleDetailPage() {
                   trim={vehicleQuery.data?.trim ?? ""}
                   year={vehicleQuery.data?.year}
                   source="vehicle_detail_get_price"
-                  className="h-11 justify-center"
+                  title="Get My Custom Deal"
+                  className="h-11 justify-center text-sm sm:text-base"
                 >
-                  <MessageSquare className="mr-1 h-4 w-4" />
-                  Get Price
+                  <MessageSquare className="mr-1 h-4 w-4 shrink-0" />
+                  Get My Custom Deal
                 </LeadFormButton>
               </div>
               )}
