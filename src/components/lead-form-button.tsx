@@ -5,9 +5,11 @@ import { useRouter, usePathname } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import { validateLeadEmail, validateLeadName, validateLeadPhone } from "@/lib/contact-field-validation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
 
@@ -47,6 +49,7 @@ export default function LeadFormButton({
   const [submittedLeadId, setSubmittedLeadId] = useState<number | null>(null);
   const [submittedDealId, setSubmittedDealId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const vehicleLabel = useMemo(
     () => [year, make, model, trim].filter(Boolean).join(" "),
     [year, make, model, trim]
@@ -60,10 +63,26 @@ export default function LeadFormButton({
     setNotes("");
     setSubmittedLeadId(null);
     setSubmittedDealId(null);
+    setSubmitAttempted(false);
   }, [open, user?.name, user?.email]);
 
+  const nameError = useMemo(() => validateLeadName(name), [name]);
+  const emailError = useMemo(() => validateLeadEmail(email), [email]);
+  const phoneError = useMemo(() => validateLeadPhone(phone), [phone]);
+
   async function handleContinue() {
-    if (!name.trim() || !email.trim() || !phone.trim()) return;
+    setSubmitAttempted(true);
+    const nErr = validateLeadName(name);
+    const eErr = validateLeadEmail(email);
+    const pErr = validateLeadPhone(phone);
+    if (nErr || eErr || pErr) {
+      toast({
+        variant: "error",
+        title: "Please check your information",
+        description: "Name, email, and phone are required and must be in the correct format."
+      });
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -167,27 +186,85 @@ export default function LeadFormButton({
             <DialogHeader className="border-b border-ink-200 px-5 py-3">
               <DialogTitle className="text-base">Tell us about your request</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-3 p-5">
+            <form
+              className="grid gap-3 p-5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleContinue();
+              }}
+              noValidate
+            >
               {vehicleLabel && (
                 <p className="rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-sm text-ink-700">
                   Car: <span className="font-medium">{vehicleLabel}</span>
                 </p>
               )}
               <div className="space-y-1.5">
-                <Label>Name</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" />
+                <Label htmlFor="lead-form-name">Name</Label>
+                <Input
+                  id="lead-form-name"
+                  name="name"
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your full name"
+                  aria-invalid={submitAttempted && !!nameError}
+                  aria-describedby={submitAttempted && nameError ? "lead-form-name-err" : undefined}
+                  className={cn(submitAttempted && nameError && "border-red-500 focus-visible:ring-red-500")}
+                />
+                {submitAttempted && nameError ? (
+                  <p id="lead-form-name-err" className="text-sm text-red-600" role="alert">
+                    {nameError}
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-1.5">
-                <Label>Email</Label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" />
+                <Label htmlFor="lead-form-email">Email</Label>
+                <Input
+                  id="lead-form-email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  inputMode="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@email.com"
+                  aria-invalid={submitAttempted && !!emailError}
+                  aria-describedby={submitAttempted && emailError ? "lead-form-email-err" : undefined}
+                  className={cn(submitAttempted && emailError && "border-red-500 focus-visible:ring-red-500")}
+                />
+                {submitAttempted && emailError ? (
+                  <p id="lead-form-email-err" className="text-sm text-red-600" role="alert">
+                    {emailError}
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-1.5">
-                <Label>Phone</Label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 555-5555" />
+                <Label htmlFor="lead-form-phone">Phone</Label>
+                <Input
+                  id="lead-form-phone"
+                  name="phone"
+                  type="tel"
+                  autoComplete="tel"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="(555) 555-5555"
+                  aria-invalid={submitAttempted && !!phoneError}
+                  aria-describedby={submitAttempted && phoneError ? "lead-form-phone-err" : undefined}
+                  className={cn(submitAttempted && phoneError && "border-red-500 focus-visible:ring-red-500")}
+                />
+                {submitAttempted && phoneError ? (
+                  <p id="lead-form-phone-err" className="text-sm text-red-600" role="alert">
+                    {phoneError}
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-1.5">
-                <Label>Notes</Label>
+                <Label htmlFor="lead-form-notes">Notes</Label>
                 <Textarea
+                  id="lead-form-notes"
+                  name="notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Any specific details about your request..."
@@ -195,11 +272,11 @@ export default function LeadFormButton({
                 />
               </div>
               <div className="flex justify-end">
-                <Button onClick={handleContinue} disabled={!name.trim() || !email.trim() || !phone.trim() || submitting}>
+                <Button type="submit" disabled={submitting}>
                   {submitting ? "Saving..." : "Continue"}
                 </Button>
               </div>
-            </div>
+            </form>
           </>
         )}
       </DialogContent>
