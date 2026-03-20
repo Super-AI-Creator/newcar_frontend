@@ -135,7 +135,7 @@ export default function LeadFormButton({
           toast({
             variant: "error",
             title: "Lead saved, but deal sync failed",
-            description: "Request is captured. We could not attach it to your deal tracker right now."
+            description: "Request is captured. We could not attach it to your Deal Room right now."
           });
         }
       }

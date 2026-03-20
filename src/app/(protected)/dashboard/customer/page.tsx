@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BadgeCheck, CheckCircle2, Circle, Clock3, CreditCard, FileText, Flag, Handshake, Heart, MessageSquare, Search, Upload, WalletCards } from "lucide-react";
+import { BadgeCheck, Clock3, CreditCard, FileText, Heart, MessageSquare, Upload, WalletCards } from "lucide-react";
 import { api, type Vehicle } from "@/lib/api";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
@@ -29,70 +29,6 @@ function toMillis(value?: string | null) {
   const parsed = Date.parse(value);
   if (!Number.isNaN(parsed)) return parsed;
   return 0;
-}
-
-function titleCaseStatus(value: string) {
-  return value.replaceAll("_", " ");
-}
-
-function nextStepForStatus(status: string) {
-  const normalized = status.toLowerCase();
-  if (normalized === "inquiry") return "Broker is reviewing your initial request.";
-  if (normalized === "broker_review") return "Broker is preparing options and follow-up details.";
-  if (normalized === "offer_ready") return "Review broker offer details and confirm your choice.";
-  if (normalized === "locked") return "Deal is locked. Complete required documents.";
-  if (normalized === "docs_pending") return "Submit any remaining docs to move to delivery.";
-  if (normalized === "delivered") return "Deal completed. Keep this thread for post-delivery support.";
-  if (normalized === "cancelled") return "Deal cancelled. Start a new deal when ready.";
-  return "Broker workflow in progress.";
-}
-
-function expectedMilestoneDate(updatedAt?: string | null, status?: string) {
-  if (!updatedAt || !status) return null;
-  const base = new Date(updatedAt);
-  if (Number.isNaN(base.getTime())) return null;
-  const normalized = status.toLowerCase();
-  const next = new Date(base);
-  if (normalized === "inquiry") next.setDate(next.getDate() + 1);
-  else if (normalized === "broker_review") next.setDate(next.getDate() + 2);
-  else if (normalized === "offer_ready") next.setDate(next.getDate() + 1);
-  else if (normalized === "locked") next.setDate(next.getDate() + 3);
-  else if (normalized === "docs_pending") next.setDate(next.getDate() + 2);
-  else return null;
-  return next.toLocaleDateString();
-}
-
-function docsChecklist(status?: string) {
-  const normalized = (status ?? "").toLowerCase();
-  if (normalized === "locked" || normalized === "docs_pending") {
-    return ["Driver license", "Insurance card", "Signed credit/application forms"];
-  }
-  if (normalized === "offer_ready") {
-    return ["Preferred payment option", "Trade-in details (if any)", "Delivery preference"];
-  }
-  return ["No document requirements yet"];
-}
-
-const dealFlow = [
-  { key: "inquiry", label: "Inquiry", icon: Search },
-  { key: "broker_review", label: "Offer Ready", icon: Handshake },
-  { key: "offer_ready", label: "Application Submitted", icon: FileText },
-  { key: "locked", label: "Approved", icon: Flag },
-  { key: "docs_pending", label: "Delivery Scheduled", icon: Clock3 },
-  { key: "delivered", label: "Delivered", icon: CheckCircle2 }
-];
-
-function statusIndex(status?: string) {
-  const idx = dealFlow.findIndex((step) => step.key === (status ?? "").toLowerCase());
-  return idx >= 0 ? idx : 0;
-}
-
-function responseTargetText(updatedAt?: string | null) {
-  if (!updatedAt) return "-";
-  const base = new Date(updatedAt);
-  if (Number.isNaN(base.getTime())) return "-";
-  base.setHours(base.getHours() + 24);
-  return base.toLocaleString();
 }
 
 function formatCurrency(value?: number | null) {
@@ -189,7 +125,7 @@ export default function CustomerDashboard() {
       router.replace("/dashboard/credit-union");
     }
   }, [user?.role, router]);
-  const [workspaceTab, setWorkspaceTab] = useState<"broker" | "tracker" | "favorites">("broker");
+  const [workspaceTab, setWorkspaceTab] = useState<"deal_room" | "favorites">("deal_room");
   const [selectedThreadKey, setSelectedThreadKey] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
   const [docsDialogOpen, setDocsDialogOpen] = useState(false);
@@ -197,6 +133,7 @@ export default function CustomerDashboard() {
   const [driversLicenseFile, setDriversLicenseFile] = useState<File | null>(null);
   const [insuranceFile, setInsuranceFile] = useState<File | null>(null);
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const favoritesQuery = useQuery({
     queryKey: ["favorites"],
@@ -292,6 +229,43 @@ export default function CustomerDashboard() {
     return list;
   }, [messagesQuery.data?.items]);
 
+  const dealRoomRows = useMemo(() => {
+    type Row = (typeof threads)[number] & { dealId?: number };
+    const deals = dealsQuery.data?.items ?? [];
+    const rows: Row[] = [];
+    const seen = new Set<string>();
+
+    for (const deal of deals) {
+      if (!deal.vin) continue;
+      seen.add(deal.vin);
+      const msgThread = threads.find((t) => t.key === deal.vin);
+      const lastFromMsgs = msgThread?.lastAt ?? "";
+      const lastFromDeal = deal.updated_at ?? deal.created_at ?? "";
+      const lastAt = lastFromMsgs || lastFromDeal;
+      rows.push({
+        key: deal.vin,
+        vin: deal.vin,
+        brokerEmail: deal.assigned_broker_email ?? msgThread?.brokerEmail ?? null,
+        items: msgThread?.items ?? [],
+        lastAt,
+        dealId: deal.id
+      });
+    }
+
+    for (const t of threads) {
+      if (t.key === "general") {
+        rows.push({ ...t, dealId: undefined });
+        continue;
+      }
+      if (t.vin && !seen.has(t.vin)) {
+        rows.push({ ...t, dealId: undefined });
+      }
+    }
+
+    rows.sort((a, b) => (b.lastAt || "").localeCompare(a.lastAt || ""));
+    return rows;
+  }, [threads, dealsQuery.data?.items]);
+
   const vehicleVins = useMemo(() => {
     const set = new Set<string>();
     for (const thread of threads) {
@@ -349,13 +323,18 @@ export default function CustomerDashboard() {
   }, [creditAppsQuery.data?.items]);
 
   const activeThread = useMemo(() => {
-    if (threads.length === 0) return null;
-    if (!selectedThreadKey) return threads[0];
-    return threads.find((thread) => thread.key === selectedThreadKey) ?? threads[0];
-  }, [threads, selectedThreadKey]);
+    if (dealRoomRows.length === 0) return null;
+    if (!selectedThreadKey) return dealRoomRows[0];
+    return dealRoomRows.find((thread) => thread.key === selectedThreadKey) ?? dealRoomRows[0];
+  }, [dealRoomRows, selectedThreadKey]);
+
+  const activeDeal = useMemo(() => {
+    if (!activeThread?.vin) return undefined;
+    return (dealsQuery.data?.items ?? []).find((d) => d.vin === activeThread.vin);
+  }, [activeThread?.vin, dealsQuery.data?.items]);
 
   useEffect(() => {
-    if (workspaceTab !== "broker" || !activeThread) return;
+    if (workspaceTab !== "deal_room" || !activeThread) return;
     const node = messageScrollRef.current;
     if (!node) return;
     const raf = requestAnimationFrame(() => {
@@ -363,21 +342,6 @@ export default function CustomerDashboard() {
     });
     return () => cancelAnimationFrame(raf);
   }, [workspaceTab, activeThread?.key, activeThread?.items.length]);
-
-  const requestUpdateMutation = useMutation({
-    mutationFn: (payload: { vin?: string; dealId?: number }) =>
-      api.sendMessage({
-        vin: payload.vin ?? activeThread?.vin,
-        message: `Please send me a status update for my deal${payload.dealId ? ` #${payload.dealId}` : ""}.`
-      }),
-    onSuccess: () => {
-      messagesQuery.refetch();
-      toast({ variant: "success", title: "Update request sent" });
-    },
-    onError: () => {
-      toast({ variant: "error", title: "Request failed", description: "Could not send update request." });
-    }
-  });
 
   const resetDocsUploadForm = () => {
     setDriversLicenseFile(null);
@@ -444,7 +408,7 @@ export default function CustomerDashboard() {
             <div>
               <p className="market-kicker">Member Workspace</p>
               <h1 className="market-heading text-3xl sm:text-4xl">Customer Dashboard</h1>
-              <p className="mt-1 text-sm text-ink-600">Track favorites, chat with your broker, and monitor deal progress.</p>
+              <p className="mt-1 text-sm text-ink-600">Track favorites and use your Deal Room to message your broker.</p>
             </div>
             <Badge className="border border-ink-200 bg-ink-100 text-ink-700">
               {favoritesQuery.data?.items.length ?? 0} favorites
@@ -507,23 +471,13 @@ export default function CustomerDashboard() {
             <CardContent className="space-y-2">
               <button
                 type="button"
-                onClick={() => setWorkspaceTab("broker")}
+                onClick={() => setWorkspaceTab("deal_room")}
                 className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm ${
-                  workspaceTab === "broker" ? "border-brand-500 bg-brand-50 text-brand-900" : "border-ink-200 bg-white text-ink-700"
+                  workspaceTab === "deal_room" ? "border-brand-500 bg-brand-50 text-brand-900" : "border-ink-200 bg-white text-ink-700"
                 }`}
               >
                 <MessageSquare className="h-4 w-4" />
-                Chat with Broker
-              </button>
-              <button
-                type="button"
-                onClick={() => setWorkspaceTab("tracker")}
-                className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm ${
-                  workspaceTab === "tracker" ? "border-brand-500 bg-brand-50 text-brand-900" : "border-ink-200 bg-white text-ink-700"
-                }`}
-              >
-                <WalletCards className="h-4 w-4" />
-                Deal Tracker
+                Deal Room
               </button>
               <button
                 type="button"
@@ -567,29 +521,27 @@ export default function CustomerDashboard() {
               </Card>
             )}
 
-            {workspaceTab === "broker" && (
+            {workspaceTab === "deal_room" && (
               <Card className="tc-fade-up-delay bg-white shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <MessageSquare className="h-5 w-5 text-brand-700" />
-                    Chat with Broker
+                    Deal Room
                   </CardTitle>
+                  <p className="text-sm font-normal text-ink-600">
+                    Client ↔ broker communication. Choose a deal or conversation, use the shortcuts, then chat below.
+                  </p>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm text-ink-600">
-                  <div className="rounded-xl border border-ink-200 bg-ink-50 p-3">
-                    <p className="text-xs uppercase tracking-wider text-ink-500">Professional communication</p>
-                    <p className="mt-1 text-sm text-ink-700">
-                      Keep all broker communication here. Deal workflow visuals and status targets are now in Deal Tracker.
+                  {dealRoomRows.length === 0 && (
+                    <p className="text-sm text-ink-600">
+                      No active deals or messages yet. Open a vehicle and start a conversation to see it here.
                     </p>
-                  </div>
-
-                  {threads.length === 0 && (
-                    <p className="text-sm text-ink-600">No messages yet. Open a vehicle and click Request Info to start.</p>
                   )}
-                  {threads.length > 0 && (
+                  {dealRoomRows.length > 0 && (
                     <div className="grid gap-3 lg:grid-cols-[220px_1fr]">
                       <div className="space-y-2 rounded-lg border border-ink-200 bg-ink-50 p-2">
-                        {threads.map((thread) => (
+                        {dealRoomRows.map((thread) => (
                           <button
                             key={thread.key}
                             type="button"
@@ -598,29 +550,28 @@ export default function CustomerDashboard() {
                               activeThread?.key === thread.key ? "border-brand-600 bg-brand-50" : "border-ink-200 bg-white"
                             }`}
                           >
-                        <p className="text-xs font-semibold text-ink-900">VIN: {thread.vin ?? "General"}</p>
-                        <p className="truncate text-xs text-ink-600">{thread.brokerEmail ?? "Broker assignment pending"}</p>
-                        <div className="mt-0.5 flex items-center justify-between">
-                          <p className="text-[11px] text-ink-500">{formatDateTime(thread.lastAt)}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                            <p className="text-xs font-semibold text-ink-900">{thread.vin ? `VIN ${thread.vin}` : "General"}</p>
+                            <p className="truncate text-xs text-ink-600">{thread.brokerEmail ?? "Broker assignment pending"}</p>
+                            <div className="mt-0.5 flex items-center justify-between">
+                              <p className="text-[11px] text-ink-500">{formatDateTime(thread.lastAt)}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
 
                       <div className="rounded-lg border border-ink-200 bg-white p-3">
                         {activeThread && (
                           <>
                             <div className="mb-3 flex flex-wrap items-start justify-between gap-2 border-b border-ink-200 pb-2">
                               <div>
-                                <p className="text-xs text-ink-600">VIN: {activeThread.vin ?? "General"}</p>
+                                <p className="text-xs text-ink-600">
+                                  {activeThread.vin ? `VIN ${activeThread.vin}` : "General conversation"}
+                                </p>
                                 <p className="text-xs text-ink-500">Broker: {activeThread.brokerEmail ?? "Assignment pending"}</p>
                               </div>
                               {activeThread.vin && (
                                 <div className="flex flex-wrap items-center justify-end gap-1.5">
-                                  <HeaderStatusChip
-                                    kind="timeline"
-                                    value={(dealsQuery.data?.items ?? []).find((deal) => deal.vin === activeThread.vin)?.status ?? "inquiry"}
-                                  />
+                                  <HeaderStatusChip kind="timeline" value={activeDeal?.status ?? "inquiry"} />
                                   <HeaderStatusChip kind="docs" value={latestDocByVin[activeThread.vin]?.status ?? "not_submitted"} />
                                   <HeaderStatusChip kind="credit" value={latestCreditByVin[activeThread.vin]?.status ?? "not_submitted"} />
                                 </div>
@@ -629,57 +580,44 @@ export default function CustomerDashboard() {
                             <div className="mb-3">
                               <VehicleMiniCard vehicle={activeThread.vin ? vehiclesByVin[activeThread.vin] : undefined} vin={activeThread.vin} />
                             </div>
+
                             {activeThread.vin && (
-                              <div className="mb-3 grid gap-3 md:grid-cols-2">
-                                <div className="rounded-lg border border-ink-200 bg-white p-3">
-                                  <p className="text-xs uppercase tracking-wider text-ink-500">Document status</p>
-                                  <p className="mt-1 text-sm text-ink-800">
-                                    Latest: {titleCaseStatus((latestDocByVin[activeThread.vin]?.status ?? "not_submitted").toString())}
-                                  </p>
-                                  <p className="text-xs text-ink-500">
-                                    {latestDocByVin[activeThread.vin]?.created_at
-                                      ? `Updated ${formatDateTime(latestDocByVin[activeThread.vin]?.created_at)}`
-                                      : "No docs submitted yet."}
-                                  </p>
-                                  <div className="mt-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => {
-                                        if (activeThread.vin) openDocsDialog(activeThread.vin);
-                                      }}
-                                    >
-                                      <Upload className="h-3.5 w-3.5" />
-                                      Upload docs
-                                    </Button>
-                                  </div>
-                                </div>
-                                <div className="rounded-lg border border-ink-200 bg-white p-3">
-                                  <p className="text-xs uppercase tracking-wider text-ink-500">Credit status</p>
-                                  <p className="mt-1 text-sm text-ink-800">
-                                    Latest: {titleCaseStatus((latestCreditByVin[activeThread.vin]?.status ?? "not_submitted").toString())}
-                                  </p>
-                                  <p className="text-xs text-ink-500">
-                                    {latestCreditByVin[activeThread.vin]?.created_at
-                                      ? `Updated ${formatDateTime(latestCreditByVin[activeThread.vin]?.created_at)}`
-                                      : "No credit application yet."}
-                                  </p>
-                                  <div className="mt-2">
-                                    <Button asChild variant="outline" size="sm">
-                                      <Link href={`/credit-application?vin=${encodeURIComponent(activeThread.vin)}`}>
-                                        <CreditCard className="h-3.5 w-3.5" />
-                                        Complete credit app
-                                      </Link>
-                                    </Button>
-                                  </div>
-                                </div>
+                              <div className="mb-3 flex flex-wrap gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    chatInputRef.current?.focus();
+                                    chatInputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                                  }}
+                                >
+                                  Ask a question
+                                </Button>
+                                <Button type="button" variant="outline" size="sm" onClick={() => openDocsDialog(activeThread.vin!)}>
+                                  <Upload className="mr-1 h-3.5 w-3.5" />
+                                  Upload documents
+                                </Button>
+                                <Button asChild size="sm">
+                                  <Link href={`/vehicles/${encodeURIComponent(activeThread.vin!)}`}>Open Vehicle details</Link>
+                                </Button>
+                                <Button asChild variant="outline" size="sm">
+                                  <Link href={`/credit-application?vin=${encodeURIComponent(activeThread.vin!)}`}>
+                                    <CreditCard className="mr-1 h-3.5 w-3.5" />
+                                    Credit Application
+                                  </Link>
+                                </Button>
                               </div>
                             )}
 
+                            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-ink-500">Customer ↔ Broker</p>
                             <div
                               ref={messageScrollRef}
                               className="max-h-72 space-y-2 overflow-y-auto rounded-md border border-ink-200 bg-ink-50 p-2"
                             >
+                              {activeThread.items.length === 0 && (
+                                <p className="text-center text-xs text-ink-500">No messages yet — say hello to your broker below.</p>
+                              )}
                               {activeThread.items.map((message) => (
                                 <div
                                   key={message.id}
@@ -690,7 +628,7 @@ export default function CustomerDashboard() {
                                   }`}
                                 >
                                   <p className="text-[11px] font-semibold uppercase text-ink-500">
-                                    {message.senderType === "broker" ? "Broker" : "You"}
+                                    {message.senderType === "broker" ? "Broker" : "Customer"}
                                   </p>
                                   <p className="text-sm text-ink-900">{message.body}</p>
                                   <p className="text-[11px] text-ink-500">{formatDateTime(message.createdAt)}</p>
@@ -699,7 +637,11 @@ export default function CustomerDashboard() {
                             </div>
 
                             <div className="mt-3 space-y-2">
+                              {!activeThread.vin && (
+                                <p className="text-xs text-ink-500">Choose a vehicle thread to send messages with a VIN attached.</p>
+                              )}
                               <Textarea
+                                ref={chatInputRef}
                                 value={messageDraft}
                                 onChange={(event) => setMessageDraft(event.target.value)}
                                 onKeyDown={(event) => {
@@ -708,25 +650,26 @@ export default function CustomerDashboard() {
                                   if ((event.key === "Enter" && !event.shiftKey) || (event.key === "Enter" && event.ctrlKey)) {
                                     event.preventDefault();
                                     sendMessageMutation.mutate({
-                                      vin: activeThread.vin,
+                                      vin: activeThread.vin!,
                                       message: messageDraft.trim()
                                     });
                                   }
                                 }}
-                                placeholder="Write your message to broker..."
+                                placeholder="Type a message to your broker…"
                                 className="min-h-[90px]"
                               />
                               <div className="flex justify-end">
                                 <Button
-                                  disabled={sendMessageMutation.isPending || !messageDraft.trim()}
-                                  onClick={() =>
+                                  disabled={sendMessageMutation.isPending || !messageDraft.trim() || !activeThread?.vin}
+                                  onClick={() => {
+                                    if (!activeThread?.vin || !messageDraft.trim()) return;
                                     sendMessageMutation.mutate({
                                       vin: activeThread.vin,
                                       message: messageDraft.trim()
-                                    })
-                                  }
+                                    });
+                                  }}
                                 >
-                                  Send message
+                                  Send
                                 </Button>
                               </div>
                             </div>
@@ -735,177 +678,6 @@ export default function CustomerDashboard() {
                       </div>
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            )}
-
-            {workspaceTab === "tracker" && (
-              <Card className="tc-fade-up-delay bg-white shadow-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <WalletCards className="h-5 w-5 text-brand-700" />
-                    Deal Tracker
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm text-ink-700">
-                  {(dealsQuery.data?.items ?? []).length === 0 && <p>No active deals yet.</p>}
-                  {(dealsQuery.data?.items ?? []).map((deal) => (
-                    <div key={deal.id} className="rounded-xl border border-[#d9dfeb] bg-[#f8fbff] p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="flex items-center gap-2 font-medium text-ink-900">Deal #{deal.id} | VIN {deal.vin}</p>
-                        <div className="flex flex-wrap items-center justify-end gap-1.5">
-                          <HeaderStatusChip kind="timeline" value={deal.status} />
-                          <HeaderStatusChip kind="docs" value={latestDocByVin[deal.vin]?.status ?? "not_submitted"} />
-                          <HeaderStatusChip kind="credit" value={latestCreditByVin[deal.vin]?.status ?? "not_submitted"} />
-                          <Badge className="border border-ink-200 bg-white text-ink-700">{titleCaseStatus(deal.status)}</Badge>
-                        </div>
-                      </div>
-
-                      <div className="mt-3">
-                        <VehicleMiniCard vehicle={vehiclesByVin[deal.vin]} vin={deal.vin} />
-                      </div>
-
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="rounded-lg border border-ink-200 bg-white p-2">
-                          <p className="text-[11px] uppercase text-ink-500">Broker</p>
-                          <p className="text-sm font-medium text-ink-900">{deal.assigned_broker_email ?? "Assignment pending"}</p>
-                        </div>
-                        <div className="rounded-lg border border-ink-200 bg-white p-2">
-                          <p className="text-[11px] uppercase text-ink-500">Response target</p>
-                          <p className="text-sm font-medium text-ink-900">{responseTargetText(deal.updated_at ?? deal.created_at)}</p>
-                        </div>
-                        <div className="rounded-lg border border-ink-200 bg-white p-2">
-                          <p className="text-[11px] uppercase text-ink-500">Next milestone</p>
-                          <p className="text-sm font-medium text-ink-900">{expectedMilestoneDate(deal.updated_at ?? deal.created_at, deal.status) ?? "-"}</p>
-                        </div>
-                        <div className="rounded-lg border border-ink-200 bg-white p-2">
-                          <p className="text-[11px] uppercase text-ink-500">Last update</p>
-                          <p className="text-sm font-medium text-ink-900">{formatDateTime(deal.updated_at ?? deal.created_at)}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 rounded-lg border border-ink-200 bg-white p-3">
-                        <p className="text-xs uppercase tracking-wider text-ink-500">Deal timeline</p>
-                        <div className="mt-2 overflow-x-auto pb-2">
-                          <div className="relative min-w-[760px]">
-                            {(() => {
-                              const activeIdx = statusIndex(deal.status);
-                              const segmentCount = dealFlow.length - 1;
-                              const approvedIdx = 3;
-                              const clampedIdx = Math.max(0, Math.min(activeIdx, segmentCount));
-                              const greenTo = Math.min(clampedIdx, approvedIdx);
-                              const postLen = Math.max(clampedIdx - approvedIdx, 0);
-                              return (
-                                <>
-                            <div className="absolute left-8 right-8 top-10 h-1 rounded bg-ink-200" />
-                            <div
-                              className="absolute left-8 top-10 h-1 rounded bg-emerald-500 transition-all"
-                              style={{
-                                width: `${(greenTo / segmentCount) * 100}%`
-                              }}
-                            />
-                            <div
-                              className="absolute left-8 top-10 h-1 rounded bg-brand-600 transition-all"
-                              style={{
-                                left: `${(approvedIdx / segmentCount) * 100}%`,
-                                width: `${(postLen / segmentCount) * 100}%`
-                              }}
-                            />
-                                </>
-                              );
-                            })()}
-                            <div className="relative grid grid-cols-6 gap-2">
-                              {dealFlow.map((step, idx) => {
-                                const Icon = step.icon;
-                                const activeIdx = statusIndex(deal.status);
-                                const isComplete = idx < activeIdx;
-                                const isCurrent = idx === activeIdx;
-                                return (
-                                  <div key={step.key} className="flex flex-col items-center text-center">
-                                    <div
-                                      className={`z-10 flex h-16 w-16 items-center justify-center rounded-full border-2 bg-white ${
-                                        isCurrent
-                                          ? "border-brand-600 text-brand-700"
-                                          : isComplete
-                                          ? "border-emerald-500 text-emerald-600"
-                                          : "border-ink-300 text-ink-500"
-                                      }`}
-                                    >
-                                      <Icon className="h-7 w-7" />
-                                    </div>
-                                    <div className="mt-2 flex items-center gap-1">
-                                      {isComplete ? (
-                                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                      ) : isCurrent ? (
-                                        <Circle className="h-3 w-3 fill-brand-700 text-brand-700" />
-                                      ) : (
-                                        <Circle className="h-3 w-3 text-ink-300" />
-                                      )}
-                                      <span className={`text-xs font-semibold ${isCurrent ? "text-brand-800" : "text-ink-700"}`}>
-                                        {idx + 1}. {step.label}
-                                      </span>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                        <p className="mt-2 text-sm text-ink-700">{nextStepForStatus(deal.status)}</p>
-                      </div>
-
-                      <div className="mt-3 rounded-lg border border-ink-200 bg-white p-3">
-                        <p className="text-xs uppercase tracking-wider text-ink-500">Required details / docs</p>
-                        <ul className="mt-1 list-disc pl-5 text-sm text-ink-700">
-                          {docsChecklist(deal.status).map((item) => (
-                            <li key={item}>{item}</li>
-                          ))}
-                        </ul>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <Badge className="border border-ink-200 bg-ink-50 text-ink-700">
-                            Docs: {titleCaseStatus((latestDocByVin[deal.vin]?.status ?? "not_submitted").toString())}
-                          </Badge>
-                          <span className="text-xs text-ink-500">
-                            {latestDocByVin[deal.vin]?.created_at
-                              ? `Last upload ${formatDateTime(latestDocByVin[deal.vin]?.created_at)}`
-                              : "No docs uploaded"}
-                          </span>
-                          <Badge className="border border-ink-200 bg-ink-50 text-ink-700">
-                            Credit: {titleCaseStatus((latestCreditByVin[deal.vin]?.status ?? "not_submitted").toString())}
-                          </Badge>
-                          <span className="text-xs text-ink-500">
-                            {latestCreditByVin[deal.vin]?.created_at
-                              ? `Last credit ${formatDateTime(latestCreditByVin[deal.vin]?.created_at)}`
-                              : "No credit application"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={requestUpdateMutation.isPending}
-                          onClick={() => requestUpdateMutation.mutate({ vin: deal.vin, dealId: deal.id })}
-                        >
-                          {requestUpdateMutation.isPending ? "Sending..." : "Request status update"}
-                        </Button>
-                        <Button asChild size="sm">
-                          <Link href={`/vehicles/${encodeURIComponent(deal.vin)}`}>Open vehicle</Link>
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => openDocsDialog(deal.vin)}>
-                          <Upload className="h-3.5 w-3.5" />
-                          Upload docs
-                        </Button>
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={`/credit-application?vin=${encodeURIComponent(deal.vin)}`}>
-                            <CreditCard className="h-3.5 w-3.5" />
-                            Credit application
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
                 </CardContent>
               </Card>
             )}

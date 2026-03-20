@@ -179,7 +179,7 @@ export const api = {
     };
   },
   register: async (payload: { email: string; name: string; password: string; phone?: string; cu_signup_token?: string }) => {
-    return apiFetch<{ registered?: boolean; message?: string }>("/auth/register", {
+    const data = await apiFetch<{ access_token: string; refresh_token?: string; token_type?: string }>("/auth/register", {
       method: "POST",
       body: JSON.stringify({
         email: payload.email,
@@ -190,6 +190,7 @@ export const api = {
         cu_signup_token: payload.cu_signup_token
       })
     });
+    return { ...data, token: data.access_token };
   },
   updateProfile: async (payload: { name: string; phone?: string }) => {
     return apiFetch<User>("/auth/me/profile", {
@@ -222,17 +223,19 @@ export const api = {
     const body = { email, code, channel } as Record<string, unknown>;
     if (cu_signup_token) body.cu_signup_token = cu_signup_token;
     try {
-      return await apiFetch<{ registered: boolean; message?: string }>("/auth/otp/verify", {
+      const data = await apiFetch<{ access_token: string; refresh_token?: string; token_type?: string }>("/auth/otp/verify", {
         method: "POST",
         body: JSON.stringify(body)
       });
+      return { ...data, token: data.access_token };
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError?.status !== 404) throw error;
-      return apiFetch<{ registered: boolean; message?: string }>("/auth/verify-otp", {
+      const data = await apiFetch<{ access_token: string; refresh_token?: string; token_type?: string }>("/auth/verify-otp", {
         method: "POST",
         body: JSON.stringify(body)
       });
+      return { ...data, token: data.access_token };
     }
   },
   login: async (email: string, password: string) => {
@@ -1667,6 +1670,14 @@ export type LandingPageContentRecord = {
     google_plus_url?: string;
     instagram_url?: string;
     youtube_url?: string;
+    address_line?: string;
+    phone_line?: string;
+    footer_disclosure?: string;
+    copyright_line?: string;
+    link_lease_label?: string;
+    link_lease_url?: string;
+    link_broker_label?: string;
+    link_broker_url?: string;
   };
 };
 
@@ -1680,5 +1691,13 @@ export type LandingPageUpdatePayload = {
     google_plus_url?: string;
     instagram_url?: string;
     youtube_url?: string;
+    address_line?: string;
+    phone_line?: string;
+    footer_disclosure?: string;
+    copyright_line?: string;
+    link_lease_label?: string;
+    link_lease_url?: string;
+    link_broker_label?: string;
+    link_broker_url?: string;
   };
 };

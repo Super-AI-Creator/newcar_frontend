@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
+import { navigateAfterSignIn } from "@/lib/post-auth-navigation";
 import { z } from "zod";
 
 const emailSchema = z.string().email();
@@ -49,33 +50,6 @@ function LoginPageContent() {
   const [status, setStatus] = useState<"idle" | "loading" | "redirecting">("idle");
   const [message, setMessage] = useState<string | null>(null);
 
-  const normalizeRole = (role: string | undefined | null) => (role ?? "").toLowerCase();
-
-  const homeForRole = (role: string | undefined | null) => {
-    const r = normalizeRole(role);
-    if (r === "dealer") return "/dashboard/dealer";
-    if (r === "credit_union") return "/dashboard/credit-union";
-    if (r === "admin" || r === "broker_admin" || r === "super_admin") return "/admin";
-    if (r === "customer" || r === "broker") return "/dashboard/customer";
-    return "/lease-specials";
-  };
-
-  const isPathAllowedForRole = (role: string | undefined | null, path: string) => {
-    const r = normalizeRole(role);
-    const base = path.split("?")[0];
-    if (base === "/admin") {
-      return r === "admin" || r === "broker_admin" || r === "super_admin";
-    }
-    if (base === "/dashboard/dealer") {
-      return r === "dealer";
-    }
-    if (base === "/dashboard/credit-union") {
-      return r === "credit_union";
-    }
-    // Other routes are generally safe for all authenticated roles.
-    return true;
-  };
-
   const canSubmit = useMemo(
     () => emailSchema.safeParse(email).success && password.trim().length > 0,
     [email, password]
@@ -101,19 +75,12 @@ function LoginPageContent() {
       loginWithToken(token, null);
       await refresh();
       const userData = await api.me();
-      const role = userData?.role ?? "";
       setStatus("redirecting");
-      if (role === "credit_union") {
-        const base = "/dashboard/credit-union";
-        const dest = approvalCode ? `${base}?claim=${encodeURIComponent(approvalCode)}` : base;
-        router.replace(dest);
-      } else {
-        const preferred = returnUrl || homeForRole(role);
-        const safeBase = isPathAllowedForRole(role, preferred) ? preferred : homeForRole(role);
-        const sep = safeBase.includes("?") ? "&" : "?";
-        const dest = approvalCode ? `${safeBase}${sep}claim=${encodeURIComponent(approvalCode)}` : safeBase;
-        router.replace(dest);
-      }
+      navigateAfterSignIn(router, {
+        role: userData?.role,
+        returnUrl,
+        approvalCode
+      });
     } catch (error: any) {
       setMessage(error?.message ?? "Invalid email or password. Try again.");
       setStatus("idle");

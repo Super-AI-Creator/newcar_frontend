@@ -54,9 +54,9 @@ export default function LandingPageSections() {
 
   return (
     <>
-      <section className="relative overflow-hidden border-b border-ink-200 bg-ink-900">
+      <section className="relative overflow-hidden border-b border-ink-200">
         <div className="absolute inset-0">
-          <LandingHeroCarousel className="h-full w-full" imageClassName="opacity-35" priority slides={slides} />
+          <LandingHeroCarousel className="h-full w-full" imageClassName="opacity-85" priority slides={slides} />
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-ink-950/90 via-ink-900/80 to-brand-900/55" />
         <div className="container-wide relative py-12 sm:py-20 lg:py-24">

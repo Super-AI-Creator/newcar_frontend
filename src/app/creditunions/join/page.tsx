@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import SiteHeader from "@/components/site-header";
+import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api";
+import { navigateAfterSignIn } from "@/lib/post-auth-navigation";
 import { z } from "zod";
 
 const emailSchema = z.string().email();
@@ -26,6 +28,7 @@ export default function CreditUnionJoinPage() {
 function CreditUnionJoinContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { loginWithToken, refresh } = useAuth();
   const token = searchParams.get("token") ?? "";
   const approvalCode = searchParams.get("approval") ?? "";
 
@@ -37,7 +40,7 @@ function CreditUnionJoinContent() {
   const [channel, setChannel] = useState<"email" | "sms">("email");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-  const [status, setStatus] = useState<"idle" | "loading">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "redirecting">("idle");
   const [message, setMessage] = useState<string | null>(null);
 
   const cuQuery = useQuery({
@@ -89,14 +92,26 @@ function CreditUnionJoinContent() {
     }
     setStatus("loading");
     try {
-      await api.verifyOtp(email, otp, channel, token);
-      setMessage("Account created. Redirecting to sign in...");
+      const data = await api.verifyOtp(email, otp, channel, token);
+      const authToken = data.token ?? data.access_token;
+      if (!authToken) {
+        setMessage("Verified, but sign-in failed. Please use Sign in.");
+        setStatus("idle");
+        const returnUrl = cu?.slug ? `/cu/${cu.slug}` : "/dashboard/customer";
+        const loginUrl =
+          approvalCode
+            ? `/login?returnUrl=${encodeURIComponent(returnUrl)}&approval=${encodeURIComponent(approvalCode)}`
+            : `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+        router.replace(loginUrl);
+        return;
+      }
+      loginWithToken(authToken, null);
+      await refresh();
+      const userData = await api.me();
+      setStatus("redirecting");
+      setMessage(null);
       const returnUrl = cu?.slug ? `/cu/${cu.slug}` : "/dashboard/customer";
-      const loginUrl =
-        approvalCode
-          ? `/login?returnUrl=${encodeURIComponent(returnUrl)}&approval=${encodeURIComponent(approvalCode)}`
-          : `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
-      setTimeout(() => router.replace(loginUrl), 800);
+      navigateAfterSignIn(router, { role: userData?.role, returnUrl, approvalCode });
     } catch (error: unknown) {
       setMessage((error as { message?: string })?.message ?? "Verification failed.");
       setStatus("idle");
@@ -196,8 +211,8 @@ function CreditUnionJoinContent() {
                       placeholder="Enter code"
                       className="max-w-[180px]"
                     />
-                    <Button onClick={verifyOtp} disabled={!otp.trim() || status === "loading"}>
-                      Verify & create account
+                    <Button onClick={verifyOtp} disabled={!otp.trim() || status === "loading" || status === "redirecting"}>
+                      {status === "redirecting" ? "Redirecting..." : "Verify & create account"}
                     </Button>
                   </>
                 )}

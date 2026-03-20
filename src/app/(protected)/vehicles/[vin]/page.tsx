@@ -526,7 +526,6 @@ export default function VehicleDetailPage() {
 
     add("MSRP", formatMoney(vehicleQuery.data?.msrp));
     add("Listed price", formatMoney(vehicleQuery.data?.listed_price));
-    add("Discounted", formatMoney(vehicleQuery.data?.discounted));
     add("Down payment", formatMoney(vehicleQuery.data?.down));
     add(
       "Term",
@@ -560,7 +559,6 @@ export default function VehicleDetailPage() {
     vehicleQuery.data?.monthly,
     vehicleQuery.data?.msrp,
     vehicleQuery.data?.listed_price,
-    vehicleQuery.data?.discounted,
     vehicleQuery.data?.down,
     vehicleQuery.data?.term_months,
     vehicleQuery.data?.miles_per_year,
@@ -570,16 +568,12 @@ export default function VehicleDetailPage() {
   ]);
   const leasePaymentDisclosure = useMemo(() => {
     if (vehicleQuery.data?.monthly === undefined || vehicleQuery.data?.monthly === null) return undefined;
-    const leaseBaseText = formatMoney(vehicleQuery.data?.discounted ?? vehicleQuery.data?.msrp);
-    const downText = formatMoney(vehicleQuery.data?.down);
-    if (leaseBaseText && downText) {
-      return `Lease payment is based on offer-sheet MSRP ${leaseBaseText} and down payment ${downText}, not discounted price.`;
+    const msrpForLease = formatMoney(vehicleQuery.data?.discounted ?? vehicleQuery.data?.msrp);
+    if (msrpForLease) {
+      return `Lease payment is based on a MSRP ${msrpForLease} vehicle , 1st payment, tax and license fees extra, not everyone will qualify.`;
     }
-    if (leaseBaseText) {
-      return `Lease payment is based on offer-sheet MSRP ${leaseBaseText}, not discounted price.`;
-    }
-    return "Lease payment is based on offer-sheet MSRP and lease structure, not discounted price.";
-  }, [vehicleQuery.data?.monthly, vehicleQuery.data?.discounted, vehicleQuery.data?.msrp, vehicleQuery.data?.down]);
+    return "Lease payment is based on vehicle MSRP, 1st payment, tax and license fees extra, not everyone will qualify.";
+  }, [vehicleQuery.data?.monthly, vehicleQuery.data?.discounted, vehicleQuery.data?.msrp]);
 
   const parseOptionalNumber = (value: string) => {
     const cleaned = value.trim();

@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/components/auth-provider";
 import { api } from "@/lib/api";
+import { navigateAfterSignIn } from "@/lib/post-auth-navigation";
 import { z } from "zod";
 import { ShieldCheck } from "lucide-react";
 
@@ -23,12 +25,13 @@ function randomCaptcha() {
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { loginWithToken, refresh } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "redirecting">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [captcha, setCaptcha] = useState<ReturnType<typeof randomCaptcha> | null>(null);
   const [captchaInput, setCaptchaInput] = useState("");
@@ -59,7 +62,7 @@ function RegisterForm() {
     const validName = name.trim().length > 0;
     const validPassword = password.length >= 8;
     const passwordsMatch = password === confirmPassword;
-    return validEmail && validName && validPassword && passwordsMatch && captchaValid && status !== "loading";
+    return validEmail && validName && validPassword && passwordsMatch && captchaValid && status === "idle";
   }, [email, name, password, confirmPassword, captchaValid, status]);
 
   const handleRegister = async () => {
@@ -77,16 +80,31 @@ function RegisterForm() {
 
     setStatus("loading");
     try {
-      await api.register({
+      const data = await api.register({
         email,
         name,
         password,
         phone: phone.trim() || undefined
       });
-      setMessage("Registration complete. Redirecting to sign in...");
-      const returnUrl = searchParams.get("returnUrl")?.trim();
-      const loginPath = returnUrl && returnUrl.startsWith("/") ? `/login?returnUrl=${encodeURIComponent(returnUrl)}` : "/login";
-      setTimeout(() => router.replace(loginPath), 700);
+      const token = data.token ?? data.access_token;
+      if (!token) {
+        setMessage("Account created but sign-in failed. Please use Sign in below.");
+        setStatus("idle");
+        const r = searchParams.get("returnUrl")?.trim();
+        const loginPath = r && r.startsWith("/") && !r.startsWith("//") ? `/login?returnUrl=${encodeURIComponent(r)}` : "/login";
+        router.replace(loginPath);
+        return;
+      }
+      loginWithToken(token, null);
+      await refresh();
+      const userData = await api.me();
+      setStatus("redirecting");
+      setMessage(null);
+      const rawReturn = searchParams.get("returnUrl")?.trim() ?? "";
+      const returnUrl =
+        rawReturn.startsWith("/") && !rawReturn.startsWith("//") ? rawReturn : "/lease-specials";
+      const approvalCode = searchParams.get("approval") ?? "";
+      navigateAfterSignIn(router, { role: userData?.role, returnUrl, approvalCode });
     } catch (error: any) {
       setMessage(error?.message ?? "Registration failed.");
       setStatus("idle");
@@ -173,8 +191,12 @@ function RegisterForm() {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <Button onClick={handleRegister} disabled={!canSubmit}>
-                  {status === "loading" ? "Creating account..." : "Create account"}
+                <Button onClick={handleRegister} disabled={!canSubmit || status !== "idle"}>
+                  {status === "redirecting"
+                    ? "Redirecting..."
+                    : status === "loading"
+                      ? "Creating account..."
+                      : "Create account"}
                 </Button>
               </div>
               <div className="rounded-xl border border-ink-200 bg-ink-50 px-4 py-3 text-sm text-ink-600">

@@ -35,6 +35,14 @@ const DEFAULT_FOOTER = {
   google_plus_url: "https://plus.google.com/101810114903929491113",
   instagram_url: "https://www.instagram.com/newcarsuperstore/",
   youtube_url: "https://www.youtube.com/channel/UCfnPH7n_x1cHc5WXDb0zMJQ",
+  address_line: "2671 Ventura Blvd Suite Oxnard CA 93036",
+  phone_line: "818.705.9200, 818.705.9202",
+  footer_disclosure: "",
+  copyright_line: "",
+  link_lease_label: "Lease Specials Los Angeles",
+  link_lease_url: "/lease-specials",
+  link_broker_label: "Auto Broker Los Angeles",
+  link_broker_url: "/most-reviewed-auto-broker-los-angeles",
 };
 
 export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
@@ -54,6 +62,14 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
   const [googlePlusUrl, setGooglePlusUrl] = useState(DEFAULT_FOOTER.google_plus_url);
   const [instagramUrl, setInstagramUrl] = useState(DEFAULT_FOOTER.instagram_url);
   const [youtubeUrl, setYoutubeUrl] = useState(DEFAULT_FOOTER.youtube_url);
+  const [footerAddress, setFooterAddress] = useState(DEFAULT_FOOTER.address_line);
+  const [footerPhoneLine, setFooterPhoneLine] = useState(DEFAULT_FOOTER.phone_line);
+  const [footerDisclosure, setFooterDisclosure] = useState(DEFAULT_FOOTER.footer_disclosure);
+  const [footerCopyright, setFooterCopyright] = useState(DEFAULT_FOOTER.copyright_line);
+  const [footerLeaseLabel, setFooterLeaseLabel] = useState(DEFAULT_FOOTER.link_lease_label);
+  const [footerLeaseUrl, setFooterLeaseUrl] = useState(DEFAULT_FOOTER.link_lease_url);
+  const [footerBrokerLabel, setFooterBrokerLabel] = useState(DEFAULT_FOOTER.link_broker_label);
+  const [footerBrokerUrl, setFooterBrokerUrl] = useState(DEFAULT_FOOTER.link_broker_url);
 
   const query = useQuery({
     queryKey: ["admin-landing-page"],
@@ -123,6 +139,14 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
       setGooglePlusUrl(d.footer.google_plus_url ?? DEFAULT_FOOTER.google_plus_url);
       setInstagramUrl(d.footer.instagram_url ?? DEFAULT_FOOTER.instagram_url);
       setYoutubeUrl(d.footer.youtube_url ?? DEFAULT_FOOTER.youtube_url);
+      setFooterAddress(d.footer.address_line ?? DEFAULT_FOOTER.address_line);
+      setFooterPhoneLine(d.footer.phone_line ?? DEFAULT_FOOTER.phone_line);
+      setFooterDisclosure(d.footer.footer_disclosure ?? DEFAULT_FOOTER.footer_disclosure);
+      setFooterCopyright(d.footer.copyright_line ?? DEFAULT_FOOTER.copyright_line);
+      setFooterLeaseLabel(d.footer.link_lease_label ?? DEFAULT_FOOTER.link_lease_label);
+      setFooterLeaseUrl(d.footer.link_lease_url ?? DEFAULT_FOOTER.link_lease_url);
+      setFooterBrokerLabel(d.footer.link_broker_label ?? DEFAULT_FOOTER.link_broker_label);
+      setFooterBrokerUrl(d.footer.link_broker_url ?? DEFAULT_FOOTER.link_broker_url);
     }
   }, [query.data]);
 
@@ -154,6 +178,14 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
         google_plus_url: googlePlusUrl.trim(),
         instagram_url: instagramUrl.trim(),
         youtube_url: youtubeUrl.trim(),
+        address_line: footerAddress.trim(),
+        phone_line: footerPhoneLine.trim(),
+        footer_disclosure: footerDisclosure.trim(),
+        copyright_line: footerCopyright.trim(),
+        link_lease_label: footerLeaseLabel.trim(),
+        link_lease_url: footerLeaseUrl.trim(),
+        link_broker_label: footerBrokerLabel.trim(),
+        link_broker_url: footerBrokerUrl.trim(),
       },
     });
   };
@@ -323,6 +355,68 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
               </div>
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      <Card className="border-ink-200 bg-white">
+        <CardHeader>
+          <CardTitle className="text-lg">Footer contact & disclosure</CardTitle>
+          <p className="text-sm font-normal text-ink-600">
+            Address, phones, optional legal/disclosure text, copyright line, and footer nav links (legacy site layout).
+            Leave copyright blank to use the default (© current year, PTI WebTech). Use {"{year}"} in a custom line for the
+            current year.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2 md:col-span-2">
+              <Label>Address line</Label>
+              <Input value={footerAddress} onChange={(e) => setFooterAddress(e.target.value)} placeholder="Street, city, state ZIP" />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Phone line</Label>
+              <Input
+                value={footerPhoneLine}
+                onChange={(e) => setFooterPhoneLine(e.target.value)}
+                placeholder="818.705.9200, 818.705.9202"
+              />
+              <p className="text-xs text-ink-500">Comma-separated numbers become clickable tel: links.</p>
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Footer disclosure (optional)</Label>
+              <Textarea
+                value={footerDisclosure}
+                onChange={(e) => setFooterDisclosure(e.target.value)}
+                placeholder="e.g. lease or financing disclaimers shown in small print above the bottom bar"
+                rows={4}
+                className="mt-1"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Copyright line (optional)</Label>
+              <Input
+                value={footerCopyright}
+                onChange={(e) => setFooterCopyright(e.target.value)}
+                placeholder="Leave empty for default © … PTI WebTech"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Footer link — label</Label>
+              <Input value={footerLeaseLabel} onChange={(e) => setFooterLeaseLabel(e.target.value)} placeholder="Lease Specials Los Angeles" />
+            </div>
+            <div className="space-y-2">
+              <Label>Footer link — URL</Label>
+              <Input value={footerLeaseUrl} onChange={(e) => setFooterLeaseUrl(e.target.value)} placeholder="/lease-specials" />
+            </div>
+            <div className="space-y-2">
+              <Label>Second footer link — label</Label>
+              <Input value={footerBrokerLabel} onChange={(e) => setFooterBrokerLabel(e.target.value)} placeholder="Auto Broker Los Angeles" />
+            </div>
+            <div className="space-y-2">
+              <Label>Second footer link — URL</Label>
+              <Input value={footerBrokerUrl} onChange={(e) => setFooterBrokerUrl(e.target.value)} placeholder="/most-reviewed-auto-broker-los-angeles" />
+            </div>
+          </div>
         </CardContent>
       </Card>
 
