@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -12,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
+import { ChevronRight, Lock } from "lucide-react";
 
 type LeadFormButtonProps = Pick<ButtonProps, "variant" | "size" | "className"> & {
   vin?: string;
@@ -46,6 +48,7 @@ export default function LeadFormButton({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [privacyConsent, setPrivacyConsent] = useState(false);
   const [submittedLeadId, setSubmittedLeadId] = useState<number | null>(null);
   const [submittedDealId, setSubmittedDealId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -61,6 +64,7 @@ export default function LeadFormButton({
     setEmail(user?.email ?? "");
     setPhone("");
     setNotes("");
+    setPrivacyConsent(false);
     setSubmittedLeadId(null);
     setSubmittedDealId(null);
     setSubmitAttempted(false);
@@ -80,6 +84,14 @@ export default function LeadFormButton({
         variant: "error",
         title: "Please check your information",
         description: "Name, email, and phone are required and must be in the correct format."
+      });
+      return;
+    }
+    if (!privacyConsent) {
+      toast({
+        variant: "error",
+        title: "Privacy consent required",
+        description: "Please agree to the privacy terms before continuing."
       });
       return;
     }
@@ -158,13 +170,13 @@ export default function LeadFormButton({
           {children}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl overflow-hidden p-0">
+      <DialogContent className="max-w-[760px] overflow-hidden rounded-[26px] border border-ink-200 p-0 sm:rounded-[28px]">
         {submittedLeadId ? (
           <>
-            <DialogHeader className="border-b border-ink-200 px-5 py-3">
-              <DialogTitle className="text-base">{title} request submitted</DialogTitle>
+            <DialogHeader className="border-b border-ink-200 px-6 py-4">
+              <DialogTitle className="text-lg">Private quote request submitted</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-3 p-5">
+            <div className="grid gap-3 p-6">
               <p className="text-sm text-ink-700">
                 Thanks. Your request has been captured and sent to our team.
               </p>
@@ -183,11 +195,15 @@ export default function LeadFormButton({
           </>
         ) : (
           <>
-            <DialogHeader className="border-b border-ink-200 px-5 py-3">
-              <DialogTitle className="text-base">Tell us about your request</DialogTitle>
+            <DialogHeader className="border-b border-ink-200 px-5 py-5 sm:px-8 sm:py-6">
+              <DialogTitle className="text-[34px] font-semibold leading-[1.08] text-ink-900 sm:text-[44px]">Get a Private Quote</DialogTitle>
+              <p className="pt-2 text-[15px] leading-relaxed text-ink-700 sm:text-[17px]">
+                Your information stays 100% private. We do not share your name, phone, or email with any dealers.
+                This helps us verify you&apos;re a real buyer and negotiate the best price on your behalf.
+              </p>
             </DialogHeader>
             <form
-              className="grid gap-3 p-5"
+              className="grid gap-4 p-5 sm:p-8"
               onSubmit={(e) => {
                 e.preventDefault();
                 void handleContinue();
@@ -195,52 +211,65 @@ export default function LeadFormButton({
               noValidate
             >
               {vehicleLabel && (
-                <p className="rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-sm text-ink-700">
-                  Car: <span className="font-medium">{vehicleLabel}</span>
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-200 bg-ink-50 px-4 py-3 text-sm text-ink-700">
+                  <p>
+                    Vehicle selected <span className="font-medium text-ink-900">{vehicleLabel}</span>
+                  </p>
+                  {vin ? (
+                    <Link
+                      href={`/vehicles/${encodeURIComponent(vin)}`}
+                      className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
+                    >
+                      View details
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  ) : null}
+                </div>
               )}
-              <div className="space-y-1.5">
-                <Label htmlFor="lead-form-name">Name</Label>
-                <Input
-                  id="lead-form-name"
-                  name="name"
-                  autoComplete="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your full name"
-                  aria-invalid={submitAttempted && !!nameError}
-                  aria-describedby={submitAttempted && nameError ? "lead-form-name-err" : undefined}
-                  className={cn(submitAttempted && nameError && "border-red-500 focus-visible:ring-red-500")}
-                />
-                {submitAttempted && nameError ? (
-                  <p id="lead-form-name-err" className="text-sm text-red-600" role="alert">
-                    {nameError}
-                  </p>
-                ) : null}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="lead-form-name">Full name</Label>
+                  <Input
+                    id="lead-form-name"
+                    name="name"
+                    autoComplete="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your full name"
+                    aria-invalid={submitAttempted && !!nameError}
+                    aria-describedby={submitAttempted && nameError ? "lead-form-name-err" : undefined}
+                    className={cn("h-12", submitAttempted && nameError && "border-red-500 focus-visible:ring-red-500")}
+                  />
+                  {submitAttempted && nameError ? (
+                    <p id="lead-form-name-err" className="text-sm text-red-600" role="alert">
+                      {nameError}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="lead-form-email">Email address</Label>
+                  <Input
+                    id="lead-form-email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    aria-invalid={submitAttempted && !!emailError}
+                    aria-describedby={submitAttempted && emailError ? "lead-form-email-err" : undefined}
+                    className={cn("h-12", submitAttempted && emailError && "border-red-500 focus-visible:ring-red-500")}
+                  />
+                  {submitAttempted && emailError ? (
+                    <p id="lead-form-email-err" className="text-sm text-red-600" role="alert">
+                      {emailError}
+                    </p>
+                  ) : null}
+                </div>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="lead-form-email">Email</Label>
-                <Input
-                  id="lead-form-email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  inputMode="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@email.com"
-                  aria-invalid={submitAttempted && !!emailError}
-                  aria-describedby={submitAttempted && emailError ? "lead-form-email-err" : undefined}
-                  className={cn(submitAttempted && emailError && "border-red-500 focus-visible:ring-red-500")}
-                />
-                {submitAttempted && emailError ? (
-                  <p id="lead-form-email-err" className="text-sm text-red-600" role="alert">
-                    {emailError}
-                  </p>
-                ) : null}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="lead-form-phone">Phone</Label>
+                <Label htmlFor="lead-form-phone">Mobile number</Label>
                 <Input
                   id="lead-form-phone"
                   name="phone"
@@ -249,11 +278,12 @@ export default function LeadFormButton({
                   inputMode="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="(555) 555-5555"
+                  placeholder="Enter your mobile number"
                   aria-invalid={submitAttempted && !!phoneError}
                   aria-describedby={submitAttempted && phoneError ? "lead-form-phone-err" : undefined}
-                  className={cn(submitAttempted && phoneError && "border-red-500 focus-visible:ring-red-500")}
+                  className={cn("h-12", submitAttempted && phoneError && "border-red-500 focus-visible:ring-red-500")}
                 />
+                <p className="text-xs text-ink-500">(No dealer spam)</p>
                 {submitAttempted && phoneError ? (
                   <p id="lead-form-phone-err" className="text-sm text-red-600" role="alert">
                     {phoneError}
@@ -261,18 +291,35 @@ export default function LeadFormButton({
                 ) : null}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="lead-form-notes">Notes</Label>
+                <Label htmlFor="lead-form-notes">What would you like to know?</Label>
                 <Textarea
                   id="lead-form-notes"
                   name="notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Any specific details about your request..."
-                  className="min-h-[96px]"
+                  placeholder="Questions about price, payments, trade-in, delivery, or anything else"
+                  className="min-h-[102px]"
                 />
               </div>
-              <div className="flex justify-end">
-                <Button type="submit" disabled={submitting}>
+              <div className="flex items-center gap-2 rounded-lg bg-[#edf2ff] px-4 py-2.5 text-sm font-semibold text-ink-700">
+                <Lock className="h-4 w-4 text-brand-700" />
+                100% private by default. No spam. No pressure.
+              </div>
+              <label className="flex items-start gap-2 text-sm leading-relaxed text-ink-700">
+                <input
+                  type="checkbox"
+                  checked={privacyConsent}
+                  onChange={(e) => setPrivacyConsent(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-ink-300 text-brand-700 focus:ring-brand-500"
+                />
+                <span>I agree to the privacy terms and understand my info stays private until I decide to connect with a dealer.</span>
+              </label>
+              <div className="flex justify-center pt-1 sm:pt-2">
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="min-w-[220px] rounded-xl bg-gradient-to-b from-[#4f91ff] to-[#2366d6] px-8 py-3 text-base font-semibold text-white shadow-[0_10px_24px_-12px_rgba(35,102,214,0.8)] hover:from-[#5b9aff] hover:to-[#2a70e1] sm:min-w-[260px] sm:text-lg"
+                >
                   {submitting ? "Saving..." : "Continue"}
                 </Button>
               </div>
