@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   BadgeDollarSign,
   CarFront,
   ClipboardCheck,
   Heart,
-  LayoutDashboard,
   Menu,
+  MessageSquare,
   MessageSquareQuote,
   Search,
   ShoppingBag,
@@ -25,8 +26,10 @@ const publicBrandLinks = [
   { href: "/reviews", label: "Reviews" }
 ];
 
+const customerDealRoomLink = { href: "/dashboard/customer", label: "Deal Room" } as const;
+
 const customerLinks = [
-  { href: "/dashboard/customer", label: "Dashboard" },
+  customerDealRoomLink,
   { href: "/lease-specials", label: "Lease Specials" },
   { href: "/search?vehicle_type=used", label: "Used Cars" },
   { href: "/favorites", label: "Favorites" },
@@ -55,6 +58,7 @@ const adminLinks = [
 export default function SiteHeader() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const role = user?.role ?? "guest";
   const isDealer = role === "dealer";
   const isAdmin = role === "admin" || role === "broker_admin" || role === "super_admin";
@@ -62,10 +66,19 @@ export default function SiteHeader() {
 
   const roleLinks = isAdmin ? adminLinks : isDealer ? dealerLinks : isCustomer ? customerLinks : guestLinks;
   const links = [...roleLinks, ...publicBrandLinks];
+  const desktopNavLinks = isCustomer ? links.filter((l) => l.href !== customerDealRoomLink.href) : links;
   const homeHref = isAdmin ? "/admin" : isDealer ? "/dashboard/dealer" : isCustomer ? "/dashboard/customer" : "/";
+  const hideBack = pathname === "/" || pathname === homeHref;
+  const goBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push(homeHref);
+  };
   const iconForHref = (href: string) => {
     const base = href.split("?")[0];
-    if (base === "/dashboard/customer") return LayoutDashboard;
+    if (base === "/dashboard/customer") return MessageSquare;
     if (base === "/lease-specials") return BadgeDollarSign;
     if (base === "/search") return Search;
     if (base === "/favorites") return Heart;
@@ -85,9 +98,21 @@ export default function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-ink-200 bg-white">
-      <div className="container-wide flex h-14 items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Link href={homeHref} className="flex shrink-0" aria-label="NewCarSuperstore home">
+      <div className="container-wide flex h-14 items-center justify-between gap-2 sm:gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
+          {!hideBack ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 w-9 shrink-0 rounded-full p-0"
+              aria-label="Go back"
+              onClick={goBack}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          ) : null}
+          <Link href={homeHref} className="flex min-w-0 shrink-0" aria-label="NewCarSuperstore home">
             <Logo />
           </Link>
           <a
@@ -184,24 +209,39 @@ export default function SiteHeader() {
       </div>
       <div className="hidden border-t border-ink-200 bg-white md:block">
         <div className="container-wide">
-          <nav className="no-scrollbar flex items-center gap-2 overflow-x-auto py-2" aria-label="Main navigation">
-            {links.map(({ href, label }) => {
-              const Icon = iconForHref(href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
-                    isActiveLink(href)
-                      ? "bg-brand-600 text-white"
-                      : "bg-ink-100 text-ink-700 hover:bg-ink-200 hover:text-ink-900"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                </Link>
-              );
-            })}
+          <nav className="flex items-center gap-2 py-2" aria-label="Main navigation">
+            {isCustomer ? (
+              <Link
+                href={customerDealRoomLink.href}
+                className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+                  isActiveLink(customerDealRoomLink.href)
+                    ? "bg-brand-600 text-white"
+                    : "bg-ink-100 text-ink-700 hover:bg-ink-200 hover:text-ink-900"
+                }`}
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                {customerDealRoomLink.label}
+              </Link>
+            ) : null}
+            <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+              {desktopNavLinks.map(({ href, label }) => {
+                const Icon = iconForHref(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+                      isActiveLink(href)
+                        ? "bg-brand-600 text-white"
+                        : "bg-ink-100 text-ink-700 hover:bg-ink-200 hover:text-ink-900"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
           </nav>
         </div>
       </div>

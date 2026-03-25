@@ -544,14 +544,15 @@ function LeaseSpecialsPageContent() {
             </DialogContent>
           </Dialog>
           <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-            <DialogContent className="left-0 top-0 h-screen w-[88vw] max-w-[340px] translate-x-0 translate-y-0 rounded-none p-4">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
+            <DialogContent className="left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-[min(88vw,340px)] max-w-[340px] translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-r border-ink-200 p-0 shadow-xl">
+              <DialogHeader className="shrink-0 border-b border-ink-200 px-4 pb-3 pr-12 pt-10">
+                <DialogTitle className="flex items-center gap-2 text-left">
                   <SlidersHorizontal className="h-4 w-4 text-brand-700" />
                   Narrow down
                 </DialogTitle>
               </DialogHeader>
-              <div className="mt-2 space-y-4">
+              <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-3 [-webkit-overflow-scrolling:touch]">
+                <div className="space-y-4 pb-2">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label>Max monthly payment</Label>
@@ -673,29 +674,29 @@ function LeaseSpecialsPageContent() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    onClick={() => {
-                      runSearch(1);
-                      setMobileFiltersOpen(false);
-                    }}
-                    className="flex-1 rounded-full"
-                  >
-                    <Search className="mr-1 h-4 w-4" />
-                    See results
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      clearFilters();
-                      setMobileFiltersOpen(false);
-                    }}
-                    className="rounded-full px-4"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                  </Button>
                 </div>
+              </div>
+              <div className="flex shrink-0 gap-2 border-t border-ink-200 bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+                <Button
+                  onClick={() => {
+                    runSearch(1);
+                    setMobileFiltersOpen(false);
+                  }}
+                  className="flex-1 rounded-full"
+                >
+                  <Search className="mr-1 h-4 w-4" />
+                  See results
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    clearFilters();
+                    setMobileFiltersOpen(false);
+                  }}
+                  className="rounded-full px-4"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -879,7 +880,9 @@ function LeaseSpecialsPageContent() {
                 <CircleDollarSign className="h-4 w-4 text-brand-700" />
               {totalResults.toLocaleString()} matching cars
               </p>
-              <div className="hidden text-sm text-ink-500 sm:block">Monthly, down payment, and discounted offers updated from your offer sheet</div>
+              <div className="hidden max-w-xl text-right text-sm leading-snug text-ink-500 sm:block">
+                Monthly lease payments are estimates and depend on multiple factors; not everyone will qualify. Please confirm details with your auto broker.
+              </div>
             </div>
 
             {(() => {

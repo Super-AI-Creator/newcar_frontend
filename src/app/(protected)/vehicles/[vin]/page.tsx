@@ -17,7 +17,7 @@ import { DEFAULT_CAR_IMAGE, pickVehicleImage } from "@/lib/vehicle-image";
 import { useToast } from "@/components/toast-provider";
 import { useAuth } from "@/components/auth-provider";
 import LeadFormButton from "@/components/lead-form-button";
-import { CheckCircle2, CreditCard, FileText, Heart, MessageSquare, ShieldCheck } from "lucide-react";
+import { CheckCircle2, CreditCard, Heart, MessageSquare, ShieldCheck } from "lucide-react";
 
 type SpecItem = {
   label: string;
@@ -389,24 +389,6 @@ export default function VehicleDetailPage() {
     }
   });
 
-  const confirmAvailabilityMutation = useMutation({
-    mutationFn: () => api.sendMessage({ vin, message: `Please confirm availability for VIN ${vin}.` }),
-    onSuccess: () => {
-      toast({
-        variant: "success",
-        title: "Availability requested",
-        description: "We sent your availability confirmation request."
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        variant: "error",
-        title: "Request failed",
-        description: error?.message ?? "Unable to confirm availability."
-      });
-    }
-  });
-
   const photos = useMemo(() => {
     const base = vehicleQuery.data?.photos ? [...vehicleQuery.data.photos] : [];
     if (vehicleQuery.data?.photo && !base.includes(vehicleQuery.data.photo)) {
@@ -755,31 +737,20 @@ export default function VehicleDetailPage() {
               {!isBrokerUser && (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {!isUsed && (
-                  <Button asChild className="h-11 justify-center">
-                    <Link
-                      href={`/credit-application?vin=${encodeURIComponent(vin)}&make=${encodeURIComponent(vehicleQuery.data?.make ?? "")}&model=${encodeURIComponent(vehicleQuery.data?.model ?? "")}&trim=${encodeURIComponent(vehicleQuery.data?.trim ?? "")}`}
-                    >
-                      <FileText className="mr-1 h-4 w-4" />
-                      Apply
-                    </Link>
-                  </Button>
-                )}
-                {!isUsed && (
-                  <Button
+                  <LeadFormButton
+                    vin={vin}
+                    make={vehicleQuery.data?.make ?? ""}
+                    model={vehicleQuery.data?.model ?? ""}
+                    trim={vehicleQuery.data?.trim ?? ""}
+                    year={vehicleQuery.data?.year}
+                    source="vehicle_detail_confirm_availability"
+                    title="Confirm Availability"
                     variant="outline"
-                    className="h-11 justify-center"
-                    onClick={() => {
-                      if (!user) {
-                        router.push(loginUrl);
-                        return;
-                      }
-                      confirmAvailabilityMutation.mutate();
-                    }}
-                    disabled={confirmAvailabilityMutation.isPending}
+                    className="h-11 justify-center text-sm sm:text-base"
                   >
-                    <ShieldCheck className="mr-1 h-4 w-4" />
-                    {confirmAvailabilityMutation.isPending ? "Confirming..." : "Confirm Availability"}
-                  </Button>
+                    <ShieldCheck className="mr-1 h-4 w-4 shrink-0" />
+                    Confirm Availability
+                  </LeadFormButton>
                 )}
                 <Button asChild variant="outline" className="h-11 justify-center">
                   <Link

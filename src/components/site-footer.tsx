@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Facebook, Instagram, MapPin, Phone, Plus, Twitter, Youtube } from "lucide-react";
+import { FOOTER_DISCLOSURE_DEFAULT } from "@/content/footer-disclosure-default";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +16,7 @@ const DEFAULT_FOOTER = {
   youtube_url: "https://www.youtube.com/channel/UCfnPH7n_x1cHc5WXDb0zMJQ",
   address_line: "2671 Ventura Blvd Suite Oxnard CA 93036",
   phone_line: "818.705.9200, 818.705.9202",
-  footer_disclosure: "",
+  footer_disclosure: FOOTER_DISCLOSURE_DEFAULT,
   copyright_line: "",
   link_lease_label: "Lease Specials Los Angeles",
   link_lease_url: "/lease-specials",
@@ -72,6 +73,30 @@ function PhoneLine({ text }: { text: string }) {
   );
 }
 
+/** Turn bare http(s) URLs in disclosure copy into links (privacy policy, etc.). */
+function FooterDisclosureBody({ text }: { text: string }) {
+  const parts = text.split(/(https?:\/\/[^\s]+)/gi);
+  return (
+    <>
+      {parts.map((part, i) =>
+        /^https?:\/\//i.test(part) ? (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="break-all text-white/80 underline decoration-white/30 underline-offset-2 hover:text-white hover:decoration-white/60"
+          >
+            {part}
+          </a>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
 function FooterNavLink({ href, label }: { href: string; label: string }) {
   const h = href.trim();
   const l = label.trim();
@@ -108,7 +133,7 @@ export function SiteFooter({ poweredBy }: { poweredBy?: string }) {
     return `© ${year} All rights reserved. Created by PTI WebTech`;
   })();
 
-  const disclosure = (footer.footer_disclosure ?? "").trim();
+  const disclosure = (footer.footer_disclosure ?? "").trim() || FOOTER_DISCLOSURE_DEFAULT;
   const address = (footer.address_line ?? "").trim();
   const phoneLine = (footer.phone_line ?? "").trim();
 
@@ -146,10 +171,6 @@ export function SiteFooter({ poweredBy }: { poweredBy?: string }) {
               <Youtube className="h-[18px] w-[18px]" />
             </SocialLink>
           </div>
-
-          {disclosure ? (
-            <p className="w-full max-w-3xl whitespace-pre-wrap px-1 text-center text-xs leading-relaxed text-white/70">{disclosure}</p>
-          ) : null}
         </div>
 
         <div className="mx-auto mt-10 max-w-5xl border-t border-white/15 pt-8">
@@ -184,6 +205,14 @@ export function SiteFooter({ poweredBy }: { poweredBy?: string }) {
             </div>
           </div>
         </div>
+
+        {disclosure ? (
+          <div className="mx-auto mt-8 max-w-5xl border-t border-white/10 pt-6">
+            <p className="whitespace-pre-wrap text-center text-[11px] leading-relaxed text-white/55 sm:text-xs">
+              <FooterDisclosureBody text={disclosure} />
+            </p>
+          </div>
+        ) : null}
       </div>
     </footer>
   );

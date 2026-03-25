@@ -336,32 +336,79 @@ function SearchPageContent() {
     setPage(1);
   }
 
-  function runSearch(nextPage = 1) {
+  function runSearch(
+    nextPage = 1,
+    overrides?: Partial<{
+      make: string;
+      model: string;
+      trim: string;
+      sort: string;
+      maxPayment: number;
+      maxPrice: number;
+      usedMaxPrice: number;
+      maxMileage: number;
+    }>
+  ) {
+    const nextMake = overrides?.make !== undefined ? overrides.make : make;
+    const nextModel = overrides?.model !== undefined ? overrides.model : model;
+    const nextTrim = overrides?.trim !== undefined ? overrides.trim : trim;
+    const nextSort = overrides?.sort !== undefined ? overrides.sort : sort;
+    const nextMaxPayment = overrides?.maxPayment !== undefined ? overrides.maxPayment : maxPayment;
+    const nextMaxPrice = overrides?.maxPrice !== undefined ? overrides.maxPrice : maxPrice;
+    const nextUsedMaxPrice = overrides?.usedMaxPrice !== undefined ? overrides.usedMaxPrice : usedMaxPrice;
+    const nextMaxMileage = overrides?.maxMileage !== undefined ? overrides.maxMileage : maxMileage;
+
     const query = new URLSearchParams();
     query.set("vehicle_type", vehicleType);
     query.set("mode", mode);
-    if (make) query.set("make", make);
-    if (model) query.set("model", model);
-    if (trim) query.set("trim", trim);
-    if (sort && sort !== sortOptions[0].value) query.set("sort", sort);
+    if (nextMake) query.set("make", nextMake);
+    if (nextModel) query.set("model", nextModel);
+    if (nextTrim) query.set("trim", nextTrim);
+    if (nextSort && nextSort !== sortOptions[0].value) query.set("sort", nextSort);
     if (vehicleType === "new" && mode === "payment") {
-      query.set("max_payment", String(maxPayment));
+      query.set("max_payment", String(nextMaxPayment));
       if (estimate) query.set("estimate", "true");
     } else {
-      const selectedMaxPrice = vehicleType === "new" ? maxPrice : usedMaxPrice;
+      const selectedMaxPrice = vehicleType === "new" ? nextMaxPrice : nextUsedMaxPrice;
       query.set("max_price", String(selectedMaxPrice));
       if (vehicleType !== "new") {
-        query.set("max_mileage", String(maxMileage));
+        query.set("max_mileage", String(nextMaxMileage));
       }
     }
     query.set("page", String(nextPage));
     router.replace(`${pathname}?${query.toString()}`);
     setPage(nextPage);
     setAppliedParams({
-      ...params,
-      page: nextPage
+      vehicle_type: vehicleType,
+      make: nextMake,
+      model: nextModel,
+      trim: nextTrim,
+      sort: nextSort,
+      mode,
+      max_price:
+        vehicleType === "new"
+          ? mode === "price"
+            ? nextMaxPrice
+            : undefined
+          : nextUsedMaxPrice,
+      max_payment: vehicleType === "new" && mode === "payment" ? nextMaxPayment : undefined,
+      max_mileage: vehicleType !== "new" ? nextMaxMileage : undefined,
+      estimate: vehicleType === "new" ? estimate : false,
+      page: nextPage,
+      page_size: pageSize
     });
     setSubmitted(true);
+
+    if (overrides) {
+      if (overrides.make !== undefined) setMake(overrides.make);
+      if (overrides.model !== undefined) setModel(overrides.model);
+      if (overrides.trim !== undefined) setTrim(overrides.trim);
+      if (overrides.sort !== undefined) setSort(overrides.sort);
+      if (overrides.maxPayment !== undefined) setMaxPayment(overrides.maxPayment);
+      if (overrides.maxPrice !== undefined) setMaxPrice(overrides.maxPrice);
+      if (overrides.usedMaxPrice !== undefined) setUsedMaxPrice(overrides.usedMaxPrice);
+      if (overrides.maxMileage !== undefined) setMaxMileage(overrides.maxMileage);
+    }
   }
 
   function clearFilters() {
@@ -411,20 +458,36 @@ function SearchPageContent() {
 
   function clearSingleFilter(key: string) {
     if (key === "make") {
-      setMake("");
-      setModel("");
-      setTrim("");
+      runSearch(1, { make: "", model: "", trim: "" });
+      return;
     }
     if (key === "model") {
-      setModel("");
-      setTrim("");
+      runSearch(1, { model: "", trim: "" });
+      return;
     }
-    if (key === "trim") setTrim("");
-    if (key === "sort") setSort(sortOptions[0].value);
-    if (key === "maxPayment") setMaxPayment(defaultValues.maxPayment);
-    if (key === "maxPrice") setMaxPrice(defaultValues.maxPrice);
-    if (key === "usedMaxPrice") setUsedMaxPrice(defaultValues.usedMaxPrice);
-    if (key === "maxMileage") setMaxMileage(defaultValues.maxMileage);
+    if (key === "trim") {
+      runSearch(1, { trim: "" });
+      return;
+    }
+    if (key === "sort") {
+      runSearch(1, { sort: sortOptions[0].value });
+      return;
+    }
+    if (key === "maxPayment") {
+      runSearch(1, { maxPayment: defaultValues.maxPayment });
+      return;
+    }
+    if (key === "maxPrice") {
+      runSearch(1, { maxPrice: defaultValues.maxPrice });
+      return;
+    }
+    if (key === "usedMaxPrice") {
+      runSearch(1, { usedMaxPrice: defaultValues.usedMaxPrice });
+      return;
+    }
+    if (key === "maxMileage") {
+      runSearch(1, { maxMileage: defaultValues.maxMileage });
+    }
   }
 
   const emptyMessage =
@@ -491,14 +554,15 @@ function SearchPageContent() {
             <p className="text-sm text-ink-600">{totalResults.toLocaleString()} results</p>
           </div>
           <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-            <DialogContent className="left-0 top-0 h-screen w-[88vw] max-w-[340px] translate-x-0 translate-y-0 rounded-none p-4">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
+            <DialogContent className="left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-[min(88vw,340px)] max-w-[340px] translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-r border-ink-200 p-0 shadow-xl">
+              <DialogHeader className="shrink-0 border-b border-ink-200 px-4 pb-3 pr-12 pt-10">
+                <DialogTitle className="flex items-center gap-2 text-left">
                   <SlidersHorizontal className="h-4 w-4 text-brand-700" />
                   Search filters
                 </DialogTitle>
               </DialogHeader>
-              <div className="mt-2 space-y-4">
+              <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-3 [-webkit-overflow-scrolling:touch]">
+                <div className="space-y-4 pb-2">
                 <Tabs value={vehicleType} onValueChange={(value) => setVehicleType(value as VehicleTypeFilter)} className="w-full">
                   <TabsList className="grid w-full grid-cols-2 bg-ink-100 p-1">
                     <TabsTrigger value="new">New</TabsTrigger>
@@ -709,7 +773,9 @@ function SearchPageContent() {
                     <Slider value={[maxMileage]} min={0} max={250000} step={1000} onValueChange={(v) => setMaxMileage(v[0])} />
                   </div>
                 )}
-                <div className="flex gap-2 pt-1">
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-2 border-t border-ink-200 bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
                 <Button
                   onClick={() => {
                     runSearch();
@@ -720,17 +786,16 @@ function SearchPageContent() {
                   <SearchIcon className="mr-1 h-4 w-4" />
                   Show results
                 </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      clearFilters();
-                      setMobileFiltersOpen(false);
-                    }}
-                    className="rounded-full px-4"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    clearFilters();
+                    setMobileFiltersOpen(false);
+                  }}
+                  className="rounded-full px-4"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -1167,7 +1232,6 @@ function VehicleCard({
   const monthlyPrice = vehicle.monthly ?? undefined;
   const fullName = `${vehicle.year ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""}`.trim();
   const subtitle = `${vehicle.trim ?? "Trim unavailable"} | ${isUsed ? "Used car" : "New car"}`;
-  const dealerName = vehicle.dealer_name ?? "Sponsored dealer";
   const imageUrl = pickVehicleImage(vehicle);
   const detailsHref = `/vehicles/${encodeURIComponent(vehicle.vin)}`;
   const unlockPriceHref = `/login?returnUrl=${encodeURIComponent(searchReturnUrl)}`;
@@ -1279,8 +1343,6 @@ function VehicleCard({
               </Button>
             </div>
           </div>
-
-          <p className="hidden text-xs text-ink-600 sm:block">Sponsored by {dealerName}</p>
         </div>
       </CardContent>
     </Card>

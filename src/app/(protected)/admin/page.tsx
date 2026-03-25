@@ -19,6 +19,7 @@ import {
   ArrowRight,
   BriefcaseBusiness,
   CalendarClock,
+  Copy,
   CheckCircle2,
   CircleDot,
   Clock3,
@@ -181,6 +182,109 @@ function prettyJson(value: unknown) {
   } catch {
     return "{}";
   }
+}
+
+function creditPayloadRawForDisplay(payload: Record<string, unknown> | null | undefined): Record<string, unknown> {
+  if (!payload || typeof payload !== "object") return {};
+  const rest = { ...payload };
+  delete rest.formatted_html;
+  delete rest.formatted_plain;
+  return rest;
+}
+
+function formattedCreditAppPlainText(html: string, plain: string): string {
+  if (plain.trim()) return plain;
+  if (!html.trim() || typeof document === "undefined") return plain;
+  const d = document.createElement("div");
+  d.innerHTML = html;
+  return (d.textContent || d.innerText || "").trim() || plain;
+}
+
+function CreditApplicationDetailPanel({
+  payload,
+  applicationId
+}: {
+  payload: Record<string, unknown> | null | undefined;
+  applicationId: number;
+}) {
+  const { toast } = useToast();
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const p = payload && typeof payload === "object" ? payload : {};
+  const html = typeof p.formatted_html === "string" ? p.formatted_html : "";
+  const plain = typeof p.formatted_plain === "string" ? p.formatted_plain : "";
+  const copyableText = formattedCreditAppPlainText(html, plain);
+  const canCopyFormatted = copyableText.length > 0;
+
+  async function copyFormattedToClipboard() {
+    if (!canCopyFormatted) {
+      toast({ variant: "error", title: "Nothing to copy", description: "No formatted text for this application." });
+      return;
+    }
+    const header = `Credit Application #${applicationId}\n\n`;
+    try {
+      await navigator.clipboard.writeText(header + copyableText);
+      setCopyState("copied");
+      toast({ variant: "success", title: "Copied", description: "Formatted application copied — paste into your email." });
+      window.setTimeout(() => setCopyState("idle"), 2000);
+    } catch {
+      setCopyState("error");
+      toast({ variant: "error", title: "Copy failed", description: "Your browser blocked clipboard access." });
+      window.setTimeout(() => setCopyState("idle"), 2000);
+    }
+  }
+
+  return (
+    <details className="mt-2 rounded border border-ink-200 bg-white p-2">
+      <summary className="cursor-pointer text-xs font-medium text-ink-700">View application</summary>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 text-xs"
+          disabled={!canCopyFormatted}
+          onClick={(e) => {
+            e.preventDefault();
+            void copyFormattedToClipboard();
+          }}
+        >
+          <Copy className="h-3.5 w-3.5" />
+          {copyState === "copied" ? "Copied" : "Copy formatted for email"}
+        </Button>
+        <span className="text-[11px] text-ink-500">Plain text — paste into Gmail, Outlook, etc.</span>
+      </div>
+      <Tabs defaultValue="readable" className="mt-3" key={`credit-app-tabs-${applicationId}`}>
+        <TabsList className="h-8">
+          <TabsTrigger value="readable" className="px-3 text-xs">
+            Readable
+          </TabsTrigger>
+          <TabsTrigger value="raw" className="px-3 text-xs">
+            Raw JSON
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="readable" className="mt-2">
+          {!html && !plain && (
+            <p className="text-xs text-ink-500">No formatted snapshot (older submission). Use Raw JSON for field data.</p>
+          )}
+          {html ? (
+            <div
+              className="credit-app-formatted-html max-h-[min(480px,70vh)] overflow-auto rounded border border-ink-100 bg-white p-3 text-sm [&_table]:max-w-full [&_table]:text-sm"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          ) : plain ? (
+            <pre className="max-h-[min(480px,70vh)] overflow-auto whitespace-pre-wrap rounded border border-ink-100 bg-ink-50 p-3 font-mono text-xs text-ink-800">
+              {plain}
+            </pre>
+          ) : null}
+        </TabsContent>
+        <TabsContent value="raw" className="mt-2">
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap text-xs text-ink-700">
+            {prettyJson(creditPayloadRawForDisplay(payload))}
+          </pre>
+        </TabsContent>
+      </Tabs>
+    </details>
+  );
 }
 
 function formatCurrency(value?: number | null) {
@@ -2109,10 +2213,7 @@ export default function AdminPage() {
                           </Button>
                         </div>
                       )}
-                      <details className="mt-2 rounded border border-ink-200 bg-white p-2">
-                        <summary className="cursor-pointer text-xs font-medium text-ink-700">View payload</summary>
-                        <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-xs text-ink-700">{prettyJson(item.payload_json)}</pre>
-                      </details>
+                      <CreditApplicationDetailPanel payload={item.payload_json ?? undefined} applicationId={item.id} />
                     </div>
                   ))}
                   {creditApplications.length === 0 && <p className="text-sm text-ink-600">No credit applications found.</p>}
@@ -2778,10 +2879,7 @@ export default function AdminPage() {
                           </div>
                         </>
                       )}
-                      <details className="mt-2 rounded border border-ink-200 bg-white p-2">
-                        <summary className="cursor-pointer text-xs font-medium text-ink-700">View application payload</summary>
-                        <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-xs text-ink-700">{prettyJson(item.payload_json)}</pre>
-                      </details>
+                      <CreditApplicationDetailPanel payload={item.payload_json ?? undefined} applicationId={item.id} />
                     </div>
                   ))}
                   {creditApplications.length === 0 && <p className="text-sm text-ink-600">No credit applications found.</p>}

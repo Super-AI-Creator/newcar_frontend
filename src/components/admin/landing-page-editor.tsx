@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
+import { FOOTER_DISCLOSURE_DEFAULT } from "@/content/footer-disclosure-default";
 import { api, type LandingPageContentRecord } from "@/lib/api";
 import { Layout, Save } from "lucide-react";
 
@@ -37,7 +38,7 @@ const DEFAULT_FOOTER = {
   youtube_url: "https://www.youtube.com/channel/UCfnPH7n_x1cHc5WXDb0zMJQ",
   address_line: "2671 Ventura Blvd Suite Oxnard CA 93036",
   phone_line: "818.705.9200, 818.705.9202",
-  footer_disclosure: "",
+  footer_disclosure: FOOTER_DISCLOSURE_DEFAULT,
   copyright_line: "",
   link_lease_label: "Lease Specials Los Angeles",
   link_lease_url: "/lease-specials",
@@ -141,7 +142,7 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
       setYoutubeUrl(d.footer.youtube_url ?? DEFAULT_FOOTER.youtube_url);
       setFooterAddress(d.footer.address_line ?? DEFAULT_FOOTER.address_line);
       setFooterPhoneLine(d.footer.phone_line ?? DEFAULT_FOOTER.phone_line);
-      setFooterDisclosure(d.footer.footer_disclosure ?? DEFAULT_FOOTER.footer_disclosure);
+      setFooterDisclosure((d.footer.footer_disclosure ?? "").trim() || FOOTER_DISCLOSURE_DEFAULT);
       setFooterCopyright(d.footer.copyright_line ?? DEFAULT_FOOTER.copyright_line);
       setFooterLeaseLabel(d.footer.link_lease_label ?? DEFAULT_FOOTER.link_lease_label);
       setFooterLeaseUrl(d.footer.link_lease_url ?? DEFAULT_FOOTER.link_lease_url);
@@ -362,9 +363,9 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
         <CardHeader>
           <CardTitle className="text-lg">Footer contact & disclosure</CardTitle>
           <p className="text-sm font-normal text-ink-600">
-            Address, phones, optional legal/disclosure text, copyright line, and footer nav links (legacy site layout).
+            Address, phones, legal/pricing disclosure (bottom of site footer), copyright line, and footer nav links.
             Leave copyright blank to use the default (© current year, PTI WebTech). Use {"{year}"} in a custom line for the
-            current year.
+            current year. Clear the disclosure field entirely and save to restore the built-in default text.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -383,13 +384,13 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
               <p className="text-xs text-ink-500">Comma-separated numbers become clickable tel: links.</p>
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label>Footer disclosure (optional)</Label>
+              <Label>Footer disclosure (legal / pricing)</Label>
               <Textarea
                 value={footerDisclosure}
                 onChange={(e) => setFooterDisclosure(e.target.value)}
-                placeholder="e.g. lease or financing disclaimers shown in small print above the bottom bar"
-                rows={4}
-                className="mt-1"
+                placeholder="Long-form disclaimer; URLs become clickable links on the site."
+                rows={12}
+                className="mt-1 min-h-[200px] font-mono text-xs leading-relaxed"
               />
             </div>
             <div className="space-y-2 md:col-span-2">

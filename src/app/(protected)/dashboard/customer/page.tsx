@@ -12,7 +12,18 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BadgeCheck, Clock3, CreditCard, FileText, Heart, MessageSquare, Upload, WalletCards } from "lucide-react";
+import {
+  BadgeCheck,
+  BadgeDollarSign,
+  Clock3,
+  CreditCard,
+  FileText,
+  Heart,
+  MessageSquare,
+  Search,
+  Upload,
+  WalletCards
+} from "lucide-react";
 import { api, type Vehicle } from "@/lib/api";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
@@ -401,38 +412,63 @@ export default function CustomerDashboard() {
   return (
     <div className="app-page min-h-screen">
       <SiteHeader />
-      <main className="app-main space-y-8">
-        <section className="tc-fade-up relative w-full overflow-hidden rounded-3xl border border-ink-200 bg-white px-6 py-7 shadow-sm">
+      <main className="app-main space-y-4 sm:space-y-8">
+        <section className="tc-fade-up relative w-full overflow-hidden rounded-2xl border border-ink-200 bg-white px-4 py-4 shadow-sm sm:rounded-3xl sm:px-6 sm:py-6">
           <div className="pointer-events-none absolute inset-0 aurora-bg opacity-35" aria-hidden />
-          <div className="relative flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="market-kicker">Member Workspace</p>
-              <h1 className="market-heading text-3xl sm:text-4xl">Customer Dashboard</h1>
-              <p className="mt-1 text-sm text-ink-600">Track favorites and use your Deal Room to message your broker.</p>
+          <div className="relative">
+            <p className="market-kicker text-[10px] sm:text-xs">Member Workspace</p>
+            <div className="mt-0.5 flex items-start justify-between gap-3">
+              <h1 className="market-heading min-w-0 text-xl leading-tight sm:text-3xl md:text-4xl">Deal Room</h1>
+              <Badge className="shrink-0 border border-ink-200 bg-ink-100 px-2 py-0.5 text-[10px] font-medium text-ink-700 sm:text-xs">
+                {(favoritesQuery.data?.items.length ?? 0) === 1
+                  ? "1 favorite"
+                  : `${favoritesQuery.data?.items.length ?? 0} favorites`}
+              </Badge>
             </div>
-            <Badge className="border border-ink-200 bg-ink-100 text-ink-700">
-              {favoritesQuery.data?.items.length ?? 0} favorites
-            </Badge>
+            <p className="mt-2 text-xs leading-snug text-ink-600 sm:mt-3 sm:text-sm">
+              Your hub for saved cars, broker messages, and active deals.
+            </p>
           </div>
         </section>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 md:grid-cols-3">
           {[
             { label: "Saved Cars", value: favoritesQuery.data?.items.length ?? 0, icon: Heart },
             { label: "Messages", value: messagesQuery.data?.items.length ?? 0, icon: MessageSquare },
             { label: "Active Deals", value: dealsQuery.data?.items.length ?? 0, icon: WalletCards }
           ].map((item) => (
             <Card key={item.label} className="bg-white shadow-sm">
-              <CardContent className="space-y-1 py-6">
-                <p className="flex items-center gap-1 text-xs uppercase tracking-widest text-ink-500">
-                  <item.icon className="h-3.5 w-3.5" />
-                  {item.label}
+              <CardContent className="space-y-0.5 px-2.5 py-3 sm:space-y-1 sm:px-6 sm:py-6">
+                <p className="flex items-center gap-0.5 text-[9px] font-medium uppercase leading-tight tracking-wide text-ink-500 sm:gap-1 sm:text-xs sm:tracking-widest">
+                  <item.icon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
+                  <span className="line-clamp-2 sm:line-clamp-none">{item.label}</span>
                 </p>
-                <p className="text-3xl font-semibold text-ink-900">{item.value}</p>
+                <p className="text-xl font-semibold tabular-nums text-ink-900 sm:text-3xl">{item.value}</p>
               </CardContent>
             </Card>
           ))}
         </div>
+
+        <section
+          className="tc-fade-up rounded-2xl border border-ink-200 bg-ink-50/90 px-3 py-3 sm:px-5 sm:py-4"
+          aria-labelledby="customer-dashboard-guide-heading"
+        >
+          <h2 id="customer-dashboard-guide-heading" className="text-xs font-semibold uppercase tracking-wide text-ink-700 sm:text-sm">
+            Quick guide
+          </h2>
+          <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-[11px] leading-snug text-ink-700 marker:text-ink-500 sm:mt-3 sm:space-y-2 sm:text-sm sm:leading-relaxed">
+            <li>
+              Save vehicles you like from search — use the heart on a car&apos;s page. They appear under{" "}
+              <span className="font-medium text-ink-900">Favorites</span> below.
+            </li>
+            <li>
+              Tap <span className="font-medium text-ink-900">Deal Room</span> to pick a conversation and message your broker about a vehicle or deal.
+            </li>
+            <li>
+              Watch <span className="font-medium text-ink-900">Messages</span> and <span className="font-medium text-ink-900">Active Deals</span> above for new replies and deal updates.
+            </li>
+          </ol>
+        </section>
 
         {(approvalsQuery.data?.length ?? 0) > 0 && (
           <Card className="bg-white shadow-sm">
@@ -464,33 +500,55 @@ export default function CustomerDashboard() {
         )}
 
         <div className="grid gap-6 md:grid-cols-[260px_1fr]">
-          <Card className="tc-fade-up bg-white shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base">Workspace</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setWorkspaceTab("deal_room")}
-                className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm ${
-                  workspaceTab === "deal_room" ? "border-brand-500 bg-brand-50 text-brand-900" : "border-ink-200 bg-white text-ink-700"
-                }`}
-              >
-                <MessageSquare className="h-4 w-4" />
-                Deal Room
-              </button>
-              <button
-                type="button"
-                onClick={() => setWorkspaceTab("favorites")}
-                className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm ${
-                  workspaceTab === "favorites" ? "border-brand-500 bg-brand-50 text-brand-900" : "border-ink-200 bg-white text-ink-700"
-                }`}
-              >
-                <Heart className="h-4 w-4" />
-                Favorites
-              </button>
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            <Card className="tc-fade-up bg-white shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Keep shopping</CardTitle>
+                <p className="text-xs font-normal text-ink-600">Jump back to inventory and add more to your list.</p>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button asChild variant="outline" className="h-auto w-full justify-start gap-2 py-2.5 text-left font-medium">
+                  <Link href="/search?vehicle_type=new">
+                    <Search className="h-4 w-4 shrink-0 text-brand-700" />
+                    Find Cars
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="h-auto w-full justify-start gap-2 py-2.5 text-left font-medium">
+                  <Link href="/lease-specials">
+                    <BadgeDollarSign className="h-4 w-4 shrink-0 text-brand-700" />
+                    Lease Specials
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+            <Card className="tc-fade-up bg-white shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base">Workspace</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setWorkspaceTab("deal_room")}
+                  className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm ${
+                    workspaceTab === "deal_room" ? "border-brand-500 bg-brand-50 text-brand-900" : "border-ink-200 bg-white text-ink-700"
+                  }`}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Deal Room
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWorkspaceTab("favorites")}
+                  className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm ${
+                    workspaceTab === "favorites" ? "border-brand-500 bg-brand-50 text-brand-900" : "border-ink-200 bg-white text-ink-700"
+                  }`}
+                >
+                  <Heart className="h-4 w-4" />
+                  Favorites
+                </button>
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="space-y-6">
             {workspaceTab === "favorites" && (

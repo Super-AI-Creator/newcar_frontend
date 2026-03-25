@@ -116,7 +116,7 @@ function RegisterForm() {
   return (
     <div className="app-page min-h-screen">
       <SiteHeader />
-      <main className="w-full py-8 sm:py-12">
+      <main className="w-full overflow-x-hidden py-8 pb-[max(2rem,env(safe-area-inset-bottom,0px))] sm:py-12 sm:pb-12">
         <div className="container-wide flex justify-center">
           <Card className="market-panel w-full max-w-xl bg-white">
             <CardHeader>
@@ -225,7 +225,7 @@ export default function RegisterPage() {
       fallback={
         <div className="app-page min-h-screen">
           <SiteHeader />
-          <main className="w-full py-8 sm:py-12">
+          <main className="w-full overflow-x-hidden py-8 pb-[max(2rem,env(safe-area-inset-bottom,0px))] sm:py-12 sm:pb-12">
             <div className="container-wide flex justify-center">
               <Card className="market-panel w-full max-w-xl bg-white">
                 <CardContent className="py-10 text-center text-sm text-ink-600">Loading...</CardContent>
