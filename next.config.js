@@ -2,6 +2,15 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: { typedRoutes: false },
+  webpack(config, { dev }) {
+    // Vercel can log "Skipped not serializable cache item ... PostCSSSyntaxError"
+    // when webpack persistent cache attempts to serialize PostCSS errors.
+    // Disabling cache avoids noisy/fragile deploy builds.
+    if (!dev) {
+      config.cache = false;
+    }
+    return config;
+  },
   images: {
     remotePatterns: [
       {

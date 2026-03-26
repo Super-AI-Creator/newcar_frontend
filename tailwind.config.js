@@ -19,6 +19,12 @@ module.exports = {
           800: "#1e40af",
           900: "#1e3a8a"
         },
+        luxury: {
+          champagne: "#f5efe2",
+          gold: "#b78a3a",
+          slate: "#111827",
+          pearl: "#fcfaf6"
+        },
         ink: {
           50: "#fafafa",
           100: "#f4f4f5",
@@ -29,7 +35,8 @@ module.exports = {
           600: "#52525b",
           700: "#3f3f46",
           800: "#27272a",
-          900: "#18181b"
+          900: "#18181b",
+          950: "#0c0c0f"
         }
       },
       fontFamily: {
@@ -39,7 +46,9 @@ module.exports = {
       boxShadow: {
         soft: "0 24px 60px -40px rgba(0, 0, 0, 0.15)",
         card: "0 1px 3px rgba(0, 0, 0, 0.06), 0 8px 24px -8px rgba(0, 0, 0, 0.1)",
-        "card-hover": "0 8px 30px -8px rgba(0, 0, 0, 0.12)"
+        "card-hover": "0 8px 30px -8px rgba(0, 0, 0, 0.12)",
+        luxe: "0 16px 40px -18px rgba(17, 24, 39, 0.28)",
+        "luxe-soft": "0 10px 24px -14px rgba(17, 24, 39, 0.22)"
       },
       keyframes: {
         "loader-bounce": {
