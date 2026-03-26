@@ -7,6 +7,13 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+const ELEVATED_ROLES = new Set(["super_admin", "broker_admin"]);
+
+function roleRequiresConfirm(nextRole: string, previousRole: string) {
+  return ELEVATED_ROLES.has(nextRole) && nextRole !== previousRole;
+}
 
 export default function UserManagement() {
   const queryClient = useQueryClient();
@@ -22,6 +29,8 @@ export default function UserManagement() {
   const [editRole, setEditRole] = useState("customer");
   const [editEmailVerified, setEditEmailVerified] = useState(false);
   const [editPhoneVerified, setEditPhoneVerified] = useState(false);
+  const [roleConfirmOpen, setRoleConfirmOpen] = useState(false);
+  const [roleConfirmInput, setRoleConfirmInput] = useState("");
 
   const updateMutation = useMutation({
     mutationFn: (payload: {
@@ -65,7 +74,7 @@ export default function UserManagement() {
     setEditPhoneVerified(user.is_phone_verified);
   };
 
-  const handleSave = () => {
+  const commitSave = () => {
     if (!editing) return;
     updateMutation.mutate({
       id: editing.id,
@@ -75,6 +84,26 @@ export default function UserManagement() {
       is_email_verified: editEmailVerified,
       is_phone_verified: editPhoneVerified,
     });
+  };
+
+  const handleSave = () => {
+    if (!editing) return;
+    if (roleRequiresConfirm(editRole, editing.role)) {
+      setRoleConfirmInput("");
+      setRoleConfirmOpen(true);
+      return;
+    }
+    commitSave();
+  };
+
+  const handleConfirmElevatedRole = () => {
+    if (!editing) return;
+    const typed = roleConfirmInput.trim();
+    const ok =
+      typed.toUpperCase() === "CONFIRM" || typed.toLowerCase() === editing.email.trim().toLowerCase();
+    if (!ok) return;
+    setRoleConfirmOpen(false);
+    commitSave();
   };
 
   return (
@@ -192,12 +221,19 @@ export default function UserManagement() {
                   value={editRole}
                   onChange={(e) => setEditRole(e.target.value)}
                 >
-                  <option value="customer">Customer</option>
-                  <option value="dealer">Dealer</option>
-                  <option value="broker_admin">Broker admin</option>
-                  <option value="super_admin">Super admin</option>
-                  <option value="credit_union">Credit union</option>
+                  <optgroup label="Standard roles">
+                    <option value="customer">Customer</option>
+                    <option value="dealer">Dealer</option>
+                    <option value="credit_union">Credit union</option>
+                  </optgroup>
+                  <optgroup label="Elevated / admin">
+                    <option value="broker_admin">Broker admin</option>
+                    <option value="super_admin">Super admin</option>
+                  </optgroup>
                 </select>
+                <p className="text-[11px] text-ink-500">
+                  Broker admin and super admin unlock full admin tools. Saving those roles requires confirmation.
+                </p>
               </div>
               <div className="flex flex-col gap-3">
                 <label className="flex items-center justify-between text-xs font-medium text-ink-700">
@@ -239,6 +275,44 @@ export default function UserManagement() {
             </div>
           </div>
         )}
+
+        <Dialog open={roleConfirmOpen} onOpenChange={setRoleConfirmOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Confirm elevated role</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-ink-600">
+              You are about to set <span className="font-medium text-ink-900">{editing?.email}</span> to{" "}
+              <span className="font-mono text-xs">{editRole}</span>. Type <span className="font-semibold">CONFIRM</span> or the
+              user&apos;s email to continue.
+            </p>
+            <Input
+              value={roleConfirmInput}
+              onChange={(e) => setRoleConfirmInput(e.target.value)}
+              placeholder="CONFIRM or email"
+              autoComplete="off"
+            />
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" onClick={() => setRoleConfirmOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmElevatedRole}
+                disabled={
+                  updateMutation.isPending ||
+                  !roleConfirmInput.trim() ||
+                  !(
+                    roleConfirmInput.trim().toUpperCase() === "CONFIRM" ||
+                    roleConfirmInput.trim().toLowerCase() === (editing?.email ?? "").trim().toLowerCase()
+                  )
+                }
+              >
+                Apply role change
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

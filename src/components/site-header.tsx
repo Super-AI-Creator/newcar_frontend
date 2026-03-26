@@ -31,10 +31,11 @@ const customerDealRoomLink = { href: "/dashboard/customer", label: "Deal Room" }
 const customerLinks = [
   customerDealRoomLink,
   { href: "/lease-specials", label: "Lease Specials" },
+  { href: "/search?vehicle_type=new", label: "Find Cars" },
   { href: "/search?vehicle_type=used", label: "Used Cars" },
   { href: "/favorites", label: "Favorites" },
   { href: "/credit-application", label: "Credit Application" },
-  { href: "/recommendations", label: "Best for you" },
+  { href: "/recommendations", label: "Recommended cars" },
   { href: "/prequal", label: "Shop by payment" }
 ];
 
@@ -97,7 +98,7 @@ export default function SiteHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-ink-200 bg-white">
+    <header className="sticky top-0 z-50 w-full border-b border-ink-200/80 bg-white/90 backdrop-blur-md">
       <div className="container-wide flex h-14 items-center justify-between gap-2 sm:gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
           {!hideBack ? (
@@ -184,6 +185,14 @@ export default function SiteHeader() {
                     <p className="truncate rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">
                       {user.email ?? user.name ?? "Member"}
                     </p>
+                    <DialogClose asChild>
+                      <Link
+                        href="/settings"
+                        className="inline-flex h-10 w-full items-center justify-center rounded-full border border-ink-200 bg-white text-sm font-medium text-ink-800 hover:bg-ink-50"
+                      >
+                        Account & profile
+                      </Link>
+                    </DialogClose>
                     <Button variant="outline" onClick={logout} className="h-10 w-full rounded-full">
                       Sign out
                     </Button>
@@ -207,7 +216,7 @@ export default function SiteHeader() {
           </Dialog>
         </div>
       </div>
-      <div className="hidden border-t border-ink-200 bg-white md:block">
+      <div className="hidden border-t border-ink-200/80 bg-white/90 md:block">
         <div className="container-wide">
           <nav className="flex items-center gap-2 py-2" aria-label="Main navigation">
             {isCustomer ? (
@@ -215,8 +224,8 @@ export default function SiteHeader() {
                 href={customerDealRoomLink.href}
                 className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                   isActiveLink(customerDealRoomLink.href)
-                    ? "bg-brand-600 text-white"
-                    : "bg-ink-100 text-ink-700 hover:bg-ink-200 hover:text-ink-900"
+                    ? "bg-gradient-to-r from-brand-600 to-brand-700 text-white shadow-luxe-soft"
+                    : "bg-white text-ink-700 border border-ink-200/80 hover:bg-luxury-pearl hover:text-ink-900"
                 }`}
               >
                 <MessageSquare className="h-3.5 w-3.5" />
@@ -232,8 +241,8 @@ export default function SiteHeader() {
                     href={href}
                     className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                       isActiveLink(href)
-                        ? "bg-brand-600 text-white"
-                        : "bg-ink-100 text-ink-700 hover:bg-ink-200 hover:text-ink-900"
+                        ? "bg-gradient-to-r from-brand-600 to-brand-700 text-white shadow-luxe-soft"
+                        : "bg-white text-ink-700 border border-ink-200/80 hover:bg-luxury-pearl hover:text-ink-900"
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5" />

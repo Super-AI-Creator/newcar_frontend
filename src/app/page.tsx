@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-white text-ink-900">
+    <div className="app-page min-h-screen text-ink-900">
       <SiteHeader />
 
       <main>

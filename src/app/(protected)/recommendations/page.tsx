@@ -139,10 +139,10 @@ export default function RecommendationsPage() {
           <p className="market-kicker">Personalized</p>
           <h1 className="market-heading flex items-center gap-2 text-3xl sm:text-4xl">
             <Sparkles className="h-7 w-7 text-brand-700" />
-            Best car for you
+            Recommended cars
           </h1>
           <p className="mt-2 max-w-xl text-ink-600">
-            Set how much each factor matters to you. We&apos;ll rank inventory by your preferences.
+            Set how much each factor matters to you. We rank inventory from your preferences — adjust sliders and run a new match anytime.
           </p>
         </section>
 

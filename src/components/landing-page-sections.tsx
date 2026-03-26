@@ -83,16 +83,24 @@ export default function LandingPageSections() {
                 <Button asChild size="lg" className="rounded-xl">
                   <Link href="/search?vehicle_type=new">Find My Car</Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="rounded-xl border-white/40 bg-white/10 text-white hover:bg-white/20">
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="rounded-xl border-white/60 bg-white/10 text-white shadow-sm hover:border-white hover:bg-white hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900"
+                >
                   <a href="https://newcarsuperstore.typeform.com/to/lX0SiNPY" target="_blank" rel="noreferrer noopener">Trade in Value</a>
                 </Button>
               </div>
+              <p className="mt-3 text-xs text-zinc-300/90">Most people finish browsing in a few minutes.</p>
             </div>
             <div className="hidden lg:block">
               <div className="relative overflow-hidden rounded-3xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">
                 <div className="relative h-[320px] overflow-hidden rounded-2xl border border-white/25">
                   <LandingHeroCarousel className="h-full w-full" slides={slides} />
-                  <div className="absolute right-4 top-4 z-10 rounded-full bg-red-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white shadow-lg">Red Bow Delivery</div>
+                  <div className="absolute right-4 top-4 z-10 rounded-full bg-brand-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white shadow-lg">
+                    Home delivery perk
+                  </div>
                 </div>
               </div>
             </div>
@@ -102,7 +110,7 @@ export default function LandingPageSections() {
 
       <HomeShopOptions />
 
-      <section className="border-b border-ink-200 bg-white py-8 sm:py-10">
+      <section className="border-b border-ink-200/80 bg-white/80 py-8 sm:py-10">
         <div className="container-wide">
           <h2 className="font-display text-xl font-semibold text-ink-900 sm:text-2xl">{lease.title}</h2>
           <p className="mt-1 text-sm text-ink-600">{lease.subtitle}</p>
@@ -114,48 +122,46 @@ export default function LandingPageSections() {
 
       <HomeTestimonials />
 
-      <section className="border-b border-ink-200 bg-[#f8fafc] py-10 sm:py-12">
+      <section className="border-b border-ink-200/80 bg-luxury-pearl py-10 sm:py-12">
         <div className="container-wide">
           <h2 className="font-display text-2xl font-semibold text-ink-900">Traditional Dealer vs NewCarSuperstore</h2>
           <p className="mt-2 text-sm text-ink-600">A faster way to buy without the dealership runaround.</p>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-ink-200 bg-white p-6">
-              <p className="text-sm font-semibold tracking-wide text-ink-500">The Old Way (Dealerships) 😩</p>
+            <div className="rounded-2xl border border-ink-200/80 bg-white shadow-luxe-soft p-6">
+              <p className="text-sm font-semibold tracking-wide text-ink-500">The old way (dealerships)</p>
               <ul className="mt-4 space-y-3 text-sm text-ink-700">
-                <li className="inline-flex items-center gap-2"><XCircle className="h-4 w-4 shrink-0 text-red-600" />Drive from dealership to dealership hoping someone has the car you want</li>
-                <li className="inline-flex items-center gap-2"><XCircle className="h-4 w-4 shrink-0 text-red-600" />Spend hours negotiating prices and “checking with the manager”</li>
-                <li className="inline-flex items-center gap-2"><XCircle className="h-4 w-4 shrink-0 text-red-600" />Sit in the finance office signing paperwork forever</li>
-                <li className="inline-flex items-center gap-2"><XCircle className="h-4 w-4 shrink-0 text-red-600" />Leave exhausted wondering if you got a good deal</li>
+                <li className="flex items-start gap-2"><XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />Drive from dealership to dealership hoping someone has the car you want</li>
+                <li className="flex items-start gap-2"><XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />Spend hours negotiating prices and “checking with the manager”</li>
+                <li className="flex items-start gap-2"><XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />Sit in the finance office signing paperwork forever</li>
+                <li className="flex items-start gap-2"><XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />Leave exhausted wondering if you got a good deal</li>
               </ul>
             </div>
-            <div className="rounded-2xl border border-brand-200 bg-brand-50 p-6">
+            <div className="rounded-2xl border border-brand-200/70 bg-gradient-to-br from-brand-50 to-luxury-champagne p-6 shadow-luxe-soft">
               <p className="text-sm font-semibold tracking-wide text-brand-700">The New Way (NewCarSuperstore)</p>
               <ul className="mt-4 space-y-3 text-sm text-ink-800">
-                <li className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />Shop inventory from dealers all across California</li>
-                <li className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />Get instantly pre-approved for financing in minutes</li>
-                <br></br>
-                <li className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />Complete everything online from home</li>
-                <br></br>
-                <li className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />Your new car arrives at your door with a red bow</li>
+                <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden />Shop inventory from dealers all across California</li>
+                <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden />Get instantly pre-approved for financing in minutes</li>
+                <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden />Complete everything online from home</li>
+                <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden />Your new car arrives at your door with a red bow</li>
               </ul>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="border-b border-ink-200 bg-white py-10 sm:py-12">
+      <section className="border-b border-ink-200/80 bg-white/85 py-10 sm:py-12">
         <div className="container-wide grid gap-5 md:grid-cols-3">
-          <div className="rounded-2xl border border-ink-200 bg-white p-6">
+          <div className="rounded-2xl border border-ink-200/80 bg-white shadow-luxe-soft p-6">
             <BadgeDollarSign className="h-6 w-6 text-brand-700" />
             <h3 className="mt-3 font-display text-lg font-semibold text-ink-900">Get Pre-Approved in Minutes</h3>
             <p className="mt-2 text-sm leading-relaxed text-ink-600">No awkward finance office. No pressure. Just a quick check to see real payment options before you fall in love with the car.</p>
           </div>
-          <div className="rounded-2xl border border-ink-200 bg-white p-6">
+          <div className="rounded-2xl border border-ink-200/80 bg-white shadow-luxe-soft p-6">
             <Building2 className="h-6 w-6 text-brand-700" />
             <h3 className="mt-3 font-display text-lg font-semibold text-ink-900">Browse Cars All Over California</h3>
             <p className="mt-2 text-sm leading-relaxed text-ink-600">Instead of driving dealership to dealership, browse real inventory from across the state — in your pajamas if you want.</p>
           </div>
-          <div className="rounded-2xl border border-ink-200 bg-white p-6">
+          <div className="rounded-2xl border border-ink-200/80 bg-white shadow-luxe-soft p-6">
             <ShieldCheck className="h-6 w-6 text-brand-700" />
             <h3 className="mt-3 font-display text-lg font-semibold text-ink-900">Delivered to Your Door</h3>
             <p className="mt-2 text-sm leading-relaxed text-ink-600">Once everything is approved, we handle the paperwork and deliver your new car straight to your home… with a red bow on it.</p>
@@ -163,8 +169,8 @@ export default function LandingPageSections() {
         </div>
       </section>
 
-      <section className="bg-[#f8fafc] py-12">
-        <div className="container-wide rounded-3xl border border-ink-200 bg-white p-6 sm:p-8">
+      <section className="bg-luxury-pearl py-12">
+        <div className="container-wide rounded-3xl border border-ink-200/80 bg-white shadow-luxe p-6 sm:p-8">
           <h2 className="font-display text-2xl font-semibold text-ink-900">How it works</h2>
           <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-center">
             {[0, 1, 2, 3, 4].map((cellIndex) => {

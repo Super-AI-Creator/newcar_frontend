@@ -46,7 +46,7 @@ export default function FavoritesPage() {
           <Card className="bg-white">
             <CardContent className="space-y-3 py-10 text-center">
               <p className="text-ink-500">No favorites yet.</p>
-              <Button asChild variant="outline">
+              <Button asChild className="w-full sm:w-auto">
                 <Link href="/search?vehicle_type=new">
                   <Search className="mr-1 h-4 w-4" />
                   Browse cars

@@ -25,7 +25,7 @@ const DEFAULT_FOOTER = {
 };
 
 /** Near-black bar (ink-950 added to tailwind.config; previously missing 950 broke bg and hid white text). */
-const FOOTER_BG = "bg-ink-950";
+const FOOTER_BG = "bg-gradient-to-b from-ink-950 to-ink-900";
 
 function SocialLink({
   href,
@@ -43,7 +43,7 @@ function SocialLink({
       href={url}
       target="_blank"
       rel="noreferrer noopener"
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-brand-600 text-white shadow-sm transition hover:bg-brand-500"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-gradient-to-r from-brand-600 to-brand-700 text-white shadow-luxe-soft transition hover:from-brand-500 hover:to-brand-600"
       aria-label={ariaLabel}
       title={ariaLabel}
     >
@@ -191,7 +191,7 @@ export function SiteFooter({ poweredBy }: { poweredBy?: string }) {
                 </span>
               )}
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-2 text-sm sm:justify-end">
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm sm:justify-end">
               <FooterNavLink href={footer.link_lease_url} label={footer.link_lease_label} />
               {(footer.link_lease_label ?? "").trim() &&
               (footer.link_lease_url ?? "").trim() &&
@@ -202,6 +202,26 @@ export function SiteFooter({ poweredBy }: { poweredBy?: string }) {
                 </span>
               ) : null}
               <FooterNavLink href={footer.link_broker_url} label={footer.link_broker_label} />
+            </div>
+            <div className="mt-4 flex max-w-full flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-white/10 pt-4 text-xs text-white/80 sm:justify-end">
+              <a href="tel:+18187059200" className="hover:text-brand-300 hover:underline">
+                Contact
+              </a>
+              <Link href="/reviews" className="hover:text-brand-300 hover:underline">
+                Reviews
+              </Link>
+              <Link href="/articles" className="hover:text-brand-300 hover:underline">
+                Articles
+              </Link>
+              <Link href="/privacy" className="hover:text-brand-300 hover:underline">
+                Privacy
+              </Link>
+              <Link href="/terms" className="hover:text-brand-300 hover:underline">
+                Terms
+              </Link>
+              <Link href="/?view=home" className="hover:text-brand-300 hover:underline">
+                Why us
+              </Link>
             </div>
           </div>
         </div>

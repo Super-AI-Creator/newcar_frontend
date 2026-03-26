@@ -85,8 +85,16 @@ export default function SettingsPage() {
               {user.name || "Your profile"}
             </h1>
             <p className="mt-2 max-w-xl text-sm text-zinc-200">
-              Update your personal details and keep your login secure. Changes apply across the
-              admin workspace.
+              {(() => {
+                const r = (user.role ?? "").toLowerCase();
+                if (r === "customer" || r === "broker") {
+                  return "Update your profile for deals, broker messages, and vehicle requests. Changes apply wherever you use the site.";
+                }
+                if (r === "dealer" || r === "credit_union") {
+                  return "Update your account details and keep your login secure.";
+                }
+                return "Update your personal details and keep your login secure. Changes apply across the admin workspace.";
+              })()}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -150,9 +158,19 @@ export default function SettingsPage() {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                 <p className="text-xs text-ink-500">
-                  Make sure your name and phone match what customers will see.
+                  {(() => {
+                    const r = (user.role ?? "").toLowerCase();
+                    if (r === "customer" || r === "broker") {
+                      return "Your broker sees this name and phone on deals and messages.";
+                    }
+                    return "Make sure your name and phone match what customers will see.";
+                  })()}
                 </p>
-                <Button onClick={handleSaveProfile} disabled={savingProfile} size="sm">
+                <Button
+                  onClick={handleSaveProfile}
+                  disabled={savingProfile}
+                  className="w-full sm:w-auto"
+                >
                   {savingProfile ? "Saving…" : "Save changes"}
                 </Button>
               </div>
@@ -198,7 +216,7 @@ export default function SettingsPage() {
                 </p>
               </div>
               <div className="flex justify-end pt-1">
-                <Button onClick={handleChangePassword} disabled={savingPassword} size="sm">
+                <Button onClick={handleChangePassword} disabled={savingPassword} className="w-full sm:w-auto">
                   {savingPassword ? "Saving…" : "Change password"}
                 </Button>
               </div>

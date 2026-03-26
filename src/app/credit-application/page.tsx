@@ -48,11 +48,11 @@ function CreditApplicationPageFallback() {
     <div className="app-page min-h-screen">
       <SiteHeader />
       <main className="app-main space-y-6">
-        <section className="w-full border-b border-ink-200 bg-white py-6">
+        <section className="w-full border-b border-ink-200/80 bg-white/85 py-6">
           <p className="market-kicker">Secure Application</p>
           <h1 className="market-heading text-3xl sm:text-4xl">Credit Application</h1>
         </section>
-        <Card className="border-ink-200 bg-white">
+        <Card className="border-ink-200/80 bg-white/95 shadow-luxe-soft">
           <CardContent className="py-10 text-center text-sm text-ink-600">Loading application...</CardContent>
         </Card>
       </main>
@@ -202,11 +202,11 @@ function CreditApplicationPageContent() {
       <div className="app-page min-h-screen">
         <SiteHeader />
         <main className="app-main space-y-6">
-          <section className="w-full border-b border-ink-200 bg-white py-6">
+          <section className="w-full border-b border-ink-200/80 bg-white/85 py-6">
             <p className="market-kicker">Access Scope</p>
             <h1 className="market-heading text-3xl sm:text-4xl">Credit Application</h1>
           </section>
-          <Card className="border-ink-200 bg-white">
+          <Card className="border-ink-200/80 bg-white/95 shadow-luxe-soft">
             <CardContent className="space-y-3 py-8 text-center">
               <p className="text-ink-800">Credit Application is intended for shopper/customer accounts.</p>
               <p className="text-sm text-ink-600">Your account has workspace tools for operations instead.</p>
@@ -232,15 +232,20 @@ function CreditApplicationPageContent() {
   return (
     <div className="app-page min-h-screen">
       <SiteHeader />
-      <main className="app-main space-y-6">
-        <section className="w-full border-b border-ink-200 bg-white py-6">
-          <p className="market-kicker">Secure Application</p>
-          <h1 className="market-heading text-3xl sm:text-4xl">Credit Application</h1>
+      <main className="app-main mx-auto max-w-3xl space-y-6 px-0 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-8">
+        <section className="w-full border-b border-ink-200/80 bg-white/85 py-6">
+          <p className="market-kicker">Financing pre-approval</p>
+          <h1 className="market-heading text-3xl sm:text-4xl">Apply for credit</h1>
+          <p className="mt-2 max-w-2xl text-sm text-ink-600">
+            One secure form. We use this to match you with lenders — fill in what you can; optional sections help if you&apos;ve moved jobs or
+            homes recently.
+          </p>
         </section>
 
-        <Card className="border-ink-200 bg-white">
+        <Card className="border-ink-200/80 bg-white/95 shadow-luxe-soft">
           <CardHeader>
-            <CardTitle>Personal Info (required)</CardTitle>
+            <CardTitle>About you</CardTitle>
+            <p className="text-sm font-normal text-ink-600">Legal name and ID details lenders use to verify your application.</p>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <Field label="First Name" value={firstName} setValue={setFirstName} required />
@@ -252,9 +257,10 @@ function CreditApplicationPageContent() {
           </CardContent>
         </Card>
 
-        <Card className="border-ink-200 bg-white">
+        <Card className="border-ink-200/80 bg-white/95 shadow-luxe-soft">
           <CardHeader>
-            <CardTitle>Current Address Info (required)</CardTitle>
+            <CardTitle>Where you live now</CardTitle>
+            <p className="text-sm font-normal text-ink-600">Current mailing address and best phone to reach you.</p>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <Field label="Street Address" value={streetAddress} setValue={setStreetAddress} />
@@ -262,13 +268,14 @@ function CreditApplicationPageContent() {
             <StateSelect label="State/Province" value={state} setValue={setState} />
             <Field label="ZIP/Postal Code" value={zipCode} setValue={setZipCode} />
             <Field label="How long at current address" value={timeAtCurrentAddress} setValue={setTimeAtCurrentAddress} />
-            <Field label="Phone" value={homePhone} setValue={setHomePhone} />
+            <Field label="Mobile or home phone" value={homePhone} setValue={setHomePhone} />
           </CardContent>
         </Card>
 
-        <Card className="border-ink-200 bg-white">
+        <Card className="border-ink-200/80 bg-white/95 shadow-luxe-soft">
           <CardHeader>
-            <CardTitle>Previous Address Info (optional if at current address more than 3 years)</CardTitle>
+            <CardTitle>Previous address</CardTitle>
+            <p className="text-sm font-normal text-ink-600">Only needed if you&apos;ve been at your current address less than three years.</p>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <Field label="Address" value={previousStreetAddress} setValue={setPreviousStreetAddress} />
@@ -279,13 +286,14 @@ function CreditApplicationPageContent() {
           </CardContent>
         </Card>
 
-        <Card className="border-ink-200 bg-white">
+        <Card className="border-ink-200/80 bg-white/95 shadow-luxe-soft">
           <CardHeader>
-            <CardTitle>Current Employment Info</CardTitle>
+            <CardTitle>Income &amp; employment</CardTitle>
+            <p className="text-sm font-normal text-ink-600">Helps lenders estimate what you can comfortably pay.</p>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Your Current Employment Status</Label>
+              <Label>Employment status</Label>
               <Select value={employmentStatus} onValueChange={setEmploymentStatus}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
@@ -301,7 +309,7 @@ function CreditApplicationPageContent() {
             </div>
             <Field label="Occupation title" value={occupationTitle} setValue={setOccupationTitle} />
             <Field label="Present employer" value={employerName} setValue={setEmployerName} />
-            <Field label="Enter your phone number from work" value={workPhone} setValue={setWorkPhone} />
+            <Field label="Work phone (optional)" value={workPhone} setValue={setWorkPhone} />
             <Field label="How long" value={timeAtCurrentJob} setValue={setTimeAtCurrentJob} />
             <Field label="Address" value={workStreetAddress} setValue={setWorkStreetAddress} />
             <Field label="City/Town" value={workCity} setValue={setWorkCity} />
@@ -313,13 +321,14 @@ function CreditApplicationPageContent() {
           </CardContent>
         </Card>
 
-        <Card className="border-ink-200 bg-white">
+        <Card className="border-ink-200/80 bg-white/95 shadow-luxe-soft">
           <CardHeader>
-            <CardTitle>Income &amp; Housing Info</CardTitle>
+            <CardTitle>Housing, vehicle &amp; sign-off</CardTitle>
+            <p className="text-sm font-normal text-ink-600">Rent or own, monthly housing cost, and the car you&apos;re interested in (if any).</p>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Do you rent or own</Label>
+              <Label>Rent or own your home?</Label>
               <Select value={housingStatus} onValueChange={setHousingStatus}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select" />
@@ -333,11 +342,11 @@ function CreditApplicationPageContent() {
                 </SelectContent>
               </Select>
             </div>
-            <Field label="Monthly Payment" type="number" value={monthlyHousingPayment} setValue={setMonthlyHousingPayment} />
-            <Field label="Salesperson Name" value={salespersonName} setValue={setSalespersonName} />
-            <Field label="Electronic Signature" value={electronicSignature} setValue={setElectronicSignature} />
+            <Field label="Monthly rent or mortgage" type="number" value={monthlyHousingPayment} setValue={setMonthlyHousingPayment} />
+            <Field label="Salesperson (if someone helped you)" value={salespersonName} setValue={setSalespersonName} />
+            <Field label="Sign with your full legal name" value={electronicSignature} setValue={setElectronicSignature} />
             <div className="sm:col-span-2 space-y-2">
-              <Label>Vehicle of Interest</Label>
+              <Label>Vehicle you&apos;re interested in</Label>
               <Input
                 value={[initialVin, initialMake, initialModel, initialTrim].filter(Boolean).join(" | ") || "—"}
                 readOnly
@@ -345,13 +354,13 @@ function CreditApplicationPageContent() {
               />
             </div>
             <div className="sm:col-span-2 space-y-2">
-              <Label>Additional Notes</Label>
-              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
+              <Label>Anything else we should know?</Label>
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Optional notes for your broker" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-ink-200 bg-white">
+        <Card className="border-ink-200/80 bg-white/95 shadow-luxe-soft">
           <CardContent className="space-y-4 pt-6">
             <label className="flex items-start gap-3 text-sm text-ink-700">
               <input
@@ -372,14 +381,14 @@ function CreditApplicationPageContent() {
                 </div>
                 <div className="min-w-0 flex-1 space-y-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-ink-900">Security check</h3>
+                    <h3 className="text-sm font-semibold text-ink-900">Quick human check</h3>
                     <p className="mt-0.5 text-sm text-ink-600">
-                      Please solve the simple math below so we know you&apos;re not a bot.
+                      Quick math question — helps keep automated spam out. Not a full captcha service.
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <span
-                      className="inline-flex items-center justify-center rounded-lg border border-ink-200 bg-white px-4 py-2 font-mono text-lg font-semibold tabular-nums text-ink-900"
+                      className="inline-flex items-center justify-center rounded-lg border border-ink-200 bg-white px-4 py -2 font-mono text-lg font-semibold tabular-nums text-ink-900"
                       aria-hidden
                     >
                       {captcha ? `${captcha.a} + ${captcha.b} = ?` : "Loading..."}
@@ -407,9 +416,9 @@ function CreditApplicationPageContent() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4">
-              <Button onClick={() => submitMutation.mutate()} disabled={!canSubmit}>
-                {submitMutation.isPending ? "Submitting..." : "Submit"}
+            <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center">
+              <Button className="w-full sm:w-auto" onClick={() => submitMutation.mutate()} disabled={!canSubmit}>
+                {submitMutation.isPending ? "Submitting..." : "Submit application"}
               </Button>
               {submitMutation.isSuccess && (
                 <p className="text-sm font-medium text-emerald-700">

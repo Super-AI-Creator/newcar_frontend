@@ -49,7 +49,7 @@ export default function PrequalPage() {
     <div className="app-page min-h-screen">
       <SiteHeader />
       <main className="app-main space-y-6">
-        <section className="w-full border-b border-ink-200 bg-white py-6">
+        <section className="w-full border-b border-ink-200/80 bg-white/85 py-6">
           <p className="market-kicker">Credit-First Shopping</p>
           <h1 className="market-heading flex items-center gap-2 text-3xl sm:text-4xl">
             <ShieldCheck className="h-7 w-7 text-brand-700" />
@@ -57,7 +57,7 @@ export default function PrequalPage() {
           </h1>
         </section>
 
-        <Card className="border-ink-200 bg-white">
+        <Card className="border-ink-200/80 bg-white/95 shadow-luxe-soft">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BadgeDollarSign className="h-5 w-5 text-brand-700" />
@@ -65,6 +65,11 @@ export default function PrequalPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
+            <ul className="md:col-span-2 list-disc space-y-1 pl-5 text-sm text-ink-600">
+              <li>We use your inputs only for this on-screen estimate — nothing here is stored as a formal credit application.</li>
+              <li>Actual lender decisions may use a hard or soft credit inquiry; final APR and terms depend on the lender and vehicle.</li>
+              <li>After you run prequal, you can compare sample lender options below and continue shopping.</li>
+            </ul>
             <div className="space-y-2">
               <Label>Credit score</Label>
               <Input type="number" value={creditScore} onChange={(e) => setCreditScore(e.target.value)} />
@@ -91,7 +96,11 @@ export default function PrequalPage() {
                 </div>
               </div>
             <div className="md:col-span-2">
-              <Button onClick={runCheck} disabled={prequalMutation.isPending || lenderOptionsMutation.isPending}>
+              <Button
+                className="w-full sm:w-auto"
+                onClick={runCheck}
+                disabled={prequalMutation.isPending || lenderOptionsMutation.isPending}
+              >
                 {prequalMutation.isPending || lenderOptionsMutation.isPending ? "Checking..." : "Run prequal"}
               </Button>
             </div>
@@ -99,7 +108,7 @@ export default function PrequalPage() {
         </Card>
 
         {prequalMutation.data && (
-          <Card className="border-ink-200 bg-white">
+          <Card className="border-ink-200/80 bg-white/95 shadow-luxe-soft">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CircleDollarSign className="h-5 w-5 text-brand-700" />
@@ -129,7 +138,7 @@ export default function PrequalPage() {
         )}
 
         {lenderOptionsMutation.data && (
-          <Card className="border-ink-200 bg-white">
+          <Card className="border-ink-200/80 bg-white/95 shadow-luxe-soft">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BadgeDollarSign className="h-5 w-5 text-brand-700" />

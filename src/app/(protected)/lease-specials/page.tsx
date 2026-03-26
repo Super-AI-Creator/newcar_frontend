@@ -492,6 +492,12 @@ function LeaseSpecialsPageContent() {
 
         <section className="tc-fade-up relative w-full overflow-hidden rounded-3xl border border-ink-200 bg-white px-4 pb-4 pt-4 shadow-sm sm:px-7 sm:pb-6 sm:pt-5">
           <div className="relative">
+            <img
+              src="/images/ribon.png"
+              alt=""
+              aria-hidden
+              className="pointer-events-none absolute m-0 p-0 right-0 top-0 w-64 max-w-none translate-x-[38%] -translate-y-[38%] opacity-95 sm:w-80 sm:translate-x-[42%] sm:-translate-y-[42%]"
+            />
             <p className="market-kicker">Lease Offers</p>
             <h1 className="market-heading flex items-center gap-2 text-2xl sm:text-4xl">
               <CarFront className="h-7 w-7 text-brand-700" />

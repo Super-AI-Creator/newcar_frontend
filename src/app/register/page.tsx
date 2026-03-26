@@ -57,6 +57,20 @@ function RegisterForm() {
     return Number.isFinite(n) && n === captcha.answer;
   }, [captcha, captchaInput]);
 
+  const passwordStrength = useMemo(() => {
+    if (password.length === 0) return null as { label: string; cls: string } | null;
+    if (password.length < 8) return { label: "Use at least 8 characters", cls: "text-ink-500" };
+    let score = 0;
+    if (password.length >= 12) score++;
+    else if (password.length >= 10) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+    if (score >= 3) return { label: "Strong password", cls: "text-emerald-700" };
+    if (score >= 1) return { label: "Medium — add numbers or symbols for strength", cls: "text-amber-700" };
+    return { label: "Weak — mix upper, lower, numbers, or symbols", cls: "text-red-700" };
+  }, [password]);
+
   const canSubmit = useMemo(() => {
     const validEmail = emailSchema.safeParse(email).success;
     const validName = name.trim().length > 0;
@@ -118,7 +132,7 @@ function RegisterForm() {
       <SiteHeader />
       <main className="w-full overflow-x-hidden py-8 pb-[max(2rem,env(safe-area-inset-bottom,0px))] sm:py-12 sm:pb-12">
         <div className="container-wide flex justify-center">
-          <Card className="market-panel w-full max-w-xl bg-white">
+          <Card className="market-panel lux-overlay w-full max-w-xl bg-white/95">
             <CardHeader>
               <CardTitle>{fromLead ? "Create account to track your request" : "Create Account"}</CardTitle>
               {fromLead && (
@@ -142,6 +156,13 @@ function RegisterForm() {
               <div className="space-y-2">
                 <Label>Password</Label>
                 <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" />
+                {passwordStrength ? (
+                  <p className={`text-xs font-medium ${passwordStrength.cls}`}>{passwordStrength.label}</p>
+                ) : null}
+                <ul className="text-[11px] text-ink-500">
+                  <li>8+ characters</li>
+                  <li>Mix of letters and numbers recommended</li>
+                </ul>
               </div>
               <div className="space-y-2">
                 <Label>Confirm password</Label>
@@ -155,9 +176,9 @@ function RegisterForm() {
                   </div>
                   <div className="min-w-0 flex-1 space-y-3">
                     <div>
-                      <h3 className="text-sm font-semibold text-ink-900">Security check</h3>
+                      <h3 className="text-sm font-semibold text-ink-900">Quick human check</h3>
                       <p className="mt-0.5 text-sm text-ink-600">
-                        Please solve the simple math below so we know you&apos;re not a bot.
+                        A simple math question helps block automated signups. It is not a full captcha service.
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
@@ -227,7 +248,7 @@ export default function RegisterPage() {
           <SiteHeader />
           <main className="w-full overflow-x-hidden py-8 pb-[max(2rem,env(safe-area-inset-bottom,0px))] sm:py-12 sm:pb-12">
             <div className="container-wide flex justify-center">
-              <Card className="market-panel w-full max-w-xl bg-white">
+              <Card className="market-panel lux-overlay w-full max-w-xl bg-white/95">
                 <CardContent className="py-10 text-center text-sm text-ink-600">Loading...</CardContent>
               </Card>
             </div>

@@ -130,7 +130,7 @@ function CreditUnionRow({
               <Button size="sm" variant="outline" asChild>
                 <Link href={`/cu/${cu.slug}`} target="_blank">View site</Link>
               </Button>
-              <DeleteCreditUnionButton id={cu.id} onDeleted={onDeleted} toast={toast} />
+              <DeleteCreditUnionButton id={cu.id} partnerName={cu.name} onDeleted={onDeleted} toast={toast} />
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-ink-100 pt-3">
@@ -195,7 +195,7 @@ function CreditUnionEditForm({
   const updateMutation = useMutation({
     mutationFn: (payload: CreditUnionUpdatePayload) => api.updateCreditUnion(cu.id, payload),
     onSuccess: () => {
-      toast.toast({ title: "Credit union updated" });
+      toast.toast({ title: "Saved", description: `Updated settings for ${name.trim() || "partner"}.` });
       onSaved();
     },
     onError: (e: any) => {
@@ -243,7 +243,9 @@ function CreditUnionEditForm({
       <LoanProgramsEditor value={loanPrograms} onChange={setLoanPrograms} />
       <DisclosuresEditor value={disclosures} onChange={setDisclosures} />
       <div className="flex gap-2">
-        <Button onClick={handleSave} disabled={updateMutation.isPending}>Save</Button>
+        <Button onClick={handleSave} disabled={updateMutation.isPending}>
+          Save
+        </Button>
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
@@ -423,10 +425,12 @@ function DisclosuresEditor({
 
 function DeleteCreditUnionButton({
   id,
+  partnerName,
   onDeleted,
   toast,
 }: {
   id: number;
+  partnerName: string;
   onDeleted: () => void;
   toast: ToastHelper;
 }) {
@@ -443,21 +447,30 @@ function DeleteCreditUnionButton({
   });
   if (confirm) {
     return (
-      <>
-        <Button
-          size="sm"
-          variant="secondary"
-          className="bg-red-600 text-white hover:bg-red-700"
-          onClick={() => deleteMutation.mutate()}
-          disabled={deleteMutation.isPending}
-        >
-          Confirm delete
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => setConfirm(false)}>Cancel</Button>
-      </>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <p className="text-xs text-ink-600">
+          Delete <span className="font-semibold text-ink-900">{partnerName}</span>? This removes the partner and cannot be undone.
+        </p>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="bg-red-600 text-white hover:bg-red-700"
+            onClick={() => deleteMutation.mutate()}
+            disabled={deleteMutation.isPending}
+          >
+            Confirm delete
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setConfirm(false)}>
+            Cancel
+          </Button>
+        </div>
+      </div>
     );
   }
   return (
-    <Button size="sm" variant="outline" onClick={() => setConfirm(true)}>Delete</Button>
+    <Button size="sm" variant="outline" onClick={() => setConfirm(true)}>
+      Delete
+    </Button>
   );
 }

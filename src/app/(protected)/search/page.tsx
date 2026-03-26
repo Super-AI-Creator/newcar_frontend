@@ -276,12 +276,6 @@ function SearchPageContent() {
   const topTabValue = "all";
 
   useEffect(() => {
-    if (loading || user || allowsGuestSearch) return;
-    const query = searchParams.toString();
-    router.replace(query ? `/lease-specials?${query}` : "/lease-specials");
-  }, [loading, user, allowsGuestSearch, searchParams, router]);
-
-  useEffect(() => {
     const nextVehicleType = searchParams.get("vehicle_type") === "used" ? "used" : "new";
     const nextMode = searchParams.get("mode") === "payment" ? "payment" : "price";
     const nextPage = parsePositiveNumber(searchParams.get("page"), 1);
@@ -497,6 +491,38 @@ function SearchPageContent() {
         ? "No new cars match your filters. Try raising your payment or price target, or clearing make/model."
         : "No cars match your filters. Try clearing some filters or widening your budget.";
 
+  if (!loading && !user && !allowsGuestSearch) {
+    const leaseHref = searchParams.toString() ? `/lease-specials?${searchParams.toString()}` : "/lease-specials";
+    return (
+      <div className="app-page min-h-screen">
+        <SiteHeader />
+        <main className="app-main space-y-4">
+          <section className="rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-4 sm:px-6 sm:py-5">
+            <h1 className="text-lg font-semibold text-ink-900 sm:text-xl">Sign in to search all inventory</h1>
+            <p className="mt-2 text-sm text-ink-700">
+              Full marketplace search is available to signed-in members. You can still browse lease specials or narrow new/used inventory
+              using the shortcuts below — no account required for those paths.
+            </p>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <Button className="w-full sm:w-auto" onClick={() => router.push("/search?vehicle_type=new")}>
+                Browse new cars
+              </Button>
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => router.push("/search?vehicle_type=used")}>
+                Browse used cars
+              </Button>
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => router.push(leaseHref)}>
+                Continue to lease specials
+              </Button>
+              <Button variant="outline" className="w-full sm:w-auto" asChild>
+                <Link href="/login?returnUrl=%2Fsearch%3Fvehicle_type%3Dnew">Sign in</Link>
+              </Button>
+            </div>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="app-page min-h-screen">
       <SiteHeader />
@@ -519,7 +545,7 @@ function SearchPageContent() {
           </Tabs>
         </section>
 
-        <section className="tc-fade-up relative w-full overflow-hidden rounded-3xl border border-ink-200 bg-white px-4 pb-4 pt-4 shadow-sm sm:px-7 sm:pb-6 sm:pt-5">
+        <section className="tc-fade-up lux-overlay relative w-full overflow-hidden rounded-3xl border border-ink-200/80 bg-white/95 px-4 pb-4 pt-4 shadow-luxe-soft sm:px-7 sm:pb-6 sm:pt-5">
           <div className="pointer-events-none absolute inset-0 aurora-bg opacity-50" aria-hidden />
           <div className="relative">
             <div>
@@ -547,9 +573,19 @@ function SearchPageContent() {
 
         <section className="sm:hidden">
           <div className="flex items-center justify-between">
-            <Button variant="outline" size="sm" className="rounded-full" onClick={() => setMobileFiltersOpen(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="relative rounded-full"
+              onClick={() => setMobileFiltersOpen(true)}
+            >
               <SlidersHorizontal className="mr-1 h-4 w-4" />
               Filters
+              {activeFilters.length > 0 ? (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1 text-[10px] font-bold leading-none text-white">
+                  {activeFilters.length > 9 ? "9+" : activeFilters.length}
+                </span>
+              ) : null}
             </Button>
             <p className="text-sm text-ink-600">{totalResults.toLocaleString()} results</p>
           </div>

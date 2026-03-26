@@ -108,6 +108,14 @@ export default function HomeShopOptions() {
                 Finance
               </Button>
             </div>
+            {paymentMode === "finance" ? (
+              <p className="text-xs text-ink-500">
+                Next: new-car search with payment filters and estimates. This is not a credit application — final terms come from the lender.
+              </p>
+            ) : null}
+            <p className="text-xs text-ink-500">
+              Estimates depend on lender, incentives, and vehicle. ZIP is optional and helps when tax or regional offers apply.
+            </p>
             <Button onClick={goByPayment} className="h-10 w-full text-sm">
               <span className="max-[420px]:hidden">See your matches</span>
               <span className="hidden max-[420px]:inline">See your matches</span>
@@ -174,6 +182,9 @@ export default function HomeShopOptions() {
               <Label>Enter ZIP Code</Label>
               <Input value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="90001" inputMode="numeric" />
             </div>
+            <p className="text-xs text-ink-500">
+              Estimates depend on lender, incentives, and vehicle. ZIP is optional and helps when tax or regional offers apply.
+            </p>
             <Button onClick={goByMakeModel} className="h-10 w-full text-sm">
               <span className="max-[420px]:hidden">See your matches</span>
               <span className="hidden max-[420px]:inline">See your matches</span>

@@ -67,6 +67,10 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         return;
       }
       if (role === "customer" || role === "broker") {
+        if (typeof window !== "undefined") {
+          const sp = new URLSearchParams(window.location.search);
+          if (sp.get("view") === "home") return;
+        }
         router.replace("/dashboard/customer");
         return;
       }
@@ -77,7 +81,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       publicPaths.has(currentPath) ||
       currentPath.startsWith("/vehicles/") ||
       currentPath.startsWith("/approvals/") ||
+      currentPath.startsWith("/articles") ||
+      currentPath.startsWith("/cu/") ||
       currentPath === "/reviews" ||
+      currentPath === "/privacy" ||
+      currentPath === "/terms" ||
       currentPath === "/credit-application" ||
       currentPath === "/testimonials" ||
       currentPath === "/most-reviewed-auto-broker-los-angeles";

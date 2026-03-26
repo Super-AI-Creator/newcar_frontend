@@ -103,16 +103,7 @@ export default function LeadFormButton({
       });
       setSubmittedLeadId(lead.lead_id ?? null);
 
-      // If guest: prompt to create account with pre-filled lead info; pass returnUrl so after login they land back here.
       if (!user) {
-        setOpen(false);
-        const params = new URLSearchParams();
-        if (name.trim()) params.set("name", name.trim());
-        if (email.trim()) params.set("email", email.trim());
-        if (phone.trim()) params.set("phone", phone.trim());
-        params.set("from", "lead");
-        if (pathname && pathname !== "/" && pathname.startsWith("/")) params.set("returnUrl", pathname);
-        router.push(`/register?${params.toString()}`);
         return;
       }
 
@@ -177,22 +168,45 @@ export default function LeadFormButton({
         {submittedLeadId ? (
           <>
             <DialogHeader className="border-b border-ink-200 px-6 py-4 pr-12">
-              <DialogTitle className="text-lg">Availability & quote request submitted</DialogTitle>
+              <DialogTitle className="text-lg">Request received</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-3 p-6">
-              <p className="text-sm text-ink-700">
-                Thanks. Your request has been captured and sent to our team.
+            <div className="grid gap-4 p-6">
+              <p className="text-sm text-ink-800">
+                Thanks — our team will review your request and reach out shortly. If you asked about a specific vehicle, a broker may
+                contact you by phone or email.
               </p>
-              <p className="text-sm text-ink-600">
-                Lead ID: <span className="font-medium text-ink-900">#{submittedLeadId}</span>
-                {submittedDealId ? (
-                  <>
-                    {" "}| Deal ID: <span className="font-medium text-ink-900">#{submittedDealId}</span>
-                  </>
+              <details className="rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-xs text-ink-600">
+                <summary className="cursor-pointer font-medium text-ink-800">Reference # (for support)</summary>
+                <p className="mt-2">
+                  Lead #{submittedLeadId}
+                  {submittedDealId ? (
+                    <>
+                      {" "}
+                      · Deal #{submittedDealId}
+                    </>
+                  ) : null}
+                </p>
+              </details>
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                {!user ? (
+                  <Button
+                    className="w-full sm:w-auto"
+                    onClick={() => {
+                      const params = new URLSearchParams();
+                      if (name.trim()) params.set("name", name.trim());
+                      if (email.trim()) params.set("email", email.trim());
+                      if (phone.trim()) params.set("phone", phone.trim());
+                      params.set("from", "lead");
+                      if (pathname && pathname !== "/" && pathname.startsWith("/")) params.set("returnUrl", pathname);
+                      router.push(`/register?${params.toString()}`);
+                    }}
+                  >
+                    Continue to create account
+                  </Button>
                 ) : null}
-              </p>
-              <div className="flex justify-end">
-                <Button onClick={() => setOpen(false)}>Close</Button>
+                <Button variant={user ? "default" : "outline"} className="w-full sm:w-auto" onClick={() => setOpen(false)}>
+                  Close
+                </Button>
               </div>
             </div>
           </>

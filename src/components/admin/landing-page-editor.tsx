@@ -155,7 +155,7 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
     mutationFn: (payload: LandingPageContentRecord) => api.updateLandingPage(payload),
     onSuccess: () => {
       query.refetch();
-      toast({ variant: "success", title: "Landing page content saved" });
+      toast({ variant: "success", title: "Live homepage updated" });
     },
     onError: (e: unknown) => {
       toast({ variant: "error", title: "Save failed", description: (e as { message?: string })?.message });
@@ -163,6 +163,12 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
   });
 
   const handleSave = () => {
+    if (typeof window !== "undefined") {
+      const ok = window.confirm(
+        "Save to the live homepage now? Visitors will see hero, lease section, how-it-works, and footer changes immediately."
+      );
+      if (!ok) return;
+    }
     updateMutation.mutate({
       hero: {
         kicker: heroKicker,
@@ -204,13 +210,20 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
     <div className="space-y-6">
       {!embedded && (
         <>
-          <h2 className="font-display text-xl font-semibold text-ink-900 flex items-center gap-2">
+          <h2 className="flex items-center gap-2 font-display text-xl font-semibold text-ink-900">
             <Layout className="h-5 w-5 text-brand-600" />
             Landing Page Content
           </h2>
-          <p className="text-sm text-ink-600">Edit the text and image URLs shown on the home (landing) page. Save to publish.</p>
+          <p className="text-sm text-ink-600">
+            Kicker = small line above the headline. Subtext = paragraph under it. Saving updates the live homepage.
+          </p>
         </>
       )}
+      {embedded ? (
+        <p className="text-sm text-ink-600">
+          Kicker vs subtext: use kicker for a short uppercase line; subtext for the longer supporting sentence under the headline.
+        </p>
+      ) : null}
       {query.isLoading && <p className="text-sm text-ink-500">Loading…</p>}
 
       <Card className="border-ink-200 bg-white">

@@ -629,7 +629,7 @@ export default function VehicleDetailPage() {
     <div className="app-page min-h-screen">
       <SiteHeader />
       <main className="app-main space-y-6">
-        <Card className="tc-fade-up border-ink-200 bg-white">
+        <Card className="tc-fade-up border-ink-200/80 bg-white/95 shadow-luxe-soft">
           <CardContent className="grid gap-6 py-6 md:grid-cols-[1.4fr_1fr]">
             <div className="space-y-4">
               <div className="space-y-3">
