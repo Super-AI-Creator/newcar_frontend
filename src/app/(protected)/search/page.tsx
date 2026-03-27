@@ -265,11 +265,6 @@ function SearchPageContent() {
     return backendTotal;
   })();
   const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
-  const searchReturnUrl = useMemo(() => {
-    const query = searchParams.toString();
-    return query ? `${pathname}?${query}` : pathname;
-  }, [pathname, searchParams]);
-  const isLoggedIn = !!user;
   const queryVehicleTypeForRedirect = searchParams.get("vehicle_type");
   const allowsGuestSearch =
     queryVehicleTypeForRedirect === "all" || queryVehicleTypeForRedirect === "used" || queryVehicleTypeForRedirect === "new";
@@ -547,6 +542,12 @@ function SearchPageContent() {
 
         <section className="tc-fade-up lux-overlay relative w-full overflow-hidden rounded-3xl border border-ink-200/80 bg-white/95 px-4 pb-4 pt-4 shadow-luxe-soft sm:px-7 sm:pb-6 sm:pt-5">
           <div className="pointer-events-none absolute inset-0 aurora-bg opacity-50" aria-hidden />
+          <img
+            src="/images/ribon.png"
+            alt=""
+            aria-hidden
+            className="pointer-events-none absolute m-0 p-0 right-0 top-0 w-64 max-w-none translate-x-[16%] -translate-y-[14%] opacity-95 sm:w-80 sm:translate-x-[18%] sm:-translate-y-[16%]"
+          />
           <div className="relative">
             <div>
               <p className="market-kicker">Marketplace Search</p>
@@ -1203,7 +1204,7 @@ function SearchPageContent() {
                 </Card>
               )}
               {sortedResultItems.map((vehicle) => (
-                <VehicleCard key={vehicle.vin} vehicle={vehicle} isLoggedIn={isLoggedIn} searchReturnUrl={searchReturnUrl} />
+                <VehicleCard key={vehicle.vin} vehicle={vehicle} />
               ))}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-4 border-t border-ink-200 pt-6">
@@ -1241,15 +1242,7 @@ function SearchPageContent() {
   );
 }
 
-function VehicleCard({
-  vehicle,
-  isLoggedIn,
-  searchReturnUrl
-}: {
-  vehicle: Vehicle;
-  isLoggedIn: boolean;
-  searchReturnUrl: string;
-}) {
+function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
   const normalizedType = (vehicle.vehicle_type ?? "new").toString().toLowerCase();
   const normalizedCondition = (vehicle.condition ?? "").toString().toLowerCase();
   const inferredType =
@@ -1270,13 +1263,9 @@ function VehicleCard({
   const subtitle = `${vehicle.trim ?? "Trim unavailable"} | ${isUsed ? "Used car" : "New car"}`;
   const imageUrl = pickVehicleImage(vehicle);
   const detailsHref = `/vehicles/${encodeURIComponent(vehicle.vin)}`;
-  const unlockPriceHref = `/login?returnUrl=${encodeURIComponent(searchReturnUrl)}`;
   const detailsActionHref = detailsHref;
-  const verifyAvailabilityHref = isLoggedIn
-    ? `/credit-application?vin=${encodeURIComponent(vehicle.vin)}&make=${encodeURIComponent(vehicle.make ?? "")}&model=${encodeURIComponent(
-      vehicle.model ?? ""
-    )}&trim=${encodeURIComponent(vehicle.trim ?? "")}`
-    : unlockPriceHref;
+  const showMsrpSecondary =
+    !isUsed && msrpPrice !== undefined && primaryPrice !== undefined && primaryPrice !== msrpPrice;
   const imageBadgeLeaseLabel = monthlyPrice !== undefined ? `$${monthlyPrice.toLocaleString()}/mo lease` : null;
   return (
     <Card className="search-card group overflow-hidden rounded-xl border border-ink-300 bg-[#f6f7f9] shadow-sm transition-[transform,box-shadow,border-color] duration-150 motion-safe:hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg">
@@ -1323,25 +1312,20 @@ function VehicleCard({
           <div className="border-t border-ink-300 pt-3">
             <div className="flex items-end justify-between">
               <p className="text-[20px] font-bold leading-none text-ink-900 max-[420px]:text-lg sm:text-2xl">
-                {isLoggedIn ? (primaryPrice !== undefined ? `$${primaryPrice.toLocaleString()}` : "Call for price") : "Login to unlock price"}
+                {primaryPrice !== undefined
+                  ? `$${primaryPrice.toLocaleString()}`
+                  : !isUsed && msrpPrice !== undefined
+                    ? `MSRP $${msrpPrice.toLocaleString()}`
+                    : "Call for price"}
               </p>
-              {isLoggedIn && !isUsed && msrpPrice !== undefined && (
-                <p className="hidden text-xs text-ink-700 sm:block">MSRP ${msrpPrice.toLocaleString()}</p>
-              )}
+              {showMsrpSecondary && msrpPrice !== undefined ? (
+                <p className="text-xs text-ink-700 sm:text-right">MSRP ${msrpPrice.toLocaleString()}</p>
+              ) : null}
             </div>
-            {!isLoggedIn && (
-              <p className="mt-2 text-sm">
-                <Link href={unlockPriceHref} className="font-medium text-brand-700 hover:text-brand-800">
-                  Unlock full pricing
-                </Link>
-              </p>
-            )}
             <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 sm:text-sm">
-              {isLoggedIn
-                ? monthlyPrice !== undefined
-                  ? `$${monthlyPrice.toLocaleString()}/mo est.`
-                  : "Payment estimate available"
-                : "Sign in to unlock payment details"}
+              {monthlyPrice !== undefined
+                ? `$${monthlyPrice.toLocaleString()}/mo est.`
+                : "Payment details on vehicle page"}
               <Info className="h-4 w-4 text-ink-500" />
             </p>
           </div>
@@ -1371,7 +1355,7 @@ function VehicleCard({
                   <span className="hidden max-[420px]:inline">Price</span>
               </LeadFormButton>
               <Button asChild variant="outline" className="h-9 rounded-full border-ink-700 px-3 text-xs font-semibold sm:px-4">
-                <Link href={verifyAvailabilityHref}>
+                <Link href={detailsHref}>
                   <CreditCard className="mr-1 h-4 w-4" />
                   <span className="max-[420px]:hidden">More details</span>
                   <span className="hidden max-[420px]:inline">More details</span>

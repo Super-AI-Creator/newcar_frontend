@@ -39,7 +39,7 @@ function sliderValueToPayment(sliderValue: number): number | null {
 export default function HomeShopOptions() {
   const router = useRouter();
   const [paymentSliderValue, setPaymentSliderValue] = useState(() => paymentToSliderValue(500));
-  const [paymentMode, setPaymentMode] = useState<"lease" | "finance">("lease");
+  const [paymentMode, setPaymentMode] = useState<"lease" | "buy">("lease");
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
   const [zipCode, setZipCode] = useState("");
@@ -61,7 +61,7 @@ export default function HomeShopOptions() {
     query.set("vehicle_type", "new");
     query.set("mode", "payment");
     query.set("max_payment", String(maxPayment ?? PAYMENT_ANY_QUERY_VALUE));
-    if (paymentMode === "finance") query.set("estimate", "true");
+    if (paymentMode === "buy") query.set("estimate", "true");
     router.push(`/search?${query.toString()}`);
   };
 
@@ -104,11 +104,11 @@ export default function HomeShopOptions() {
               <Button variant={paymentMode === "lease" ? "default" : "outline"} size="sm" onClick={() => setPaymentMode("lease")}>
                 Lease
               </Button>
-              <Button variant={paymentMode === "finance" ? "default" : "outline"} size="sm" onClick={() => setPaymentMode("finance")}>
-                Finance
+              <Button variant={paymentMode === "buy" ? "default" : "outline"} size="sm" onClick={() => setPaymentMode("buy")}>
+                Buy
               </Button>
             </div>
-            {paymentMode === "finance" ? (
+            {paymentMode === "buy" ? (
               <p className="text-xs text-ink-500">
                 Next: new-car search with payment filters and estimates. This is not a credit application — final terms come from the lender.
               </p>

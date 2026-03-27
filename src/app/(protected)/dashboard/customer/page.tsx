@@ -558,7 +558,7 @@ export default function CustomerDashboard() {
             src="/images/ribon.png"
             alt=""
             aria-hidden
-            className="pointer-events-none absolute m-0 p-0 right-0 top-0 w-64 max-w-none translate-x-[38%] -translate-y-[38%] opacity-95 sm:w-80 sm:translate-x-[42%] sm:-translate-y-[42%]"
+            className="pointer-events-none absolute m-0 p-0 right-0 top-0 w-64 max-w-none translate-x-[16%] -translate-y-[14%] opacity-95 sm:w-80 sm:translate-x-[18%] sm:-translate-y-[16%]"
           />
           <div className="relative">
             <p className="market-kicker text-[10px] sm:text-xs">Deal Room</p>
