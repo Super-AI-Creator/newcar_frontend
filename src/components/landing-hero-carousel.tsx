@@ -34,14 +34,7 @@ export default function LandingHeroCarousel({ className = "", imageClassName = "
 
   const isExternal = (src: string) => src.startsWith("http://") || src.startsWith("https://");
 
-  const focusToCss = (focus?: string) => {
-    const v = (focus ?? "center").toLowerCase();
-    if (v === "top") return "50% 0%";
-    if (v === "bottom") return "50% 100%";
-    if (v === "left") return "0% 50%";
-    if (v === "right") return "100% 50%";
-    return "50% 50%";
-  };
+  const focusToCss = () => "50% 50%";
 
   return (
     <div className={`relative h-full w-full overflow-hidden ${className}`}>

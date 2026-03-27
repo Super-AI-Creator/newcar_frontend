@@ -10,6 +10,13 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const ELEVATED_ROLES = new Set(["super_admin", "broker_admin"]);
+const ROLE_GROUPS: Array<{ key: string; label: string; roles?: string[] }> = [
+  { key: "admins", label: "Admins", roles: ["super_admin", "broker_admin"] },
+  { key: "customers", label: "Customers", roles: ["customer"] },
+  { key: "dealers", label: "Dealers", roles: ["dealer"] },
+  { key: "credit_unions", label: "Credit Unions", roles: ["credit_union"] },
+  { key: "other", label: "Other roles" },
+];
 
 function roleRequiresConfirm(nextRole: string, previousRole: string) {
   return ELEVATED_ROLES.has(nextRole) && nextRole !== previousRole;
@@ -64,6 +71,18 @@ export default function UserManagement() {
       return u.email.toLowerCase().includes(q) || name.includes(q);
     });
   }, [users, search]);
+
+  const groupedFiltered = useMemo(() => {
+    return ROLE_GROUPS.map((group) => {
+      const items = filtered.filter((u) => {
+        if (!group.roles) {
+          return !ROLE_GROUPS.some((g) => g.roles?.includes(u.role));
+        }
+        return group.roles.includes(u.role);
+      });
+      return { ...group, items };
+    }).filter((group) => group.items.length > 0);
+  }, [filtered]);
 
   const startEditing = (user: User) => {
     setEditing(user);
@@ -129,51 +148,49 @@ export default function UserManagement() {
         )}
 
         {!isLoading && filtered.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-ink-200 bg-ink-50 text-xs uppercase tracking-wide text-ink-500">
-                  <th className="px-2 py-2">Name</th>
-                  <th className="px-2 py-2">Email</th>
-                  <th className="px-2 py-2">Phone</th>
-                  <th className="px-2 py-2">Role</th>
-                  <th className="px-2 py-2">Email verified</th>
-                  <th className="px-2 py-2">Phone verified</th>
-                  <th className="px-2 py-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((u) => (
-                  <tr key={u.id} className="border-b border-ink-100 last:border-0">
-                    <td className="px-2 py-1.5 text-ink-900">
-                      {u.name || "(no name)"}
-                    </td>
-                    <td className="px-2 py-1.5 text-ink-700">{u.email}</td>
-                    <td className="px-2 py-1.5 text-ink-700">
-                      {u.phone || "—"}
-                    </td>
-                    <td className="px-2 py-1.5 text-xs font-semibold uppercase text-ink-700">
-                      {u.role}
-                    </td>
-                    <td className="px-2 py-1.5 text-xs">
-                      {u.is_email_verified ? "Yes" : "No"}
-                    </td>
-                    <td className="px-2 py-1.5 text-xs">
-                      {u.is_phone_verified ? "Yes" : "No"}
-                    </td>
-                    <td className="px-2 py-1.5 text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => startEditing(u)}
-                      >
-                        Edit
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-4">
+            {groupedFiltered.map((group) => (
+              <div key={group.key} className="rounded-xl border border-ink-200">
+                <div className="flex items-center justify-between border-b border-ink-200 bg-ink-50 px-3 py-2">
+                  <p className="text-sm font-semibold text-ink-900">{group.label}</p>
+                  <p className="text-xs text-ink-600">
+                    {group.items.length} user{group.items.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-ink-200 bg-white text-xs uppercase tracking-wide text-ink-500">
+                        <th className="px-2 py-2">Name</th>
+                        <th className="px-2 py-2">Email</th>
+                        <th className="px-2 py-2">Phone</th>
+                        <th className="px-2 py-2">Role</th>
+                        <th className="px-2 py-2">Email verified</th>
+                        <th className="px-2 py-2">Phone verified</th>
+                        <th className="px-2 py-2 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.items.map((u) => (
+                        <tr key={u.id} className="border-b border-ink-100 last:border-0">
+                          <td className="px-2 py-1.5 text-ink-900">{u.name || "(no name)"}</td>
+                          <td className="px-2 py-1.5 text-ink-700">{u.email}</td>
+                          <td className="px-2 py-1.5 text-ink-700">{u.phone || "—"}</td>
+                          <td className="px-2 py-1.5 text-xs font-semibold uppercase text-ink-700">{u.role}</td>
+                          <td className="px-2 py-1.5 text-xs">{u.is_email_verified ? "Yes" : "No"}</td>
+                          <td className="px-2 py-1.5 text-xs">{u.is_phone_verified ? "Yes" : "No"}</td>
+                          <td className="px-2 py-1.5 text-right">
+                            <Button size="sm" variant="outline" onClick={() => startEditing(u)}>
+                              Edit
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

@@ -60,7 +60,7 @@ export default function LandingPageSections() {
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-ink-950/90 via-ink-900/80 to-brand-900/55" />
         <div className="container-wide relative py-12 sm:py-20 lg:py-24">
-          <div className="grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="grid items-center gap-8">
             <div className="max-w-3xl">
               <p className="whitespace-pre-wrap text-xs font-semibold uppercase tracking-[0.16em] text-brand-200">{hero.kicker}</p>
               <h1 className="mt-3 font-display text-3xl font-bold leading-tight text-white sm:mt-4 sm:text-5xl lg:text-6xl">{hero.headline}</h1>
@@ -93,16 +93,6 @@ export default function LandingPageSections() {
                 </Button>
               </div>
               <p className="mt-3 text-xs text-zinc-300/90">Most people finish browsing in a few minutes.</p>
-            </div>
-            <div className="hidden lg:block">
-              <div className="relative overflow-hidden rounded-3xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">
-                <div className="relative h-[320px] overflow-hidden rounded-2xl border border-white/25">
-                  <LandingHeroCarousel className="h-full w-full" slides={slides} />
-                  <div className="absolute right-4 top-4 z-10 rounded-full bg-brand-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white shadow-lg">
-                    Home delivery perk
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>

@@ -68,7 +68,7 @@ export default function SiteHeader() {
   const roleLinks = isAdmin ? adminLinks : isDealer ? dealerLinks : isCustomer ? customerLinks : guestLinks;
   const links = [...roleLinks, ...publicBrandLinks];
   const desktopNavLinks = isCustomer ? links.filter((l) => l.href !== customerDealRoomLink.href) : links;
-  const homeHref = isAdmin ? "/admin" : isDealer ? "/dashboard/dealer" : isCustomer ? "/dashboard/customer" : "/";
+  const homeHref = isAdmin ? "/admin" : isDealer ? "/dashboard/dealer" : "/";
   const hideBack = pathname === "/" || pathname === homeHref;
   const goBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -96,6 +96,7 @@ export default function SiteHeader() {
     if (base === "/search") return pathname === "/search";
     return pathname === base || pathname.startsWith(`${base}/`);
   };
+  const showFloatingDealRoom = isCustomer && !isActiveLink(customerDealRoomLink.href);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-ink-200/80 bg-white/90 backdrop-blur-md">
@@ -124,6 +125,14 @@ export default function SiteHeader() {
           </a>
         </div>
         <div className="flex shrink-0 items-center gap-3">
+          {isCustomer ? (
+            <Button asChild size="sm" className="h-9 rounded-full px-3 md:hidden">
+              <Link href={customerDealRoomLink.href}>
+                <MessageSquare className="mr-1 h-4 w-4" />
+                Deal Room
+              </Link>
+            </Button>
+          ) : null}
           {user ? (
             <>
               <Button asChild variant="outline" size="sm" className="hidden rounded-full px-4 md:inline-flex">
@@ -254,6 +263,20 @@ export default function SiteHeader() {
           </nav>
         </div>
       </div>
+      {showFloatingDealRoom ? (
+        <div className="pointer-events-none fixed bottom-4 right-4 z-[60] md:hidden">
+          <Button
+            asChild
+            size="sm"
+            className="pointer-events-auto h-11 rounded-full bg-gradient-to-r from-red-500 to-red-400 px-5 text-base font-semibold text-white shadow-[0_10px_24px_rgba(239,68,68,0.35)]"
+          >
+            <Link href={customerDealRoomLink.href}>
+              <MessageSquare className="mr-1.5 h-4 w-4" />
+              Deal room
+            </Link>
+          </Button>
+        </div>
+      ) : null}
     </header>
   );
 }

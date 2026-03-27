@@ -282,6 +282,7 @@ export default function CustomerDashboard() {
   const [docsUploadVin, setDocsUploadVin] = useState<string | null>(null);
   const [driversLicenseFile, setDriversLicenseFile] = useState<File | null>(null);
   const [insuranceFile, setInsuranceFile] = useState<File | null>(null);
+  const [otherFile, setOtherFile] = useState<File | null>(null);
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -496,6 +497,7 @@ export default function CustomerDashboard() {
   const resetDocsUploadForm = () => {
     setDriversLicenseFile(null);
     setInsuranceFile(null);
+    setOtherFile(null);
   };
 
   const closeDocsDialog = () => {
@@ -511,11 +513,18 @@ export default function CustomerDashboard() {
   };
 
   const uploadDocsMutation = useMutation({
-    mutationFn: async (payload: { vin: string; driversLicense: File; insurance: File }) => {
+    mutationFn: async (payload: { vin: string; driversLicense?: File | null; insurance?: File | null; other?: File | null }) => {
       const formData = new FormData();
       formData.set("vin", payload.vin);
-      formData.set("drivers_license", payload.driversLicense);
-      formData.set("insurance", payload.insurance);
+      if (payload.driversLicense) {
+        formData.set("drivers_license", payload.driversLicense);
+      }
+      if (payload.insurance) {
+        formData.set("insurance", payload.insurance);
+      }
+      if (payload.other) {
+        formData.set("other", payload.other);
+      }
       return api.forwardDocs(formData);
     },
     onSuccess: () => {
@@ -533,18 +542,20 @@ export default function CustomerDashboard() {
   });
 
   const submitDocsUpload = () => {
-    if (!docsUploadVin || !driversLicenseFile || !insuranceFile) {
+    const hasAtLeastOneFile = !!driversLicenseFile || !!insuranceFile || !!otherFile;
+    if (!docsUploadVin || !hasAtLeastOneFile) {
       toast({
         variant: "error",
         title: "Missing documents",
-        description: "Please upload both driver license and insurance files."
+        description: "Please upload at least one document to continue."
       });
       return;
     }
     uploadDocsMutation.mutate({
       vin: docsUploadVin,
       driversLicense: driversLicenseFile,
-      insurance: insuranceFile
+      insurance: insuranceFile,
+      other: otherFile
     });
   };
 
@@ -965,6 +976,15 @@ export default function CustomerDashboard() {
                   onChange={(event) => setInsuranceFile(event.target.files?.[0] ?? null)}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="other-doc-file">Other document</Label>
+                <Input
+                  id="other-doc-file"
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={(event) => setOtherFile(event.target.files?.[0] ?? null)}
+                />
+              </div>
               <p className="text-xs text-ink-500">Accepted files: PDF, JPG, PNG, WEBP. Max 8MB each.</p>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={closeDocsDialog} disabled={uploadDocsMutation.isPending}>
@@ -972,7 +992,7 @@ export default function CustomerDashboard() {
                 </Button>
                 <Button
                   onClick={submitDocsUpload}
-                  disabled={!docsUploadVin || !driversLicenseFile || !insuranceFile || uploadDocsMutation.isPending}
+                  disabled={!docsUploadVin || (!driversLicenseFile && !insuranceFile && !otherFile) || uploadDocsMutation.isPending}
                 >
                   {uploadDocsMutation.isPending ? "Uploading..." : "Upload docs"}
                 </Button>

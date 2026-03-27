@@ -371,6 +371,7 @@ export default function VehicleDetailPage() {
         customer_note: `Deal start pre-verified. Name=${dealName.trim()} | Email=${dealEmail.trim()} | Phone=${dealPhone.trim() || "N/A"} | Customer confirmed contact + ready to proceed.`
       }),
     onSuccess: (data) => {
+      setDealDialogOpen(false);
       setDealPhone("");
       setDealVerified(false);
       setDealReadyToProceed(false);
@@ -379,6 +380,7 @@ export default function VehicleDetailPage() {
         title: "Deal started",
         description: `Deal #${data.id} is now in ${data.status.replaceAll("_", " ")}.`
       });
+      router.push("/dashboard/customer");
     },
     onError: (error: any) => {
       toast({
