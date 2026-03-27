@@ -1,0 +1,14 @@
+
+> newcarsuperstore-frontend@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 5.5s
+ ○ Compiling /lease-specials ...
+ ✓ Compiled /lease-specials in 2.6s (874 modules)
+ GET /lease-specials 200 in 2753ms
+^C
