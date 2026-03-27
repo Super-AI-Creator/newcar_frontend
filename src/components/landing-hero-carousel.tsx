@@ -51,7 +51,7 @@ export default function LandingHeroCarousel({ className = "", imageClassName = "
               src={slide.src}
               alt={i === index ? slide.alt : ""}
               className={`absolute inset-0 h-full w-full object-cover object-center ${imageClassName}`}
-              style={{ objectPosition: focusToCss(slide.focus) }}
+              style={{ objectPosition: focusToCss() }}
             />
           ) : (
             <Image
@@ -60,7 +60,7 @@ export default function LandingHeroCarousel({ className = "", imageClassName = "
               fill
               priority={priority && i === 0}
               className={`object-cover object-center ${imageClassName}`}
-              style={{ objectPosition: focusToCss(slide.focus) }}
+              style={{ objectPosition: focusToCss() }}
               sizes="100vw"
             />
           )}
