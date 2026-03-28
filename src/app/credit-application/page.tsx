@@ -27,7 +27,24 @@ const HOUSING_OPTIONS = [
   { value: "own", label: "I own my house" },
 ];
 
-const CREDIT_TERMS_TEXT = `I certify that the information I have provided on this application is, to the best of my knowledge, complete and accurate. I have read the Privacy Policy and authorize that my credit report is obtained. I am 18 years of age or older with a valid driver's license. I understand that financial institution(s) will rely on this information to judge my creditworthiness, and will retain this application and information about me whether or not this application is approved. Further, I authorize an investigation of my credit and employment history, in conjunction with which my credit report(s) may be obtained from one or more consumer credit reporting agencies. I understand that false statements may subject me to criminal penalties. I further understand that the Dealer and/or the financial institution(s) that evaluate my application may require additional information. FAIR CREDIT REPORTING ACT DISCLOSURE: I/We understand that this application for credit will be submitted by the Dealer to various financial institutions for evaluation.`;
+function CreditApplicationLegalCopy() {
+  return (
+    <>
+      I certify that the information I have provided on this application is, to the best of my knowledge, complete and accurate. I have
+      read the{" "}
+      <Link href="/privacy" className="font-medium text-brand-800 underline decoration-brand-800/40 underline-offset-2 hover:text-brand-900">
+        privacy policy and terms of use
+      </Link>{" "}
+      and authorize that my credit report is obtained. I am 18 years of age or older with a valid driver&apos;s license. I understand
+      that financial institution(s) will rely on this information to judge my creditworthiness, and will retain this application and
+      information about me whether or not this application is approved. Further, I authorize an investigation of my credit and employment
+      history, in conjunction with which my credit report(s) may be obtained from one or more consumer credit reporting agencies. I
+      understand that false statements may subject me to criminal penalties. I further understand that the Dealer and/or the financial
+      institution(s) that evaluate my application may require additional information. FAIR CREDIT REPORTING ACT DISCLOSURE: I/We understand
+      that this application for credit will be submitted by the Dealer to various financial institutions for evaluation.
+    </>
+  );
+}
 
 function randomCaptcha() {
   const a = Math.floor(Math.random() * 10) + 1;
@@ -370,7 +387,7 @@ function CreditApplicationPageContent() {
                 className="mt-1 h-4 w-4 rounded border-ink-300"
               />
               <span className="leading-relaxed">
-                I agree to the terms of service. By signing this document you agree to the following: {CREDIT_TERMS_TEXT}
+                I agree to the terms of service. By signing this document you agree to the following: <CreditApplicationLegalCopy />
               </span>
             </label>
 

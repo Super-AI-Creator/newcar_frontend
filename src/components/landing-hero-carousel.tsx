@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 
 const LANDING_SLIDES = [
-  { src: "/images/landing_img (1).jpg", alt: "New car delivery", focus: "center" },
+  { src: "/images/panel-cars.jpg", alt: "New car delivery", focus: "center" },
   { src: "/images/landing_img (2).jpg", alt: "New car ready for delivery", focus: "center" },
   { src: "/images/landing_img (3).jpg", alt: "Car with red bow", focus: "center" },
   { src: "/images/landing_img (4).jpg", alt: "Home delivery", focus: "center" }

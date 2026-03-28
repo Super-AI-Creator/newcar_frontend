@@ -867,7 +867,7 @@ export default function VehicleDetailPage() {
                 <CardContent className="space-y-4">
                   {hasOfferSheetData ? (
                     <>
-                      <p className="text-sm text-ink-600">Offer-sheet snapshot for this vehicle.</p>
+                      <p className="text-sm text-ink-600">Lease offer available for well qualified buyers.</p>
                       <div className="rounded-xl border border-ink-200 bg-ink-50 p-3.5">
                         {vehicleQuery.data?.monthly !== undefined && vehicleQuery.data?.monthly !== null ? (
                           <div className="mb-3 rounded-lg border border-brand-200 bg-white px-3 py-2.5">

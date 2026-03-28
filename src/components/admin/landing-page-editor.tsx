@@ -17,7 +17,7 @@ const DEFAULT_HERO = {
   kicker: "SHOP,  GET APPROVED AND GET THE CAR DELIVERED TO YOUR DOOR WITH A RED BOW",
   headline: "Buy Any New Car in California Without the Dealership",
   subtext: "SHOP, GET APPROVED AND GET THE CAR DELIVERED TO YOUR DOOR WITH A RED BOW.",
-  slide_urls: ["/images/landing_img (1).jpg", "/images/landing_img (2).jpg", "/images/landing_img (3).jpg", "/images/landing_img (4).jpg"],
+  slide_urls: ["/images/panel-cars.jpg", "/images/landing_img (2).jpg", "/images/landing_img (3).jpg", "/images/landing_img (4).jpg"],
   slide_focus: ["center", "center", "center", "center"] as string[],
 };
 const DEFAULT_LEASE = {
@@ -27,7 +27,7 @@ const DEFAULT_LEASE = {
 const DEFAULT_HOW = [
   { image_url: "/images/hero-cars.jpg", label: "Browse Statewide Inventory", image_focus: "center" },
   { image_url: "/images/deal-1.jpg", label: "Get Your Best Rate", image_focus: "center" },
-  { image_url: "/images/landing_img (1).jpg", label: "Home Delivery With a Bow", image_focus: "center" },
+  { image_url: "/images/panel-cars.jpg", label: "Home Delivery With a Bow", image_focus: "center" },
 ];
 
 const DEFAULT_FOOTER = {

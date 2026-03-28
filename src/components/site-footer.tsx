@@ -214,10 +214,7 @@ export function SiteFooter({ poweredBy }: { poweredBy?: string }) {
                 Articles
               </Link>
               <Link href="/privacy" className="hover:text-brand-300 hover:underline">
-                Privacy
-              </Link>
-              <Link href="/terms" className="hover:text-brand-300 hover:underline">
-                Terms
+                Privacy &amp; terms
               </Link>
               <Link href="/?view=home" className="hover:text-brand-300 hover:underline">
                 Why us

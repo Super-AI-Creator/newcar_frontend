@@ -38,16 +38,6 @@ const PAYMENT_TICKS = 79;
 const PAYMENT_SLIDER_ANY = PAYMENT_TICKS + 1;
 const PAYMENT_ANY_VALUE = 10000;
 
-const defaultValues = {
-  maxPrice: 100000,
-  maxPayment: PAYMENT_ANY_VALUE,
-  usedMaxPrice: 100000,
-  maxMileage: 60000
-};
-const ANY_MAKE = "__any_make__";
-const ANY_MODEL = "__any_model__";
-const ANY_TRIM = "__any_trim__";
-
 // Max vehicle price: 0–200k then Any
 const PRICE_MIN = 0;
 const PRICE_MAX = 200000;
@@ -55,6 +45,16 @@ const PRICE_STEP = 500; // matches the old slider step
 const PRICE_TICKS = Math.round((PRICE_MAX - PRICE_MIN) / PRICE_STEP); // 0..400 = 0..200k
 const PRICE_SLIDER_ANY = PRICE_TICKS + 1; // 401 = Any
 const PRICE_ANY_VALUE = 999999;
+
+const defaultValues = {
+  maxPrice: PRICE_ANY_VALUE,
+  maxPayment: PAYMENT_ANY_VALUE,
+  usedMaxPrice: PRICE_ANY_VALUE,
+  maxMileage: 60000
+};
+const ANY_MAKE = "__any_make__";
+const ANY_MODEL = "__any_model__";
+const ANY_TRIM = "__any_trim__";
 
 function priceToSliderValue(price: number): number {
   if (price >= PRICE_ANY_VALUE) return PRICE_SLIDER_ANY;
