@@ -275,7 +275,6 @@ export default function CustomerDashboard() {
       router.replace("/dashboard/credit-union");
     }
   }, [user?.role, router]);
-  const [workspaceTab, setWorkspaceTab] = useState<"deal_room" | "favorites">("deal_room");
   const [selectedThreadKey, setSelectedThreadKey] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
   const [docsDialogOpen, setDocsDialogOpen] = useState(false);
@@ -485,14 +484,14 @@ export default function CustomerDashboard() {
   }, [activeThread?.vin, dealsQuery.data?.items]);
 
   useEffect(() => {
-    if (workspaceTab !== "deal_room" || !activeThread) return;
+    if (!activeThread) return;
     const node = messageScrollRef.current;
     if (!node) return;
     const raf = requestAnimationFrame(() => {
       node.scrollTop = node.scrollHeight;
     });
     return () => cancelAnimationFrame(raf);
-  }, [workspaceTab, activeThread?.key, activeThread?.items.length]);
+  }, [activeThread?.key, activeThread?.items.length]);
 
   const resetDocsUploadForm = () => {
     setDriversLicenseFile(null);
@@ -614,8 +613,8 @@ export default function CustomerDashboard() {
           </h2>
           <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-[11px] leading-snug text-ink-700 marker:text-ink-500 sm:mt-3 sm:space-y-2 sm:text-sm sm:leading-relaxed">
             <li>
-              Save vehicles you like from search — use the heart on a car&apos;s page. They appear under{" "}
-              <span className="font-medium text-ink-900">Favorites</span> below.
+              Save vehicles you like from search — use the heart on a car&apos;s page. Open{" "}
+              <span className="font-medium text-ink-900">Favorites</span> from Keep shopping or the main menu.
             </li>
             <li>
               Tap <span className="font-medium text-ink-900">Deal Room</span> to pick a conversation and message your broker about a vehicle or deal.
@@ -658,11 +657,11 @@ export default function CustomerDashboard() {
         <div className="grid gap-6 md:grid-cols-[260px_1fr]">
           <div className="space-y-4">
             <Card className="tc-fade-up bg-white shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Keep shopping</CardTitle>
-                  <p className="text-xs font-normal text-ink-600">Jump back to inventory and add more to your list.</p>
-                </CardHeader>
-              <CardContent className="space-y-2">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Keep shopping</CardTitle>
+                <p className="text-xs font-normal text-ink-600">Jump back to inventory, lease specials, or your saved cars.</p>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-3 md:grid-cols-1">
                 <Button asChild variant="outline" className="h-auto w-full justify-start gap-2 py-2.5 text-left font-medium">
                   <Link href="/search?vehicle_type=new">
                     <Search className="h-4 w-4 shrink-0 text-brand-700" />
@@ -675,68 +674,18 @@ export default function CustomerDashboard() {
                     Lease Specials
                   </Link>
                 </Button>
-              </CardContent>
-            </Card>
-            <Card className="tc-fade-up bg-white shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-base">Workspace</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setWorkspaceTab("deal_room")}
-                  className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm ${
-                    workspaceTab === "deal_room" ? "border-brand-500 bg-brand-50 text-brand-900" : "border-ink-200 bg-white text-ink-700"
-                  }`}
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  Deal Room
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWorkspaceTab("favorites")}
-                  className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm ${
-                    workspaceTab === "favorites" ? "border-brand-500 bg-brand-50 text-brand-900" : "border-ink-200 bg-white text-ink-700"
-                  }`}
-                >
-                  <Heart className="h-4 w-4" />
-                  Favorites
-                </button>
+                <Button asChild variant="outline" className="h-auto w-full justify-start gap-2 py-2.5 text-left font-medium">
+                  <Link href="/favorites">
+                    <Heart className="h-4 w-4 shrink-0 text-brand-700" />
+                    Favorites
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
           </div>
 
           <div className="space-y-6">
-            {workspaceTab === "favorites" && (
-              <Card className="tc-fade-up bg-white shadow-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Heart className="h-5 w-5 text-brand-700" />
-                    Favorites
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {(favoritesQuery.data?.items ?? []).length === 0 && (
-                    <p className="text-sm text-ink-600">No favorites yet.</p>
-                  )}
-                  {(favoritesQuery.data?.items ?? []).map((vehicle) => (
-                    <Link
-                      key={vehicle.vin}
-                      href={`/vehicles/${encodeURIComponent(vehicle.vin)}`}
-                      className="flex items-center justify-between rounded-xl border border-ink-200 bg-ink-50 px-3 py-3 text-sm transition hover:border-brand-300 hover:bg-white"
-                    >
-                      <span className="font-medium text-ink-900">
-                        {vehicle.year} {vehicle.make} {vehicle.model}
-                      </span>
-                      <span className="text-xs text-ink-500">View details</span>
-                    </Link>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {workspaceTab === "deal_room" && (
-              <Card className="tc-fade-up-delay bg-white shadow-sm">
+            <Card className="tc-fade-up-delay bg-white shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <MessageSquare className="h-5 w-5 text-brand-700" />
@@ -936,7 +885,6 @@ export default function CustomerDashboard() {
                   )}
                 </CardContent>
               </Card>
-            )}
           </div>
         </div>
 

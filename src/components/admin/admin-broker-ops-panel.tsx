@@ -51,7 +51,11 @@ type ConfirmAction = (title: string, onConfirm: () => void, description?: string
 
 type DocCreditStatus = { id?: number; status?: string | null; created_at?: string | null };
 
+/** full: pipeline + deal list + chats; pipeline_chats: pipeline summary + chats; deals_only: deal list + filters (for Leads tab expand). */
+export type AdminBrokerOpsPanelMode = "full" | "pipeline_chats" | "deals_only";
+
 export type AdminBrokerOpsPanelProps = {
+  panelMode?: AdminBrokerOpsPanelMode;
   dealPipelineRef: RefObject<HTMLElement>;
   conversationRef: RefObject<HTMLElement>;
   messageScrollRef: RefObject<HTMLDivElement>;
@@ -114,6 +118,7 @@ export type AdminBrokerOpsPanelProps = {
 };
 
 export function AdminBrokerOpsPanel({
+  panelMode = "full",
   dealPipelineRef,
   conversationRef,
   messageScrollRef,
@@ -164,6 +169,10 @@ export function AdminBrokerOpsPanel({
   deleteOfferOverrideMutation,
   dealEventsQuery
 }: AdminBrokerOpsPanelProps) {
+  const showPipelineHeader = panelMode === "full" || panelMode === "pipeline_chats";
+  const showDealQueue = panelMode === "full" || panelMode === "deals_only";
+  const showConversationsSection = panelMode === "full" || panelMode === "pipeline_chats";
+
   const activeDeals = deals.filter((deal) => !["delivered", "cancelled"].includes(deal.status)).length;
   const unassignedDeals = deals.filter((deal) => !deal.assigned_broker_email && !["delivered", "cancelled"].includes(deal.status)).length;
   const deliveryQueueDeals = deals.filter((deal) => ["locked", "docs_pending"].includes(deal.status)).length;
@@ -265,157 +274,203 @@ export function AdminBrokerOpsPanel({
     );
   };
 
+  const pipelineStepGrid = (
+    <div className="grid gap-2 rounded-xl border border-ink-200 bg-white p-3 md:grid-cols-6">
+      {PIPELINE_STEPS.map((step, index) => {
+        const Icon = step.icon;
+        const isSelected = statusFilter === step.key;
+        const isInSelectionPath = statusFilter !== "all" && index <= selectedStatusIndex;
+        return (
+          <button
+            key={step.key}
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === step.key ? "all" : step.key)}
+            className={`rounded-xl border px-3 py-3 text-left transition ${
+              isSelected
+                ? "border-brand-600 bg-brand-50 shadow-sm"
+                : isInSelectionPath
+                  ? "border-emerald-300 bg-emerald-50"
+                  : "border-ink-200 bg-ink-50 hover:border-brand-300"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <Icon className={`h-4 w-4 ${isSelected ? "text-brand-700" : isInSelectionPath ? "text-emerald-700" : "text-ink-600"}`} />
+              <span className="text-sm font-semibold text-ink-900">{pipelineCounts[index]}</span>
+            </div>
+            <p className="mt-2 text-xs font-medium text-ink-700">{step.label}</p>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const dealSearchRow = (
+    <div className="flex flex-wrap gap-2">
+      <Input
+        value={dealSearch}
+        onChange={(e) => setDealSearch(e.target.value)}
+        placeholder="Search by VIN, deal ID, customer name, or email"
+        className="max-w-xl"
+      />
+      {(dealSearch || statusFilter !== "all") && (
+        <Button
+          variant="outline"
+          onClick={() => {
+            setDealSearch("");
+            setStatusFilter("all");
+          }}
+        >
+          Clear filters
+        </Button>
+      )}
+    </div>
+  );
+
+  const dealCardsList = (
+    <>
+      {filteredDeals.length === 0 && <p className="text-sm text-ink-600">No deals match current filters.</p>}
+      <div className="space-y-4">
+        {filteredDeals.slice(0, 80).map((deal) => (
+          <AdminDealCard
+            key={deal.id}
+            deal={deal}
+            assignBrokerEmails={assignBrokerEmails}
+            setAssignBrokerEmails={setAssignBrokerEmails}
+            scheduleDates={scheduleDates}
+            setScheduleDates={setScheduleDates}
+            scheduleAddress={scheduleAddress}
+            setScheduleAddress={setScheduleAddress}
+            saveDealMeta={(payload) => {
+              confirmAction(
+                `Save deal details for deal #${payload.dealId}?`,
+                () => saveDealMetaMutation.mutate(payload),
+                "This will update broker assignment and/or delivery details."
+              );
+            }}
+            moveDeal={(dealId, status) => {
+              confirmAction(
+                `Move deal #${dealId} to ${statusLabel(status)}?`,
+                () => updateDealMutation.mutate({ dealId, status }),
+                "This will update the customer-visible deal timeline."
+              );
+            }}
+            cancelDeal={(dealId) => {
+              confirmAction(
+                `Cancel deal #${dealId}?`,
+                () => updateDealMutation.mutate({ dealId, status: "cancelled" }),
+                "This will stop the active workflow for this deal."
+              );
+            }}
+            openConversationForDeal={focusConversationForDeal}
+            isSaving={saveDealMetaMutation.isPending || updateDealMutation.isPending}
+            isJumpingToConversation={messagesQuery.isLoading}
+            isHighlighted={highlightedDealId === deal.id}
+            vehicle={vehiclesByVin[deal.vin]}
+            docStatus={latestDocByDealKey[`${deal.user_id}|${deal.vin}`] ?? latestDocByVin[deal.vin]}
+            openDocsQueue={openDocsQueueForVin}
+            requestDocsFromCustomer={requestDocsForDeal}
+            updateDocStatusForDeal={setDocStatusForDeal}
+            isUpdatingDocs={updateDocSubmissionMutation.isPending || sendBrokerReplyMutation.isPending}
+            creditStatus={latestCreditByDealKey[`${deal.user_id}|${deal.vin}`] ?? latestCreditByVin[deal.vin]}
+            openCreditQueue={openCreditQueueForVin}
+            requestCreditFromCustomer={requestCreditForDeal}
+            updateCreditStatusForDeal={setCreditStatusForDeal}
+            isUpdatingCredit={updateCreditApplicationMutation.isPending || sendBrokerReplyMutation.isPending}
+            leaseSpecialSource={offerOverrideByVin[deal.vin]?.source ?? null}
+            toggleLeaseSpecial={toggleLeaseSpecialForDeal}
+            isTogglingLeaseSpecial={upsertOfferOverrideMutation.isPending || deleteOfferOverrideMutation.isPending}
+            expandedDealId={expandedDealId}
+            setExpandedDealId={setExpandedDealId}
+            eventsState={{
+              isLoading: dealEventsQuery.isLoading,
+              isError: dealEventsQuery.isError,
+              items: dealEventsQuery.data?.items ?? []
+            }}
+          />
+        ))}
+      </div>
+    </>
+  );
+
   return (
     <>
-      <section ref={dealPipelineRef}>
-        <Card className="border-ink-200 bg-white">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BriefcaseBusiness className="h-4 w-4 text-brand-600" />
-              Deal Pipeline
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-4">
-              <div className="rounded-xl border border-ink-200 bg-ink-50 p-3">
-                <p className="text-xs uppercase tracking-wide text-ink-500">Open deals</p>
-                <p className="mt-1 text-2xl font-semibold text-ink-900">{activeDeals}</p>
+      {showPipelineHeader && (
+        <section ref={dealPipelineRef}>
+          <Card className="border-ink-200 bg-white">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BriefcaseBusiness className="h-4 w-4 text-brand-600" />
+                Deal Pipeline
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-4">
+                <div className="rounded-xl border border-ink-200 bg-ink-50 p-3">
+                  <p className="text-xs uppercase tracking-wide text-ink-500">Open deals</p>
+                  <p className="mt-1 text-2xl font-semibold text-ink-900">{activeDeals}</p>
+                </div>
+                <div className="rounded-xl border border-ink-200 bg-ink-50 p-3">
+                  <p className="text-xs uppercase tracking-wide text-ink-500">Unassigned</p>
+                  <p className="mt-1 text-2xl font-semibold text-amber-700">{unassignedDeals}</p>
+                </div>
+                <div className="rounded-xl border border-ink-200 bg-ink-50 p-3">
+                  <p className="text-xs uppercase tracking-wide text-ink-500">Delivery queue</p>
+                  <p className="mt-1 text-2xl font-semibold text-ink-900">{deliveryQueueDeals}</p>
+                </div>
+                <div className="rounded-xl border border-ink-200 bg-ink-50 p-3">
+                  <p className="text-xs uppercase tracking-wide text-ink-500">Needs broker reply</p>
+                  <p className="mt-1 text-2xl font-semibold text-red-600">{replyNeededCount}</p>
+                </div>
               </div>
-              <div className="rounded-xl border border-ink-200 bg-ink-50 p-3">
-                <p className="text-xs uppercase tracking-wide text-ink-500">Unassigned</p>
-                <p className="mt-1 text-2xl font-semibold text-amber-700">{unassignedDeals}</p>
-              </div>
-              <div className="rounded-xl border border-ink-200 bg-ink-50 p-3">
-                <p className="text-xs uppercase tracking-wide text-ink-500">Delivery queue</p>
-                <p className="mt-1 text-2xl font-semibold text-ink-900">{deliveryQueueDeals}</p>
-              </div>
-              <div className="rounded-xl border border-ink-200 bg-ink-50 p-3">
-                <p className="text-xs uppercase tracking-wide text-ink-500">Needs broker reply</p>
-                <p className="mt-1 text-2xl font-semibold text-red-600">{replyNeededCount}</p>
-              </div>
-            </div>
 
-            {statusFilter !== "all" && (
-              <div className="rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800">
-                Viewing <span className="font-semibold">{filteredStatusCount}</span> deals in{" "}
-                <span className="font-semibold">{statusLabel(statusFilter)}</span>
-              </div>
-            )}
-
-            <div className="grid gap-2 rounded-xl border border-ink-200 bg-white p-3 md:grid-cols-6">
-              {PIPELINE_STEPS.map((step, index) => {
-                const Icon = step.icon;
-                const isSelected = statusFilter === step.key;
-                const isInSelectionPath = statusFilter !== "all" && index <= selectedStatusIndex;
-                return (
-                  <button
-                    key={step.key}
-                    type="button"
-                    onClick={() => setStatusFilter(statusFilter === step.key ? "all" : step.key)}
-                    className={`rounded-xl border px-3 py-3 text-left transition ${
-                      isSelected
-                        ? "border-brand-600 bg-brand-50 shadow-sm"
-                        : isInSelectionPath
-                          ? "border-emerald-300 bg-emerald-50"
-                          : "border-ink-200 bg-ink-50 hover:border-brand-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <Icon className={`h-4 w-4 ${isSelected ? "text-brand-700" : isInSelectionPath ? "text-emerald-700" : "text-ink-600"}`} />
-                      <span className="text-sm font-semibold text-ink-900">{pipelineCounts[index]}</span>
-                    </div>
-                    <p className="mt-2 text-xs font-medium text-ink-700">{step.label}</p>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Input
-                value={dealSearch}
-                onChange={(e) => setDealSearch(e.target.value)}
-                placeholder="Search by VIN, deal ID, customer name, or email"
-                className="max-w-xl"
-              />
-              {(dealSearch || statusFilter !== "all") && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setDealSearch("");
-                    setStatusFilter("all");
-                  }}
-                >
-                  Clear filters
-                </Button>
+              {statusFilter !== "all" && (
+                <div className="rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800">
+                  Viewing <span className="font-semibold">{filteredStatusCount}</span> deals in{" "}
+                  <span className="font-semibold">{statusLabel(statusFilter)}</span>
+                </div>
               )}
-            </div>
 
-            {filteredDeals.length === 0 && <p className="text-sm text-ink-600">No deals match current filters.</p>}
+              {pipelineStepGrid}
 
-            <div className="space-y-4">
-              {filteredDeals.slice(0, 80).map((deal) => (
-                <AdminDealCard
-                  key={deal.id}
-                  deal={deal}
-                  assignBrokerEmails={assignBrokerEmails}
-                  setAssignBrokerEmails={setAssignBrokerEmails}
-                  scheduleDates={scheduleDates}
-                  setScheduleDates={setScheduleDates}
-                  scheduleAddress={scheduleAddress}
-                  setScheduleAddress={setScheduleAddress}
-                  saveDealMeta={(payload) => {
-                    confirmAction(
-                      `Save deal details for deal #${payload.dealId}?`,
-                      () => saveDealMetaMutation.mutate(payload),
-                      "This will update broker assignment and/or delivery details."
-                    );
-                  }}
-                  moveDeal={(dealId, status) => {
-                    confirmAction(
-                      `Move deal #${dealId} to ${statusLabel(status)}?`,
-                      () => updateDealMutation.mutate({ dealId, status }),
-                      "This will update the customer-visible deal timeline."
-                    );
-                  }}
-                  cancelDeal={(dealId) => {
-                    confirmAction(
-                      `Cancel deal #${dealId}?`,
-                      () => updateDealMutation.mutate({ dealId, status: "cancelled" }),
-                      "This will stop the active workflow for this deal."
-                    );
-                  }}
-                  openConversationForDeal={focusConversationForDeal}
-                  isSaving={saveDealMetaMutation.isPending || updateDealMutation.isPending}
-                  isJumpingToConversation={messagesQuery.isLoading}
-                  isHighlighted={highlightedDealId === deal.id}
-                  vehicle={vehiclesByVin[deal.vin]}
-                  docStatus={latestDocByDealKey[`${deal.user_id}|${deal.vin}`] ?? latestDocByVin[deal.vin]}
-                  openDocsQueue={openDocsQueueForVin}
-                  requestDocsFromCustomer={requestDocsForDeal}
-                  updateDocStatusForDeal={setDocStatusForDeal}
-                  isUpdatingDocs={updateDocSubmissionMutation.isPending || sendBrokerReplyMutation.isPending}
-                  creditStatus={latestCreditByDealKey[`${deal.user_id}|${deal.vin}`] ?? latestCreditByVin[deal.vin]}
-                  openCreditQueue={openCreditQueueForVin}
-                  requestCreditFromCustomer={requestCreditForDeal}
-                  updateCreditStatusForDeal={setCreditStatusForDeal}
-                  isUpdatingCredit={updateCreditApplicationMutation.isPending || sendBrokerReplyMutation.isPending}
-                  leaseSpecialSource={offerOverrideByVin[deal.vin]?.source ?? null}
-                  toggleLeaseSpecial={toggleLeaseSpecialForDeal}
-                  isTogglingLeaseSpecial={upsertOfferOverrideMutation.isPending || deleteOfferOverrideMutation.isPending}
-                  expandedDealId={expandedDealId}
-                  setExpandedDealId={setExpandedDealId}
-                  eventsState={{
-                    isLoading: dealEventsQuery.isLoading,
-                    isError: dealEventsQuery.isError,
-                    items: dealEventsQuery.data?.items ?? []
-                  }}
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </section>
+              {panelMode === "full" && (
+                <>
+                  {dealSearchRow}
+                  {dealCardsList}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
+      {panelMode === "deals_only" && (
+        <section ref={dealPipelineRef}>
+          <Card className="border-ink-200 bg-white">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BriefcaseBusiness className="h-4 w-4 text-brand-600" />
+                Deal queue &amp; actions
+              </CardTitle>
+              <p className="text-sm text-ink-600">
+                Same deal cards as before — pipeline stage filters apply here and on Broker Operations.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {statusFilter !== "all" && (
+                <div className="rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800">
+                  Viewing <span className="font-semibold">{filteredStatusCount}</span> deals in{" "}
+                  <span className="font-semibold">{statusLabel(statusFilter)}</span>
+                </div>
+              )}
+              {pipelineStepGrid}
+              {dealSearchRow}
+              {dealCardsList}
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
+      {showConversationsSection && (
       <section ref={conversationRef}>
         <Card className="border-ink-200 bg-white">
           <CardHeader>
@@ -704,6 +759,7 @@ export function AdminBrokerOpsPanel({
           </CardContent>
         </Card>
       </section>
+      )}
     </>
   );
 }

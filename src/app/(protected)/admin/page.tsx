@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/toast-provider";
 import { useAuth } from "@/components/auth-provider";
-import { ExternalLink, MessageCircle } from "lucide-react";
+import { ChevronDown, ExternalLink, LayoutList, MessageCircle } from "lucide-react";
 import { LandingPageEditor } from "@/components/admin/landing-page-editor";
 import UserManagement from "@/components/admin/user-management";
 import { CreditUnionsManager } from "@/components/admin/credit-unions-manager";
@@ -186,6 +186,7 @@ export default function AdminPage() {
   const [seoIsActive, setSeoIsActive] = useState(true);
   const [leadDeliveryStatusFilter, setLeadDeliveryStatusFilter] = useState<"all" | "pending" | "sent" | "failed" | "skipped">("all");
   const [leadDeliverySearch, setLeadDeliverySearch] = useState("");
+  const [leadsDealWorkspaceOpen, setLeadsDealWorkspaceOpen] = useState(false);
   const [adminTab, setAdminTab] = useState<"broker_ops" | "credit_docs" | "leads" | "admin_data" | "landing_page" | "credit_unions" | "users">("broker_ops");
   const [confirmState, setConfirmState] = useState<{
     open: boolean;
@@ -200,6 +201,7 @@ export default function AdminPage() {
   });
   const messageScrollRef = useRef<HTMLDivElement>(null);
   const dealPipelineRef = useRef<HTMLElement>(null);
+  const leadsDealQueueRef = useRef<HTMLElement>(null);
   const conversationRef = useRef<HTMLElement>(null);
   const docsQueueRef = useRef<HTMLDivElement>(null);
   const manualVehicleControlRef = useRef<HTMLDivElement>(null);
@@ -821,14 +823,24 @@ export default function AdminPage() {
     setStatusFilter("all");
     setDealSearch(deal.vin);
     setHighlightedDealId(deal.id);
-    setTimeout(() => {
+    if (isBrokerWorkspace) {
+      setLeadsDealWorkspaceOpen(true);
+      setAdminTab("leads");
+    }
+    const tryScrollToCard = () => {
       const target = document.getElementById(`deal-card-${deal.id}`);
       if (target) {
         target.scrollIntoView({ behavior: "smooth", block: "center" });
-      } else {
-        dealPipelineRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        return true;
       }
-    }, 0);
+      return false;
+    };
+    setTimeout(() => {
+      if (!tryScrollToCard()) {
+        leadsDealQueueRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        setTimeout(() => tryScrollToCard(), 200);
+      }
+    }, 120);
   };
 
   const openDocsQueueForVin = (vin: string) => {
@@ -1327,7 +1339,10 @@ export default function AdminPage() {
                     <summary className="cursor-pointer font-medium text-brand-800 hover:underline">Broker testing tips</summary>
                     <ul className="mt-2 max-w-md list-disc space-y-1 pl-5 text-xs leading-relaxed">
                       <li>Use a <strong>broker_admin</strong> test login (not customer) to see queues, deals, and messages.</li>
-                      <li>Open <strong>Broker Operations</strong> for the pipeline; use <strong>Leads</strong> for webhook delivery rows.</li>
+                      <li>
+                        <strong>Broker Operations</strong> shows the pipeline and customer conversations; expand <strong>Deal queue</strong> on{" "}
+                        <strong>Leads</strong> for deal cards and actions.
+                      </li>
                       <li>Pick a conversation thread, draft a reply, then send — customer sees it in Deal Room.</li>
                       <li><strong>Sync sheets</strong> refreshes inventory-related data from your connected sheet workflow.</li>
                     </ul>
@@ -1359,11 +1374,31 @@ export default function AdminPage() {
           <TabsContent value="leads" className="space-y-6">
             <Card className="border-ink-200 bg-white">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4 text-brand-600" />
-                  All Submitted Leads
-                </CardTitle>
-                <p className="text-sm text-ink-600">Get Price and other lead form submissions. Search and filter below.</p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4 text-brand-600" />
+                      All Submitted Leads
+                    </CardTitle>
+                    <p className="mt-1 text-sm text-ink-600">
+                      Get Price and other lead form submissions. Use <strong>Actions</strong> to retry webhooks or expand row details. Open the deal
+                      workspace below for the same deal cards that used to live under Broker Operations.
+                    </p>
+                  </div>
+                  {isBrokerWorkspace && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 gap-2"
+                      onClick={() => setLeadsDealWorkspaceOpen((o) => !o)}
+                    >
+                      <LayoutList className="h-4 w-4" />
+                      {leadsDealWorkspaceOpen ? "Hide deal workspace" : "Expand deal workspace"}
+                      <ChevronDown className={`h-4 w-4 transition-transform ${leadsDealWorkspaceOpen ? "rotate-180" : ""}`} />
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <AdminLeadDeliveryPanel
@@ -1383,6 +1418,62 @@ export default function AdminPage() {
                     )
                   }
                 />
+                {isBrokerWorkspace && leadsDealWorkspaceOpen && (
+                  <div className="space-y-4 border-t border-ink-200 pt-6">
+                    <AdminBrokerOpsPanel
+                      panelMode="deals_only"
+                      dealPipelineRef={leadsDealQueueRef}
+                      conversationRef={conversationRef}
+                      messageScrollRef={messageScrollRef}
+                      deals={deals}
+                      threads={threads}
+                      vehiclesByVin={vehiclesByVin}
+                      latestDocByDealKey={latestDocByDealKey}
+                      latestDocByVin={latestDocByVin}
+                      latestCreditByDealKey={latestCreditByDealKey}
+                      latestCreditByVin={latestCreditByVin}
+                      offerOverrideByVin={offerOverrideByVin}
+                      dealSearch={dealSearch}
+                      setDealSearch={setDealSearch}
+                      statusFilter={statusFilter}
+                      setStatusFilter={setStatusFilter}
+                      assignBrokerEmails={assignBrokerEmails}
+                      setAssignBrokerEmails={setAssignBrokerEmails}
+                      scheduleDates={scheduleDates}
+                      setScheduleDates={setScheduleDates}
+                      scheduleAddress={scheduleAddress}
+                      setScheduleAddress={setScheduleAddress}
+                      expandedDealId={expandedDealId}
+                      setExpandedDealId={setExpandedDealId}
+                      highlightedDealId={highlightedDealId}
+                      conversationSearch={conversationSearch}
+                      setConversationSearch={setConversationSearch}
+                      selectedThreadKey={selectedThreadKey}
+                      setSelectedThreadKey={setSelectedThreadKey}
+                      brokerReplyByThread={brokerReplyByThread}
+                      setBrokerReplyByThread={setBrokerReplyByThread}
+                      confirmAction={confirmAction}
+                      focusConversationForDeal={focusConversationForDeal}
+                      focusDealInPipeline={focusDealInPipeline}
+                      openDocsQueueForVin={openDocsQueueForVin}
+                      openCreditQueueForVin={openCreditQueueForVin}
+                      requestDocsForDeal={requestDocsForDeal}
+                      requestCreditForDeal={requestCreditForDeal}
+                      setDocStatusForDeal={setDocStatusForDeal}
+                      setCreditStatusForDeal={setCreditStatusForDeal}
+                      toggleLeaseSpecialForDeal={toggleLeaseSpecialForDeal}
+                      saveDealMetaMutation={saveDealMetaMutation}
+                      updateDealMutation={updateDealMutation}
+                      messagesQuery={messagesQuery}
+                      sendBrokerReplyMutation={sendBrokerReplyMutation}
+                      updateDocSubmissionMutation={updateDocSubmissionMutation}
+                      updateCreditApplicationMutation={updateCreditApplicationMutation}
+                      upsertOfferOverrideMutation={upsertOfferOverrideMutation}
+                      deleteOfferOverrideMutation={deleteOfferOverrideMutation}
+                      dealEventsQuery={dealEventsQuery}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1390,6 +1481,7 @@ export default function AdminPage() {
           {!isSuperAdmin && (
             <TabsContent value="broker_ops" className="space-y-6">
               <AdminBrokerOpsPanel
+                panelMode="pipeline_chats"
                 dealPipelineRef={dealPipelineRef}
                 conversationRef={conversationRef}
                 messageScrollRef={messageScrollRef}

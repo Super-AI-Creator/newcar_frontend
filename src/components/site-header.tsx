@@ -69,6 +69,8 @@ export default function SiteHeader() {
   const links = [...roleLinks, ...publicBrandLinks];
   const desktopNavLinks = isCustomer ? links.filter((l) => l.href !== customerDealRoomLink.href) : links;
   const homeHref = isAdmin ? "/admin" : isDealer ? "/dashboard/dealer" : "/";
+  /** Logged-in shoppers always land on marketing home `/` (not dashboard) so the logo works as “Home” from Deal Room. */
+  const logoHref = isCustomer ? "/" : homeHref;
   const hideBack = pathname === "/" || pathname === homeHref;
   const goBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -114,7 +116,13 @@ export default function SiteHeader() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           ) : null}
-          <Link href={homeHref} className="flex min-w-0 shrink-0" aria-label="NewCarSuperstore home">
+          <Link
+            href={logoHref}
+            className="relative z-10 flex min-w-0 shrink-0 items-center rounded-md p-1 -m-0.5 ring-offset-2 transition-opacity hover:opacity-90 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+            aria-label="NewCarSuperstore home"
+            title="Home"
+            prefetch={isCustomer ? false : undefined}
+          >
             <Logo />
           </Link>
           <a
