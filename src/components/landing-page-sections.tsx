@@ -33,7 +33,7 @@ const DEFAULT_HOW = [
 ];
 
 export default function LandingPageSections() {
-  const { data } = useQuery({
+  const { data, isPending } = useQuery({
     queryKey: ["landing-page"],
     queryFn: () => api.getLandingPage(),
   });
@@ -58,12 +58,13 @@ export default function LandingPageSections() {
     alt: `Slide ${i + 1}`,
     focus: slideFocusRaw[i] ?? "center",
   }));
+  const carouselSlides = isPending && data === undefined ? [] : slides;
 
   return (
     <>
       <section className="relative overflow-hidden border-b border-ink-200">
         <div className="absolute inset-0">
-          <LandingHeroCarousel className="h-full w-full" imageClassName="opacity-85" priority slides={slides} />
+          <LandingHeroCarousel className="h-full w-full" imageClassName="opacity-85" priority slides={carouselSlides} />
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-ink-950/90 via-ink-900/80 to-brand-900/55" />
         <div className="container-wide relative py-12 sm:py-20 lg:py-24">
