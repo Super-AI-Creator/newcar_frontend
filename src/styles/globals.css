@@ -195,6 +195,32 @@ h3 {
   }
 }
 
+/* Landing hero: decorative phrases drift downward behind copy */
+.hero-falling-phrase {
+  animation-name: heroPhraseFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+@keyframes heroPhraseFall {
+  0% {
+    transform: translate3d(0, -120%, 0) rotate(var(--phrase-rotate, 0deg));
+    opacity: 0;
+  }
+  5% {
+    opacity: var(--phrase-opacity, 0.18);
+  }
+  85% {
+    opacity: var(--phrase-opacity, 0.18);
+  }
+  100% {
+    transform: translate3d(0, 115vh, 0) rotate(var(--phrase-rotate, 0deg));
+    opacity: 0;
+  }
+}
+
 @media (max-width: 1024px) {
   .float-card,
   .hero-car-image {
@@ -215,7 +241,11 @@ h3 {
   .tc-fade-up,
   .tc-fade-up-delay,
   .float-card,
-  .hero-car-image {
+  .hero-car-image,
+  .hero-falling-phrase,
+  .hero-falling-phrases-root {
     animation: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
   }
 }

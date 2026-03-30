@@ -34,10 +34,17 @@ export default function LandingHeroCarousel({ className = "", imageClassName = "
 
   const isExternal = (src: string) => src.startsWith("http://") || src.startsWith("https://");
 
-  const focusToCss = () => "50% 50%";
+  const focusToCss = (focus?: string) => {
+    const v = (focus ?? "center").toLowerCase();
+    // if (v === "top") return "0% 0%";
+    // if (v === "bottom") return "0% 0%";
+    // if (v === "left") return "0% 0%";
+    // if (v === "right") return "0% 0%";
+    return "100% 100%";
+  };
 
   return (
-    <div className={`relative h-full w-full overflow-hidden ${className}`}>
+    <div className={`relative h-full w-full overflow-hidden bg-ink-950 ${className}`}>
       {slides.map((slide, i) => (
         <div
           key={slide.src}
@@ -50,8 +57,8 @@ export default function LandingHeroCarousel({ className = "", imageClassName = "
             <img
               src={slide.src}
               alt={i === index ? slide.alt : ""}
-              className={`absolute inset-0 h-full w-full object-cover object-center ${imageClassName}`}
-              style={{ objectPosition: focusToCss() }}
+              className={`absolute inset-0 h-full w-full object-contain object-center ${imageClassName}`}
+              style={{ objectPosition: focusToCss(slide.focus) }}
             />
           ) : (
             <Image
@@ -59,8 +66,8 @@ export default function LandingHeroCarousel({ className = "", imageClassName = "
               alt={i === index ? slide.alt : ""}
               fill
               priority={priority && i === 0}
-              className={`object-cover object-center ${imageClassName}`}
-              style={{ objectPosition: focusToCss() }}
+              className={`object-contain object-center ${imageClassName}`}
+              style={{ objectPosition: focusToCss(slide.focus) }}
               sizes="100vw"
             />
           )}

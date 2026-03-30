@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { DEFAULT_FALLING_PHRASES } from "@/components/hero-falling-phrases";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
 import { FOOTER_DISCLOSURE_DEFAULT } from "@/content/footer-disclosure-default";
-import { api, type LandingPageContentRecord } from "@/lib/api";
+import { api, type LandingPageUpdatePayload } from "@/lib/api";
 import { Layout, Save } from "lucide-react";
 
 const DEFAULT_HERO = {
@@ -49,6 +51,7 @@ const DEFAULT_FOOTER = {
 export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [heroKicker, setHeroKicker] = useState(DEFAULT_HERO.kicker);
   const [heroHeadline, setHeroHeadline] = useState(DEFAULT_HERO.headline);
   const [heroSubtext, setHeroSubtext] = useState(DEFAULT_HERO.subtext);
@@ -71,6 +74,13 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
   const [footerLeaseUrl, setFooterLeaseUrl] = useState(DEFAULT_FOOTER.link_lease_url);
   const [footerBrokerLabel, setFooterBrokerLabel] = useState(DEFAULT_FOOTER.link_broker_label);
   const [footerBrokerUrl, setFooterBrokerUrl] = useState(DEFAULT_FOOTER.link_broker_url);
+
+  const [fallingEnabled, setFallingEnabled] = useState(true);
+  const [fallingPhrasesText, setFallingPhrasesText] = useState(DEFAULT_FALLING_PHRASES.join("\n"));
+  const [fallingDurMin, setFallingDurMin] = useState(19);
+  const [fallingDurMax, setFallingDurMax] = useState(26);
+  const [fallingMaxPhrases, setFallingMaxPhrases] = useState(8);
+  const [fallingStagger, setFallingStagger] = useState(2.4);
 
   const query = useQuery({
     queryKey: ["admin-landing-page"],
@@ -120,6 +130,15 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
       if (d.hero.subtext != null) setHeroSubtext(d.hero.subtext);
       if (d.hero.slide_urls?.length) setSlideUrls(d.hero.slide_urls);
       if (d.hero.slide_focus?.length) setSlideFocus(d.hero.slide_focus);
+      const f = d.hero.falling;
+      if (f) {
+        setFallingEnabled(f.enabled !== false);
+        if (f.phrases?.length) setFallingPhrasesText(f.phrases.join("\n"));
+        if (f.duration_min != null) setFallingDurMin(f.duration_min);
+        if (f.duration_max != null) setFallingDurMax(f.duration_max);
+        if (f.max_phrases != null) setFallingMaxPhrases(f.max_phrases);
+        if (f.stagger != null) setFallingStagger(f.stagger);
+      }
     }
     if (d.lease) {
       if (d.lease.title != null) setLeaseTitle(d.lease.title);
@@ -152,9 +171,10 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
   }, [query.data]);
 
   const updateMutation = useMutation({
-    mutationFn: (payload: LandingPageContentRecord) => api.updateLandingPage(payload),
+    mutationFn: (payload: LandingPageUpdatePayload) => api.updateLandingPage(payload),
     onSuccess: () => {
       query.refetch();
+      void queryClient.invalidateQueries({ queryKey: ["landing-page"] });
       toast({ variant: "success", title: "Live homepage updated" });
     },
     onError: (e: unknown) => {
@@ -165,7 +185,7 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
   const handleSave = () => {
     if (typeof window !== "undefined") {
       const ok = window.confirm(
-        "Save to the live homepage now? Visitors will see hero, lease section, how-it-works, and footer changes immediately."
+        "Save to the live homepage now? Visitors will see hero, falling phrases, lease section, how-it-works, and footer changes immediately."
       );
       if (!ok) return;
     }
@@ -176,6 +196,17 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
         subtext: heroSubtext,
         slide_urls: slideUrls.filter(Boolean),
         slide_focus: slideFocus.slice(0, slideUrls.length),
+        falling: {
+          enabled: fallingEnabled,
+          phrases: fallingPhrasesText
+            .split("\n")
+            .map((s) => s.trim())
+            .filter(Boolean),
+          duration_min: Math.max(8, Math.min(90, Math.round(Number(fallingDurMin) || 19))),
+          duration_max: Math.max(8, Math.min(120, Math.round(Number(fallingDurMax) || 26))),
+          max_phrases: Math.max(1, Math.min(24, Math.round(Number(fallingMaxPhrases) || 8))),
+          stagger: Math.max(0.8, Math.min(5, Number(fallingStagger) || 2.4))
+        }
       },
       lease: { title: leaseTitle, subtitle: leaseSubtitle },
       how_it_works: howSteps.map((s) => ({ image_url: s.image_url, label: s.label, image_focus: s.image_focus ?? "center" })),
@@ -298,6 +329,89 @@ export function LandingPageEditor({ embedded }: { embedded?: boolean }) {
             {uploadImageMutation.isPending && (
               <p className="text-xs text-ink-500">Uploading image… please wait a moment.</p>
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-ink-200 bg-white">
+        <CardHeader>
+          <CardTitle className="text-lg">Hero falling phrases</CardTitle>
+          <p className="text-sm font-normal text-ink-600">
+            Decorative text that drifts behind the headline (left column). One phrase per line. Speed = how long each line takes to fall;
+            max phrases = how many lines run at once; stagger = spacing in the loop (higher = fewer on screen).
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-ink-100 bg-ink-50/50 px-3 py-2">
+            <div>
+              <Label htmlFor="falling-enabled" className="text-sm font-medium text-ink-900">
+                Enable falling phrases
+              </Label>
+              <p className="text-xs text-ink-500">Turn off to hide the animation on the public homepage.</p>
+            </div>
+            <Switch id="falling-enabled" checked={fallingEnabled} onCheckedChange={setFallingEnabled} />
+          </div>
+          <div>
+            <Label>Phrases (one per line)</Label>
+            <Textarea
+              value={fallingPhrasesText}
+              onChange={(e) => setFallingPhrasesText(e.target.value)}
+              rows={10}
+              className="mt-1 font-mono text-sm"
+              placeholder={"The #1 Dealer Site\nIt's Very Easy"}
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="fall-dur-min">Fall duration — min (seconds)</Label>
+              <Input
+                id="fall-dur-min"
+                type="number"
+                min={8}
+                max={90}
+                value={fallingDurMin}
+                onChange={(e) => setFallingDurMin(Number(e.target.value))}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="fall-dur-max">Fall duration — max (seconds)</Label>
+              <Input
+                id="fall-dur-max"
+                type="number"
+                min={8}
+                max={120}
+                value={fallingDurMax}
+                onChange={(e) => setFallingDurMax(Number(e.target.value))}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="fall-max">Max phrases at once (1–24)</Label>
+              <Input
+                id="fall-max"
+                type="number"
+                min={1}
+                max={24}
+                value={fallingMaxPhrases}
+                onChange={(e) => setFallingMaxPhrases(Number(e.target.value))}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="fall-stagger">Stagger (0.8–5)</Label>
+              <Input
+                id="fall-stagger"
+                type="number"
+                min={0.8}
+                max={5}
+                step={0.1}
+                value={fallingStagger}
+                onChange={(e) => setFallingStagger(Number(e.target.value))}
+                className="mt-1"
+              />
+              <p className="mt-1 text-xs text-ink-500">Higher values spread phrases apart in time.</p>
+            </div>
           </div>
         </CardContent>
       </Card>

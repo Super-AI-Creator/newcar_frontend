@@ -1660,8 +1660,24 @@ export type ApprovalCreatePayload = {
   member_email?: string | null;
 };
 
+export type LandingHeroFallingPhrases = {
+  enabled?: boolean;
+  phrases?: string[];
+  duration_min?: number;
+  duration_max?: number;
+  max_phrases?: number;
+  stagger?: number;
+};
+
 export type LandingPageContentRecord = {
-  hero?: { kicker?: string; headline?: string; subtext?: string; slide_urls?: string[]; slide_focus?: string[] };
+  hero?: {
+    kicker?: string;
+    headline?: string;
+    subtext?: string;
+    slide_urls?: string[];
+    slide_focus?: string[];
+    falling?: LandingHeroFallingPhrases;
+  };
   lease?: { title?: string; subtitle?: string };
   how_it_works?: Array<{ image_url?: string; label?: string; image_focus?: string }>;
   footer?: {
@@ -1682,7 +1698,14 @@ export type LandingPageContentRecord = {
 };
 
 export type LandingPageUpdatePayload = {
-  hero?: { kicker?: string; headline?: string; subtext?: string; slide_urls?: string[]; slide_focus?: string[] };
+  hero?: {
+    kicker?: string;
+    headline?: string;
+    subtext?: string;
+    slide_urls?: string[];
+    slide_focus?: string[];
+    falling?: LandingHeroFallingPhrases;
+  };
   lease?: { title?: string; subtitle?: string };
   how_it_works?: Array<{ image_url?: string; label?: string; image_focus?: string }>;
   footer?: {

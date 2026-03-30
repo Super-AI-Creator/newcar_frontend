@@ -5,14 +5,21 @@ import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, type LandingHeroFallingPhrases } from "@/lib/api";
 import LandingHeroCarousel from "@/components/landing-hero-carousel";
+import HeroFallingPhrases from "@/components/hero-falling-phrases";
 import LeaseSpecials from "@/components/lease-specials";
 import HomeShopOptions from "@/components/home-shop-options";
 import HomeTestimonials from "@/components/home-testimonials";
 import { BadgeDollarSign, Building2, ChevronRight, MapPin, Gauge, ShieldCheck } from "lucide-react";
 
-const DEFAULT_HERO = {
+const DEFAULT_HERO: {
+  kicker: string;
+  headline: string;
+  subtext: string;
+  slide_urls: string[];
+  falling?: LandingHeroFallingPhrases;
+} = {
   kicker: "SHOP,  GET APPROVED AND GET THE CAR DELIVERED TO YOUR DOOR WITH A RED BOW",
   headline: "Buy Any New Car in California Without the Dealership",
   subtext: "SHOP, GET APPROVED AND GET THE CAR DELIVERED TO YOUR DOOR WITH A RED BOW.",
@@ -61,7 +68,9 @@ export default function LandingPageSections() {
         <div className="absolute inset-0 bg-gradient-to-r from-ink-950/90 via-ink-900/80 to-brand-900/55" />
         <div className="container-wide relative py-12 sm:py-20 lg:py-24">
           <div className="grid items-center gap-8">
-            <div className="max-w-3xl">
+            <div className="relative max-w-3xl">
+              <HeroFallingPhrases config={hero.falling} />
+              <div className="relative z-10">
               <p className="whitespace-pre-wrap text-xs font-semibold uppercase tracking-[0.16em] text-brand-200">{hero.kicker}</p>
               <h1 className="mt-3 font-display text-3xl font-bold leading-tight text-white sm:mt-4 sm:text-5xl lg:text-6xl">{hero.headline}</h1>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-200 sm:mt-4 sm:text-lg">{hero.subtext}</p>
@@ -93,6 +102,7 @@ export default function LandingPageSections() {
                 </Button>
               </div>
               <p className="mt-3 text-xs text-zinc-300/90">Most people finish browsing in a few minutes.</p>
+              </div>
             </div>
           </div>
         </div>
