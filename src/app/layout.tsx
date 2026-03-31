@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "@/styles/globals.css";
 import Providers from "@/components/providers";
 import { resolveSeoMetadata } from "@/lib/seo";
+import { Analytics } from '@vercel/analytics/next';
 
 export async function generateMetadata(): Promise<Metadata> {
   const fallback: Metadata = {
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="min-h-screen bg-white text-ink-900 antialiased">
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );
