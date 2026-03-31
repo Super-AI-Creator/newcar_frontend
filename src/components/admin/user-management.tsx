@@ -38,6 +38,11 @@ export default function UserManagement() {
   const [editPhoneVerified, setEditPhoneVerified] = useState(false);
   const [roleConfirmOpen, setRoleConfirmOpen] = useState(false);
   const [roleConfirmInput, setRoleConfirmInput] = useState("");
+  const [adminMessage, setAdminMessage] = useState<string | null>(null);
+  const [passwordResetOpen, setPasswordResetOpen] = useState(false);
+  const [passwordResetInput, setPasswordResetInput] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
 
   const updateMutation = useMutation({
     mutationFn: (payload: {
@@ -57,7 +62,39 @@ export default function UserManagement() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      setAdminMessage("User updated.");
       setEditing(null);
+    },
+    onError: (error: any) => {
+      setAdminMessage(error?.message ?? "Could not update user.");
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: (payload: { id: number; new_password: string }) =>
+      api.adminResetUserPassword(payload.id, { new_password: payload.new_password }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      setAdminMessage("Password reset saved.");
+      setPasswordResetInput("");
+      setPasswordResetOpen(false);
+    },
+    onError: (error: any) => {
+      setAdminMessage(error?.message ?? "Could not reset password.");
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (userId: number) => api.adminDeleteUser(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      setAdminMessage("User deleted.");
+      setDeleteConfirmInput("");
+      setDeleteConfirmOpen(false);
+      setEditing(null);
+    },
+    onError: (error: any) => {
+      setAdminMessage(error?.message ?? "Could not delete user.");
     },
   });
 
@@ -85,6 +122,7 @@ export default function UserManagement() {
   }, [filtered]);
 
   const startEditing = (user: User) => {
+    setAdminMessage(null);
     setEditing(user);
     setEditName(user.name ?? "");
     setEditPhone(user.phone ?? "");
@@ -125,6 +163,25 @@ export default function UserManagement() {
     commitSave();
   };
 
+  const handleResetPassword = () => {
+    if (!editing) return;
+    const newPassword = passwordResetInput.trim();
+    if (newPassword.length < 8) {
+      setAdminMessage("New password must be at least 8 characters.");
+      return;
+    }
+    resetPasswordMutation.mutate({ id: editing.id, new_password: newPassword });
+  };
+
+  const handleDeleteUser = () => {
+    if (!editing) return;
+    const typed = deleteConfirmInput.trim();
+    const matches =
+      typed.toUpperCase() === "DELETE" || typed.toLowerCase() === editing.email.trim().toLowerCase();
+    if (!matches) return;
+    deleteUserMutation.mutate(editing.id);
+  };
+
   return (
     <Card className="bg-white border-ink-200">
       <CardHeader>
@@ -139,6 +196,9 @@ export default function UserManagement() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {adminMessage && (
+          <p className="rounded-md bg-ink-50 px-3 py-2 text-sm text-ink-800">{adminMessage}</p>
+        )}
         {isLoading && <p className="text-sm text-ink-500">Loading users…</p>}
         {isError && !isLoading && (
           <p className="text-sm text-red-600">Could not load users.</p>
@@ -277,15 +337,40 @@ export default function UserManagement() {
               <Button
                 size="sm"
                 variant="outline"
+                onClick={() => {
+                  setAdminMessage(null);
+                  setPasswordResetInput("");
+                  setPasswordResetOpen(true);
+                }}
+                disabled={updateMutation.isPending || resetPasswordMutation.isPending || deleteUserMutation.isPending}
+              >
+                Reset password
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-red-200 text-red-700 hover:bg-red-50"
+                onClick={() => {
+                  setAdminMessage(null);
+                  setDeleteConfirmInput("");
+                  setDeleteConfirmOpen(true);
+                }}
+                disabled={updateMutation.isPending || resetPasswordMutation.isPending || deleteUserMutation.isPending}
+              >
+                Delete user
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => setEditing(null)}
-                disabled={updateMutation.isPending}
+                disabled={updateMutation.isPending || resetPasswordMutation.isPending || deleteUserMutation.isPending}
               >
                 Cancel
               </Button>
               <Button
                 size="sm"
                 onClick={handleSave}
-                disabled={updateMutation.isPending}
+                disabled={updateMutation.isPending || resetPasswordMutation.isPending || deleteUserMutation.isPending}
               >
                 {updateMutation.isPending ? "Saving…" : "Save user"}
               </Button>
@@ -326,6 +411,73 @@ export default function UserManagement() {
                 }
               >
                 Apply role change
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={passwordResetOpen} onOpenChange={setPasswordResetOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Reset user password</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-ink-600">
+              Set a new password for <span className="font-medium text-ink-900">{editing?.email}</span>. The user can use it
+              immediately after you save it.
+            </p>
+            <Input
+              type="password"
+              value={passwordResetInput}
+              onChange={(e) => setPasswordResetInput(e.target.value)}
+              placeholder="At least 8 characters"
+              autoComplete="new-password"
+            />
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" onClick={() => setPasswordResetOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={resetPasswordMutation.isPending || passwordResetInput.trim().length < 8}
+              >
+                {resetPasswordMutation.isPending ? "Saving…" : "Save password"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete user</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-ink-600">
+              This tries to permanently delete <span className="font-medium text-ink-900">{editing?.email}</span>. Type{" "}
+              <span className="font-semibold">DELETE</span> or the user&apos;s email to continue.
+            </p>
+            <Input
+              value={deleteConfirmInput}
+              onChange={(e) => setDeleteConfirmInput(e.target.value)}
+              placeholder="DELETE or email"
+              autoComplete="off"
+            />
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="bg-red-600 text-white hover:bg-red-500"
+                onClick={handleDeleteUser}
+                disabled={
+                  deleteUserMutation.isPending ||
+                  !deleteConfirmInput.trim() ||
+                  !(
+                    deleteConfirmInput.trim().toUpperCase() === "DELETE" ||
+                    deleteConfirmInput.trim().toLowerCase() === (editing?.email ?? "").trim().toLowerCase()
+                  )
+                }
+              >
+                {deleteUserMutation.isPending ? "Deleting…" : "Delete user"}
               </Button>
             </div>
           </DialogContent>

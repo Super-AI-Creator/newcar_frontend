@@ -893,6 +893,17 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  adminResetUserPassword: async (userId: number, payload: { new_password: string }) => {
+    return apiFetch<{ changed: boolean }>(`/admin/users/${userId}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  adminDeleteUser: async (userId: number) => {
+    return apiFetch<{ deleted: boolean }>(`/admin/users/${userId}`, {
+      method: "DELETE",
+    });
+  },
   adminHomepageFeatured: async (params?: { month?: string }) => {
     const query = new URLSearchParams();
     if (params?.month) query.set("month", params.month);

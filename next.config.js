@@ -31,6 +31,9 @@ const nextConfig = {
         destination: `${backend}/:path*`
       }
     ];
+  },
+  async redirects() {
+    return [{ source: "/terms", destination: "/privacy", permanent: true }];
   }
 };
 

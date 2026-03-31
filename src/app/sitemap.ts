@@ -3,9 +3,7 @@ import { getAllArticleSlugsForSitemap } from "@/lib/articles";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
-  process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "https://newcarsuperstore.com";
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://newcarsuperstore.com");
 
 const STATIC_PATHS = [
   { path: "", priority: 1, changeFrequency: "weekly" as const },
