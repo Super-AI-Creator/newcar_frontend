@@ -319,48 +319,95 @@ function SearchPageContent() {
   }, [searchParams]);
 
   function setVehicleType(nextType: VehicleTypeFilter) {
+    if (nextType === vehicleType) return;
     setVehicleTypeState(nextType);
     setModel("");
     setTrim("");
     setPage(1);
+    const nextMode = nextType === "used" ? "price" : mode;
+    if (nextMode !== mode) {
+      setMode(nextMode);
+    }
+    runSearch(1, {
+      vehicleType: nextType,
+      mode: nextMode,
+      model: "",
+      trim: ""
+    });
+  }
+
+  function setSearchMode(nextMode: "price" | "payment") {
+    if (nextMode === mode) return;
+    setMode(nextMode);
+    runSearch(1, { mode: nextMode });
+  }
+
+  function handleMakeChange(nextMakeValue: string) {
+    const nextMake = nextMakeValue === ANY_MAKE ? "" : nextMakeValue;
+    if (nextMake === make) return;
+    setMake(nextMake);
+    setModel("");
+    setTrim("");
+    runSearch(1, { make: nextMake, model: "", trim: "" });
+  }
+
+  function handleModelChange(nextModelValue: string) {
+    const nextModel = nextModelValue === ANY_MODEL ? "" : nextModelValue;
+    if (nextModel === model) return;
+    setModel(nextModel);
+    setTrim("");
+    runSearch(1, { model: nextModel, trim: "" });
+  }
+
+  function handleTrimChange(nextTrimValue: string) {
+    const nextTrim = nextTrimValue === ANY_TRIM ? "" : nextTrimValue;
+    if (nextTrim === trim) return;
+    setTrim(nextTrim);
+    runSearch(1, { trim: nextTrim });
   }
 
   function runSearch(
     nextPage = 1,
     overrides?: Partial<{
+      vehicleType: VehicleTypeFilter;
+      mode: "price" | "payment";
       make: string;
       model: string;
       trim: string;
       sort: string;
+      estimate: boolean;
       maxPayment: number;
       maxPrice: number;
       usedMaxPrice: number;
       maxMileage: number;
     }>
   ) {
+    const nextVehicleType = overrides?.vehicleType !== undefined ? overrides.vehicleType : vehicleType;
+    const nextMode = overrides?.mode !== undefined ? overrides.mode : mode;
     const nextMake = overrides?.make !== undefined ? overrides.make : make;
     const nextModel = overrides?.model !== undefined ? overrides.model : model;
     const nextTrim = overrides?.trim !== undefined ? overrides.trim : trim;
     const nextSort = overrides?.sort !== undefined ? overrides.sort : sort;
+    const nextEstimate = overrides?.estimate !== undefined ? overrides.estimate : estimate;
     const nextMaxPayment = overrides?.maxPayment !== undefined ? overrides.maxPayment : maxPayment;
     const nextMaxPrice = overrides?.maxPrice !== undefined ? overrides.maxPrice : maxPrice;
     const nextUsedMaxPrice = overrides?.usedMaxPrice !== undefined ? overrides.usedMaxPrice : usedMaxPrice;
     const nextMaxMileage = overrides?.maxMileage !== undefined ? overrides.maxMileage : maxMileage;
 
     const query = new URLSearchParams();
-    query.set("vehicle_type", vehicleType);
-    query.set("mode", mode);
+    query.set("vehicle_type", nextVehicleType);
+    query.set("mode", nextMode);
     if (nextMake) query.set("make", nextMake);
     if (nextModel) query.set("model", nextModel);
     if (nextTrim) query.set("trim", nextTrim);
     if (nextSort && nextSort !== sortOptions[0].value) query.set("sort", nextSort);
-    if (vehicleType === "new" && mode === "payment") {
+    if (nextVehicleType === "new" && nextMode === "payment") {
       query.set("max_payment", String(nextMaxPayment));
-      if (estimate) query.set("estimate", "true");
+      if (nextEstimate) query.set("estimate", "true");
     } else {
-      const selectedMaxPrice = vehicleType === "new" ? nextMaxPrice : nextUsedMaxPrice;
+      const selectedMaxPrice = nextVehicleType === "new" ? nextMaxPrice : nextUsedMaxPrice;
       query.set("max_price", String(selectedMaxPrice));
-      if (vehicleType !== "new") {
+      if (nextVehicleType !== "new") {
         query.set("max_mileage", String(nextMaxMileage));
       }
     }
@@ -368,31 +415,34 @@ function SearchPageContent() {
     router.replace(`${pathname}?${query.toString()}`);
     setPage(nextPage);
     setAppliedParams({
-      vehicle_type: vehicleType,
+      vehicle_type: nextVehicleType,
       make: nextMake,
       model: nextModel,
       trim: nextTrim,
       sort: nextSort,
-      mode,
+      mode: nextMode,
       max_price:
-        vehicleType === "new"
-          ? mode === "price"
+        nextVehicleType === "new"
+          ? nextMode === "price"
             ? nextMaxPrice
             : undefined
           : nextUsedMaxPrice,
-      max_payment: vehicleType === "new" && mode === "payment" ? nextMaxPayment : undefined,
-      max_mileage: vehicleType !== "new" ? nextMaxMileage : undefined,
-      estimate: vehicleType === "new" ? estimate : false,
+      max_payment: nextVehicleType === "new" && nextMode === "payment" ? nextMaxPayment : undefined,
+      max_mileage: nextVehicleType !== "new" ? nextMaxMileage : undefined,
+      estimate: nextVehicleType === "new" ? nextEstimate : false,
       page: nextPage,
       page_size: pageSize
     });
     setSubmitted(true);
 
     if (overrides) {
+      if (overrides.vehicleType !== undefined) setVehicleTypeState(overrides.vehicleType);
+      if (overrides.mode !== undefined) setMode(overrides.mode);
       if (overrides.make !== undefined) setMake(overrides.make);
       if (overrides.model !== undefined) setModel(overrides.model);
       if (overrides.trim !== undefined) setTrim(overrides.trim);
       if (overrides.sort !== undefined) setSort(overrides.sort);
+      if (overrides.estimate !== undefined) setEstimate(overrides.estimate);
       if (overrides.maxPayment !== undefined) setMaxPayment(overrides.maxPayment);
       if (overrides.maxPrice !== undefined) setMaxPrice(overrides.maxPrice);
       if (overrides.usedMaxPrice !== undefined) setUsedMaxPrice(overrides.usedMaxPrice);
@@ -606,7 +656,7 @@ function SearchPageContent() {
                     <TabsTrigger value="used">Used</TabsTrigger>
                   </TabsList>
                 </Tabs>
-                <Tabs value={mode} onValueChange={(value) => setMode(value as "price" | "payment")} className="w-full">
+                <Tabs value={mode} onValueChange={(value) => setSearchMode(value as "price" | "payment")} className="w-full">
                   <TabsList className="grid w-full grid-cols-2 bg-ink-100 p-1">
                     <TabsTrigger value="price">By price</TabsTrigger>
                     <TabsTrigger value="payment">By payment</TabsTrigger>
@@ -617,19 +667,7 @@ function SearchPageContent() {
                   {makes.length > 0 ? (
                     <Select
                       value={make || ANY_MAKE}
-                      onValueChange={(nextMake) => {
-                        if (nextMake === ANY_MAKE) {
-                          setMake("");
-                          setModel("");
-                          setTrim("");
-                          return;
-                        }
-                        if (nextMake !== make) {
-                          setMake(nextMake);
-                          setModel("");
-                          setTrim("");
-                        }
-                      }}
+                      onValueChange={handleMakeChange}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Any make" />
@@ -662,15 +700,7 @@ function SearchPageContent() {
                   {models.length > 0 ? (
                     <Select
                       value={model || ANY_MODEL}
-                      onValueChange={(nextModel) => {
-                        if (nextModel === ANY_MODEL) {
-                          setModel("");
-                          setTrim("");
-                          return;
-                        }
-                        setModel(nextModel);
-                        setTrim("");
-                      }}
+                      onValueChange={handleModelChange}
                       disabled={!make}
                     >
                       <SelectTrigger>
@@ -705,7 +735,7 @@ function SearchPageContent() {
                   {trims.length > 0 ? (
                     <Select
                       value={trim || ANY_TRIM}
-                      onValueChange={(nextTrim) => setTrim(nextTrim === ANY_TRIM ? "" : nextTrim)}
+                      onValueChange={handleTrimChange}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Any trim" />
@@ -735,7 +765,7 @@ function SearchPageContent() {
                 </div>
                 <div className="space-y-2">
                   <Label>Sort</Label>
-                  <Select value={sort} onValueChange={setSort}>
+                  <Select value={sort} onValueChange={(value) => runSearch(1, { sort: value })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -769,6 +799,7 @@ function SearchPageContent() {
                         max={PAYMENT_SLIDER_ANY}
                         step={1}
                         onValueChange={(v) => setMaxPayment(paymentSliderToValue(v[0]))}
+                        onValueCommit={(v) => runSearch(1, { maxPayment: paymentSliderToValue(v[0]) })}
                       />
                       <div className="relative h-4 text-[11px] text-ink-500">
                         <span className="absolute left-0">${PAYMENT_MIN}</span>
@@ -787,6 +818,13 @@ function SearchPageContent() {
                             ? setMaxPrice(priceSliderToValue(v[0]))
                             : setUsedMaxPrice(priceSliderToValue(v[0]))
                         }
+                        onValueCommit={(v) =>
+                          runSearch(1, {
+                            ...(vehicleType === "new"
+                              ? { maxPrice: priceSliderToValue(v[0]) }
+                              : { usedMaxPrice: priceSliderToValue(v[0]) })
+                          })
+                        }
                       />
                       <div className="relative h-4 text-[11px] text-ink-500">
                         <span className="absolute left-0">$0</span>
@@ -797,7 +835,7 @@ function SearchPageContent() {
                 </div>
                 {vehicleType === "new" && mode === "payment" && (
                   <div className="flex items-center gap-3">
-                    <Switch checked={estimate} onCheckedChange={setEstimate} />
+                    <Switch checked={estimate} onCheckedChange={(checked) => runSearch(1, { estimate: checked })} />
                     <span className="text-sm text-ink-600">Estimate payment using profile</span>
                   </div>
                 )}
@@ -807,7 +845,14 @@ function SearchPageContent() {
                       <Label>Max mileage</Label>
                       <Badge>{maxMileage.toLocaleString()} mi</Badge>
                     </div>
-                    <Slider value={[maxMileage]} min={0} max={250000} step={1000} onValueChange={(v) => setMaxMileage(v[0])} />
+                    <Slider
+                      value={[maxMileage]}
+                      min={0}
+                      max={250000}
+                      step={1000}
+                      onValueChange={(v) => setMaxMileage(v[0])}
+                      onValueCommit={(v) => runSearch(1, { maxMileage: v[0] })}
+                    />
                   </div>
                 )}
                 </div>
@@ -855,7 +900,7 @@ function SearchPageContent() {
                 </TabsList>
               </Tabs>
 
-              <Tabs value={mode} onValueChange={(value) => setMode(value as "price" | "payment")} className="w-full">
+              <Tabs value={mode} onValueChange={(value) => setSearchMode(value as "price" | "payment")} className="w-full">
                 <TabsList className="grid h-10 w-full grid-cols-2 bg-ink-100 p-1">
                   <TabsTrigger value="price" className="px-3 py-1.5 text-xs">By price</TabsTrigger>
                   <TabsTrigger value="payment" className="px-3 py-1.5 text-xs">By payment</TabsTrigger>
@@ -868,19 +913,7 @@ function SearchPageContent() {
                   {makes.length > 0 ? (
                     <Select
                       value={make || ANY_MAKE}
-                      onValueChange={(nextMake) => {
-                        if (nextMake === ANY_MAKE) {
-                          setMake("");
-                          setModel("");
-                          setTrim("");
-                          return;
-                        }
-                        if (nextMake !== make) {
-                          setMake(nextMake);
-                          setModel("");
-                          setTrim("");
-                        }
-                      }}
+                      onValueChange={handleMakeChange}
                     >
                       <SelectTrigger className="h-10">
                         <SelectValue placeholder="Any make" />
@@ -914,15 +947,7 @@ function SearchPageContent() {
                   {models.length > 0 ? (
                     <Select
                       value={model || ANY_MODEL}
-                      onValueChange={(nextModel) => {
-                        if (nextModel === ANY_MODEL) {
-                          setModel("");
-                          setTrim("");
-                          return;
-                        }
-                        setModel(nextModel);
-                        setTrim("");
-                      }}
+                      onValueChange={handleModelChange}
                       disabled={!make}
                     >
                       <SelectTrigger className="h-10">
@@ -958,7 +983,7 @@ function SearchPageContent() {
                   {trims.length > 0 ? (
                     <Select
                       value={trim || ANY_TRIM}
-                      onValueChange={(nextTrim) => setTrim(nextTrim === ANY_TRIM ? "" : nextTrim)}
+                      onValueChange={handleTrimChange}
                     >
                       <SelectTrigger className="h-10">
                         <SelectValue placeholder="Any trim" />
@@ -989,7 +1014,7 @@ function SearchPageContent() {
 
                 <div className="space-y-2">
                   <Label>Sort</Label>
-                  <Select value={sort} onValueChange={setSort}>
+                  <Select value={sort} onValueChange={(value) => runSearch(1, { sort: value })}>
                     <SelectTrigger className="h-10">
                       <SelectValue />
                     </SelectTrigger>
@@ -1025,6 +1050,7 @@ function SearchPageContent() {
                       max={PAYMENT_SLIDER_ANY}
                       step={1}
                       onValueChange={(v) => setMaxPayment(paymentSliderToValue(v[0]))}
+                      onValueCommit={(v) => runSearch(1, { maxPayment: paymentSliderToValue(v[0]) })}
                     />
                     <div className="relative h-4 text-[11px] text-ink-500">
                       <span className="absolute left-0">${PAYMENT_MIN}</span>
@@ -1042,6 +1068,13 @@ function SearchPageContent() {
                           vehicleType === "new"
                             ? setMaxPrice(priceSliderToValue(v[0]))
                             : setUsedMaxPrice(priceSliderToValue(v[0]))
+                        }
+                        onValueCommit={(v) =>
+                          runSearch(1, {
+                            ...(vehicleType === "new"
+                              ? { maxPrice: priceSliderToValue(v[0]) }
+                              : { usedMaxPrice: priceSliderToValue(v[0]) })
+                          })
                         }
                       />
                       <div className="relative h-4 text-[11px] text-ink-500">
@@ -1099,7 +1132,7 @@ function SearchPageContent() {
 
               {vehicleType === "new" && mode === "payment" && (
                 <div className="flex items-center gap-3">
-                  <Switch checked={estimate} onCheckedChange={setEstimate} />
+                  <Switch checked={estimate} onCheckedChange={(checked) => runSearch(1, { estimate: checked })} />
                   <span className="text-xs text-ink-600">Estimate payment using profile</span>
                 </div>
               )}
@@ -1110,7 +1143,14 @@ function SearchPageContent() {
                     <Label>Max mileage</Label>
                     <Badge>{maxMileage.toLocaleString()} mi</Badge>
                   </div>
-                  <Slider value={[maxMileage]} min={0} max={250000} step={1000} onValueChange={(v) => setMaxMileage(v[0])} />
+                  <Slider
+                    value={[maxMileage]}
+                    min={0}
+                    max={250000}
+                    step={1000}
+                    onValueChange={(v) => setMaxMileage(v[0])}
+                    onValueCommit={(v) => runSearch(1, { maxMileage: v[0] })}
+                  />
                   <Input
                     className="h-10"
                     type="number"

@@ -402,12 +402,14 @@ function LeaseSpecialsPageContent() {
     if (nextMake === make) return;
     setMake(nextMake);
     setModel("");
+    runSearch(1, { make: nextMake, model: "" });
   }
 
   function handleModelChange(nextModelValue: string) {
     const nextModel = nextModelValue === ANY_MODEL ? "" : nextModelValue;
     if (nextModel === model) return;
     setModel(nextModel);
+    runSearch(1, { model: nextModel });
   }
 
   useEffect(() => {
@@ -566,11 +568,11 @@ function LeaseSpecialsPageContent() {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {paymentPresets.map((value) => (
-                      <Button key={value} variant="outline" size="sm" onClick={() => setMaxPayment(value)}>
+                      <Button key={value} variant="outline" size="sm" onClick={() => runSearch(1, { maxPayment: value })}>
                         Up to ${value}
                       </Button>
                     ))}
-                    <Button variant="outline" size="sm" className="col-span-2" onClick={() => setMaxPayment(PAYMENT_ANY_VALUE)}>
+                    <Button variant="outline" size="sm" className="col-span-2" onClick={() => runSearch(1, { maxPayment: PAYMENT_ANY_VALUE })}>
                       Any
                     </Button>
                   </div>
@@ -580,6 +582,7 @@ function LeaseSpecialsPageContent() {
                     max={PAYMENT_SLIDER_ANY}
                     step={1}
                     onValueChange={(v) => setMaxPayment(paymentSliderToValue(v[0]))}
+                    onValueCommit={(v) => runSearch(1, { maxPayment: paymentSliderToValue(v[0]) })}
                   />
                   <div className="relative h-4 text-[11px] text-ink-500">
                     <span className="absolute left-0">${PAYMENT_MIN}</span>
@@ -598,6 +601,7 @@ function LeaseSpecialsPageContent() {
                     max={PRICE_SLIDER_ANY}
                     step={1}
                     onValueChange={(v) => setMaxPrice(priceSliderToValue(v[0]))}
+                    onValueCommit={(v) => runSearch(1, { maxPrice: priceSliderToValue(v[0]) })}
                   />
                   <div className="relative h-4 text-[11px] text-ink-500">
                     <span className="absolute left-0">$0</span>
@@ -725,11 +729,11 @@ function LeaseSpecialsPageContent() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {paymentPresets.map((value) => (
-                  <Button key={value} variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => setMaxPayment(value)}>
+                  <Button key={value} variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => runSearch(1, { maxPayment: value })}>
                     Up to ${value}
                   </Button>
                 ))}
-                <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => setMaxPayment(PAYMENT_ANY_VALUE)}>
+                <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => runSearch(1, { maxPayment: PAYMENT_ANY_VALUE })}>
                   Any
                 </Button>
               </div>
@@ -739,6 +743,7 @@ function LeaseSpecialsPageContent() {
                 max={PAYMENT_SLIDER_ANY}
                 step={1}
                 onValueChange={(v) => setMaxPayment(paymentSliderToValue(v[0]))}
+                onValueCommit={(v) => runSearch(1, { maxPayment: paymentSliderToValue(v[0]) })}
               />
               <div className="relative h-4 text-[11px] text-ink-500">
                 <span className="absolute left-0">${PAYMENT_MIN}</span>
@@ -757,6 +762,7 @@ function LeaseSpecialsPageContent() {
                 max={PRICE_SLIDER_ANY}
                 step={1}
                 onValueChange={(v) => setMaxPrice(priceSliderToValue(v[0]))}
+                onValueCommit={(v) => runSearch(1, { maxPrice: priceSliderToValue(v[0]) })}
               />
               <div className="relative h-4 text-[11px] text-ink-500">
                 <span className="absolute left-0">$0</span>
