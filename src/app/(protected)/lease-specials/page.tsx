@@ -136,7 +136,7 @@ function LeaseSpecialsPageContent() {
 
   const filtersQuery = useQuery({
     queryKey: ["filters", "lease-specials"],
-    queryFn: () => api.getFilters({ vehicle_type: "all", offers_only: true }),
+    queryFn: () => api.getFilters({ vehicle_type: "new", offers_only: true }),
     staleTime: 60_000,
     refetchOnWindowFocus: false
   });
@@ -153,7 +153,7 @@ function LeaseSpecialsPageContent() {
 
   const params = useMemo(
     () => ({
-      vehicle_type: "all",
+      vehicle_type: "new",
       offers_only: true,
       make,
       model,
@@ -348,7 +348,7 @@ function LeaseSpecialsPageContent() {
     setMaxPrice(nextMaxPrice);
     setPage(nextPage);
     setAppliedParams({
-      vehicle_type: "all",
+      vehicle_type: "new",
       offers_only: true,
       make: nextMake,
       model: nextModel,
@@ -385,7 +385,7 @@ function LeaseSpecialsPageContent() {
     router.replace(`${pathname}?${query.toString()}`);
     setPage(nextPage);
     setAppliedParams({
-      vehicle_type: "all",
+      vehicle_type: "new",
       offers_only: true,
       make: nextMake,
       model: nextModel,
