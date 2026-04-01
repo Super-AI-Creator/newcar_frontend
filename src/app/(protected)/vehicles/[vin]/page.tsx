@@ -44,13 +44,6 @@ function formatMoney(value: number | null | undefined): string | undefined {
   return `$${value.toLocaleString()}`;
 }
 
-function currentMonthKey() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-}
-
 function normalizePhotoUrls(values: Array<string | null | undefined>) {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -90,7 +83,6 @@ export default function VehicleDetailPage() {
   const [dealVerified, setDealVerified] = useState(false);
   const [dealReadyToProceed, setDealReadyToProceed] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(0);
-  const [featuredMonth, setFeaturedMonth] = useState(currentMonthKey());
   const [adminVehicleType, setAdminVehicleType] = useState<"new" | "used">("new");
   const [adminYear, setAdminYear] = useState("");
   const [adminMake, setAdminMake] = useState("");
@@ -127,8 +119,8 @@ export default function VehicleDetailPage() {
     enabled: isSuperAdmin && !!vin
   });
   const featuredQuery = useQuery({
-    queryKey: ["admin-homepage-featured", featuredMonth],
-    queryFn: () => api.adminHomepageFeatured({ month: featuredMonth }),
+    queryKey: ["admin-homepage-featured"],
+    queryFn: () => api.adminHomepageFeatured(),
     enabled: isSuperAdmin
   });
 
@@ -230,16 +222,15 @@ export default function VehicleDetailPage() {
       if (!normalizedVin) throw new Error("VIN not found.");
 
       await api.upsertAdminManualVehicle(vin, payload);
-      const featured = await api.adminHomepageFeatured({ month: featuredMonth });
+      const featured = await api.adminHomepageFeatured();
       const currentVins = (featured.vins ?? []).map((item) => item.trim().toUpperCase());
       if (currentVins.includes(normalizedVin)) {
         return { featuredAdded: false };
       }
       if (currentVins.length >= 6) {
-        throw new Error(`Featured list for ${featuredMonth} already has 6 vehicles.`);
+        throw new Error("Featured list already has 6 vehicles.");
       }
       await api.setAdminHomepageFeatured({
-        month: featuredMonth,
         vins: [...currentVins, normalizedVin]
       });
       return { featuredAdded: true };
@@ -252,8 +243,8 @@ export default function VehicleDetailPage() {
         variant: "success",
         title: result?.featuredAdded ? "Saved and featured" : "Saved to static DB",
         description: result?.featuredAdded
-          ? `VIN ${vin} was saved and added to the homepage featured list for ${featuredMonth}.`
-          : `VIN ${vin} was saved. It is already featured for ${featuredMonth}.`
+          ? `VIN ${vin} was saved and added to the homepage featured list.`
+          : `VIN ${vin} was saved. It is already featured.`
       });
     },
     onError: (error: any) => {
@@ -266,23 +257,22 @@ export default function VehicleDetailPage() {
       const normalizedVin = (vin ?? "").trim().toUpperCase();
       if (!normalizedVin) throw new Error("VIN not found.");
       if (currentVins.includes(normalizedVin)) {
-        return { month: featuredMonth, vins: currentVins, already: true };
+        return { vins: currentVins, already: true };
       }
       if (currentVins.length >= 6) {
-        throw new Error(`Featured list for ${featuredMonth} already has 6 vehicles.`);
+        throw new Error("Featured list already has 6 vehicles.");
       }
       return api.setAdminHomepageFeatured({
-        month: featuredMonth,
         vins: [...currentVins, normalizedVin]
       });
     },
     onSuccess: (result: any) => {
       featuredQuery.refetch();
       if (result?.already) {
-        toast({ variant: "success", title: "Already featured", description: `VIN ${vin} is already on ${featuredMonth}.` });
+        toast({ variant: "success", title: "Already featured", description: `VIN ${vin} is already on the landing page.` });
         return;
       }
-      toast({ variant: "success", title: "Added to landing page", description: `VIN ${vin} added for ${featuredMonth}.` });
+      toast({ variant: "success", title: "Added to landing page", description: `VIN ${vin} added to the landing page.` });
     },
     onError: (error: any) => {
       toast({ variant: "error", title: "Could not add featured vehicle", description: error?.message ?? "Please try again." });
@@ -762,35 +752,61 @@ export default function VehicleDetailPage() {
                     Get Pre-Approved
                   </Link>
                 </Button>
-                <Button
-                  variant="outline"
-                  className="h-11 justify-center"
-                  onClick={() => {
-                    if (!user) {
-                      router.push(loginUrl);
-                      return;
-                    }
-                    favoriteMutation.mutate();
-                  }}
-                >
-                  <Heart className="mr-1 h-4 w-4" />
-                  Save favorite
-                </Button>
-                <Dialog open={dealDialogOpen} onOpenChange={setDealDialogOpen}>
+                {user ? (
                   <Button
                     variant="outline"
                     className="h-11 justify-center"
                     onClick={() => {
-                      if (!user) {
-                        router.push(loginUrl);
-                        return;
-                      }
-                      setDealDialogOpen(true);
+                      favoriteMutation.mutate();
                     }}
                   >
-                    <CheckCircle2 className="mr-1 h-4 w-4" />
-                    Start Deal
+                    <Heart className="mr-1 h-4 w-4" />
+                    Save favorite
                   </Button>
+                ) : (
+                  <LeadFormButton
+                    vin={vin}
+                    make={vehicleQuery.data?.make ?? ""}
+                    model={vehicleQuery.data?.model ?? ""}
+                    trim={vehicleQuery.data?.trim ?? ""}
+                    year={vehicleQuery.data?.year}
+                    source="vehicle_detail_save_favorite_guest"
+                    title="Get a Quote"
+                    variant="outline"
+                    className="h-11 justify-center text-sm sm:text-base"
+                  >
+                    <Heart className="mr-1 h-4 w-4 shrink-0" />
+                    Save favorite
+                  </LeadFormButton>
+                )}
+                <Dialog open={dealDialogOpen} onOpenChange={setDealDialogOpen}>
+                  {user ? (
+                    <Button
+                      variant="outline"
+                      className="h-11 justify-center"
+                      onClick={() => {
+                        setDealDialogOpen(true);
+                      }}
+                    >
+                      <CheckCircle2 className="mr-1 h-4 w-4" />
+                      Start Deal
+                    </Button>
+                  ) : (
+                    <LeadFormButton
+                      vin={vin}
+                      make={vehicleQuery.data?.make ?? ""}
+                      model={vehicleQuery.data?.model ?? ""}
+                      trim={vehicleQuery.data?.trim ?? ""}
+                      year={vehicleQuery.data?.year}
+                      source="vehicle_detail_start_deal_guest"
+                      title="Get a Quote"
+                      variant="outline"
+                      className="h-11 justify-center text-sm sm:text-base"
+                    >
+                      <CheckCircle2 className="mr-1 h-4 w-4 shrink-0" />
+                      Start Deal
+                    </LeadFormButton>
+                  )}
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Pre-verify before starting deal</DialogTitle>
@@ -976,12 +992,6 @@ export default function VehicleDetailPage() {
                   <div className="rounded-lg border border-ink-200 bg-ink-50 p-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Landing Page Featured</p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <Input
-                        type="month"
-                        value={featuredMonth}
-                        onChange={(event) => setFeaturedMonth(event.target.value || currentMonthKey())}
-                        className="max-w-[180px]"
-                      />
                       <Button size="sm" variant="outline" onClick={() => featuredQuery.refetch()} disabled={featuredQuery.isFetching}>
                         Refresh
                       </Button>
@@ -1010,7 +1020,7 @@ export default function VehicleDetailPage() {
                         const featuredVins = (featuredQuery.data?.vins ?? []).map((item) => item.trim().toUpperCase());
                         const normalizedVin = (vin ?? "").trim().toUpperCase();
                         const inList = featuredVins.includes(normalizedVin);
-                        return `${featuredVins.length}/6 selected for ${featuredMonth}${inList ? " | This VIN is already featured." : ""}`;
+                        return `${featuredVins.length}/6 selected permanently${inList ? " | This VIN is already featured." : ""}`;
                       })()}
                     </p>
                     <p className="mt-1 text-xs text-ink-500">

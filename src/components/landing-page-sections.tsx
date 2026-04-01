@@ -91,7 +91,7 @@ export default function LandingPageSections() {
               </div>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button asChild size="lg" className="rounded-xl">
-                  <Link href="/search?vehicle_type=new">Find My Car</Link>
+                  <Link href="/lease-specials">Lease Specials</Link>
                 </Button>
                 <Button
                   asChild

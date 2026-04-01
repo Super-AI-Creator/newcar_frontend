@@ -904,17 +904,11 @@ export const api = {
       method: "DELETE",
     });
   },
-  adminHomepageFeatured: async (params?: { month?: string }) => {
-    const query = new URLSearchParams();
-    if (params?.month) query.set("month", params.month);
-    const qs = query.toString();
-    return apiFetch<HomepageFeaturedResponse>(`/admin/homepage-featured${qs ? `?${qs}` : ""}`);
+  adminHomepageFeatured: async () => {
+    return apiFetch<HomepageFeaturedResponse>("/admin/homepage-featured");
   },
-  setAdminHomepageFeatured: async (payload: { vins: string[]; month?: string }) => {
-    const query = new URLSearchParams();
-    if (payload.month) query.set("month", payload.month);
-    const qs = query.toString();
-    return apiFetch<HomepageFeaturedResponse>(`/admin/homepage-featured${qs ? `?${qs}` : ""}`, {
+  setAdminHomepageFeatured: async (payload: { vins: string[] }) => {
+    return apiFetch<HomepageFeaturedResponse>("/admin/homepage-featured", {
       method: "PUT",
       body: JSON.stringify({ vins: payload.vins })
     });

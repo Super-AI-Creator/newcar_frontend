@@ -190,13 +190,13 @@ function SearchPageContent() {
   const modelsByMake = filtersQuery.data?.models_by_make ?? {};
   const trimsByMakeModel = filtersQuery.data?.trims_by_make_model ?? {};
   const models = useMemo(() => {
-    if (!make) return sanitizeOptions(filtersQuery.data?.models);
+    if (!make) return [];
     return sanitizeOptions(modelsByMake[make]);
-  }, [make, modelsByMake, filtersQuery.data?.models]);
+  }, [make, modelsByMake]);
   const trims = useMemo(() => {
-    if (!make || !model) return sanitizeOptions(filtersQuery.data?.trims);
+    if (!make || !model) return [];
     return sanitizeOptions(trimsByMakeModel[`${make}|||${model}`]);
-  }, [make, model, trimsByMakeModel, filtersQuery.data?.trims]);
+  }, [make, model, trimsByMakeModel]);
   const showUsedFilters = vehicleType === "used";
   const resultItems = resultsQuery.data?.results ?? [];
   const sortedResultItems = useMemo(() => {
@@ -365,6 +365,31 @@ function SearchPageContent() {
     setTrim(nextTrim);
     runSearch(1, { trim: nextTrim });
   }
+
+  useEffect(() => {
+    if (filtersQuery.isLoading) return;
+
+    let normalizedMake = make;
+    let normalizedModel = model;
+    let normalizedTrim = trim;
+
+    if (normalizedMake && !makes.includes(normalizedMake)) {
+      normalizedMake = "";
+      normalizedModel = "";
+      normalizedTrim = "";
+    } else if (normalizedModel && !models.includes(normalizedModel)) {
+      normalizedModel = "";
+      normalizedTrim = "";
+    } else if (normalizedTrim && !trims.includes(normalizedTrim)) {
+      normalizedTrim = "";
+    }
+
+    if (normalizedMake === make && normalizedModel === model && normalizedTrim === trim) return;
+    setMake(normalizedMake);
+    setModel(normalizedModel);
+    setTrim(normalizedTrim);
+    runSearch(1, { make: normalizedMake, model: normalizedModel, trim: normalizedTrim });
+  }, [filtersQuery.isLoading, makes, models, trims, make, model, trim]);
 
   function runSearch(
     nextPage = 1,
@@ -736,9 +761,10 @@ function SearchPageContent() {
                     <Select
                       value={trim || ANY_TRIM}
                       onValueChange={handleTrimChange}
+                      disabled={!make || !model}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Any trim" />
+                        <SelectValue placeholder={make && model ? "Any trim" : "Select model first"} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value={ANY_TRIM}>Any trim</SelectItem>
@@ -753,7 +779,8 @@ function SearchPageContent() {
                     <Input
                       value={trim}
                       onChange={(event) => setTrim(event.target.value)}
-                      placeholder="XLE"
+                      placeholder={make && model ? "XLE" : "Select model first"}
+                      disabled={!make || !model}
                       onKeyDown={(event) => {
                         if (event.key !== "Enter") return;
                         event.preventDefault();
@@ -984,9 +1011,10 @@ function SearchPageContent() {
                     <Select
                       value={trim || ANY_TRIM}
                       onValueChange={handleTrimChange}
+                      disabled={!make || !model}
                     >
                       <SelectTrigger className="h-10">
-                        <SelectValue placeholder="Any trim" />
+                        <SelectValue placeholder={make && model ? "Any trim" : "Select model first"} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value={ANY_TRIM}>Any trim</SelectItem>
@@ -1002,7 +1030,8 @@ function SearchPageContent() {
                       className="h-10"
                       value={trim}
                       onChange={(event) => setTrim(event.target.value)}
-                      placeholder="XLE"
+                      placeholder={make && model ? "XLE" : "Select model first"}
+                      disabled={!make || !model}
                       onKeyDown={(event) => {
                         if (event.key !== "Enter") return;
                         event.preventDefault();

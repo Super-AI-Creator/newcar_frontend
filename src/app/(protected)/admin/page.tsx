@@ -96,13 +96,6 @@ function errorMessage(err: unknown, fallback: string) {
   return fallback;
 }
 
-function currentMonthKey() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-}
-
 function prettyJson(value: unknown) {
   try {
     return JSON.stringify(value ?? {}, null, 2);
@@ -150,7 +143,6 @@ export default function AdminPage() {
   const [offerDiscountedPrice, setOfferDiscountedPrice] = useState("");
   const [offerTermMonths, setOfferTermMonths] = useState("");
   const [offerMilesPerYear, setOfferMilesPerYear] = useState("");
-  const [featuredMonth, setFeaturedMonth] = useState(currentMonthKey());
   const [featuredVinInput, setFeaturedVinInput] = useState("");
   const [featuredVinsDraft, setFeaturedVinsDraft] = useState<string[]>([]);
   const [featuredDirty, setFeaturedDirty] = useState(false);
@@ -224,8 +216,8 @@ export default function AdminPage() {
     enabled: isSuperAdmin
   });
   const homepageFeaturedQuery = useQuery({
-    queryKey: ["admin-homepage-featured", featuredMonth],
-    queryFn: () => api.adminHomepageFeatured({ month: featuredMonth }),
+    queryKey: ["admin-homepage-featured"],
+    queryFn: () => api.adminHomepageFeatured(),
     enabled: isSuperAdmin
   });
   const manualVehiclesQuery = useQuery({
@@ -410,7 +402,7 @@ export default function AdminPage() {
       toast({ variant: "error", title: "Delete failed", description: errorMessage(err, "Could not remove lease special.") })
   });
   const saveHomepageFeaturedMutation = useMutation({
-    mutationFn: (vins: string[]) => api.setAdminHomepageFeatured({ month: featuredMonth, vins }),
+    mutationFn: (vins: string[]) => api.setAdminHomepageFeatured({ vins }),
     onSuccess: (result) => {
       setFeaturedDirty(false);
       setFeaturedVinsDraft(result.vins ?? []);
@@ -418,7 +410,7 @@ export default function AdminPage() {
       toast({
         variant: "success",
         title: "Homepage featured cars saved",
-        description: `${result.vins?.length ?? 0} vehicles selected for ${result.month}.`
+        description: `${result.vins?.length ?? 0} vehicles selected for the landing page.`
       });
     },
     onError: (err: unknown) =>
@@ -745,7 +737,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (featuredDirty) return;
     setFeaturedVinsDraft(homepageFeaturedQuery.data?.vins ?? []);
-  }, [homepageFeaturedQuery.data?.month, homepageFeaturedQuery.data?.vins, featuredDirty]);
+  }, [homepageFeaturedQuery.data?.vins, featuredDirty]);
 
   useEffect(() => {
     if (!highlightedDealId) return;
@@ -1570,8 +1562,6 @@ export default function AdminPage() {
               <AdminSuperAdminDataPanel
                 generalStatusQuery={generalStatusQuery}
                 generalStatus={generalStatus}
-                featuredMonth={featuredMonth}
-                setFeaturedMonth={setFeaturedMonth}
                 setFeaturedDirty={setFeaturedDirty}
                 featuredVinInput={featuredVinInput}
                 setFeaturedVinInput={setFeaturedVinInput}

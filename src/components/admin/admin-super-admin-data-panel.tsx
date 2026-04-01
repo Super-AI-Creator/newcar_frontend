@@ -12,13 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-function currentMonthKey() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-}
-
 export type AdminSuperAdminDataPanelProps = {
   generalStatusQuery: UseQueryResult<any>;
   generalStatus: {
@@ -27,8 +20,6 @@ export type AdminSuperAdminDataPanelProps = {
     vehicles: { active_new_count: number; active_used_count: number; active_total_count: number };
   } | null | undefined;
 
-  featuredMonth: string;
-  setFeaturedMonth: (v: string) => void;
   setFeaturedDirty: (v: boolean) => void;
   featuredVinInput: string;
   setFeaturedVinInput: (v: string) => void;
@@ -123,8 +114,6 @@ export type AdminSuperAdminDataPanelProps = {
 export function AdminSuperAdminDataPanel({
   generalStatusQuery,
   generalStatus,
-  featuredMonth,
-  setFeaturedMonth,
   setFeaturedDirty,
   featuredVinInput,
   setFeaturedVinInput,
@@ -265,19 +254,10 @@ export function AdminSuperAdminDataPanel({
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-ink-600">
-            Pick and order the vehicles shown on the landing page. Set a month, save up to {homepageFeaturedLimit} VINs, and use &quot;Save VIN + Edit
+            Pick and order the vehicles shown on the landing page permanently. Save up to {homepageFeaturedLimit} VINs, and use &quot;Save VIN + Edit
             Photos&quot; for static/manual specials you can fine-tune.
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <Input
-              type="month"
-              value={featuredMonth}
-              onChange={(e) => {
-                setFeaturedMonth(e.target.value || currentMonthKey());
-                setFeaturedDirty(false);
-              }}
-              className="max-w-[180px]"
-            />
             <Button
               size="sm"
               variant="outline"
@@ -294,9 +274,9 @@ export function AdminSuperAdminDataPanel({
               disabled={saveHomepageFeaturedMutation.isPending || !featuredDirty}
               onClick={() =>
                 confirmAction(
-                  `Save featured homepage vehicles for ${featuredMonth}?`,
+                  "Save featured homepage vehicles?",
                   saveHomepageFeatured,
-                  "This updates the landing page featured cars for the selected month."
+                  "This updates the permanent landing page featured cars."
                 )
               }
             >
@@ -374,7 +354,7 @@ export function AdminSuperAdminDataPanel({
                 </div>
               );
             })}
-            {featuredVinsDraft.length === 0 && <p className="text-sm text-ink-600">No featured cars selected for {featuredMonth}.</p>}
+            {featuredVinsDraft.length === 0 && <p className="text-sm text-ink-600">No featured cars selected for the landing page.</p>}
           </div>
         </CardContent>
       </Card>

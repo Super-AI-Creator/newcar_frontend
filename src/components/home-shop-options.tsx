@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, CircleDollarSign, Search } from "lucide-react";
@@ -47,7 +47,7 @@ export default function HomeShopOptions() {
 
   const filtersQuery = useQuery<Awaited<ReturnType<typeof api.getFilters>>>({
     queryKey: ["home-shop-options-filters"] as const,
-    queryFn: () => api.getFilters(),
+    queryFn: () => api.getFilters({ vehicle_type: "new" }),
     staleTime: 60_000,
     refetchOnWindowFocus: false
   });
@@ -55,6 +55,20 @@ export default function HomeShopOptions() {
   const makes = sanitizeOptions(filtersQuery.data?.makes);
   const modelsByMake = filtersQuery.data?.models_by_make ?? {};
   const models = useMemo(() => (make ? sanitizeOptions(modelsByMake[make]) : []), [make, modelsByMake]);
+  const validMakeSelected = !make || makes.includes(make);
+  const validModelSelected = !model || (make ? models.includes(model) : false);
+
+  useEffect(() => {
+    if (filtersQuery.isLoading) return;
+    if (make && !makes.includes(make)) {
+      setMake("");
+      setModel("");
+      return;
+    }
+    if (model && (!make || !models.includes(model))) {
+      setModel("");
+    }
+  }, [filtersQuery.isLoading, make, model, makes, models]);
 
   const goByPayment = () => {
     const query = new URLSearchParams();
@@ -66,6 +80,9 @@ export default function HomeShopOptions() {
   };
 
   const goByMakeModel = () => {
+    if (!validMakeSelected || !validModelSelected) {
+      return;
+    }
     const query = new URLSearchParams();
     query.set("vehicle_type", "new");
     if (make) query.set("make", make);
@@ -185,7 +202,7 @@ export default function HomeShopOptions() {
             <p className="text-xs text-ink-500">
               Estimates depend on lender, incentives, and vehicle. ZIP is optional and helps when tax or regional offers apply.
             </p>
-            <Button onClick={goByMakeModel} className="h-10 w-full text-sm">
+            <Button onClick={goByMakeModel} disabled={!validMakeSelected || !validModelSelected} className="h-10 w-full text-sm">
               <span className="max-[420px]:hidden">See your matches</span>
               <span className="hidden max-[420px]:inline">See your matches</span>
               <ArrowRight className="h-4 w-4" />
