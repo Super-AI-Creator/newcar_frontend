@@ -86,6 +86,7 @@ function normalizeVehicle(raw: any): Vehicle {
     mileage: toNumber(raw?.mileage) ?? null,
     condition: raw?.condition ?? null,
     msrp: toNumber(raw?.msrp),
+    estimated_monthly: toNumber(raw?.estimated_monthly ?? raw?.estimatedMonthly),
     down: toNumber(raw?.down ?? raw?.offer?.down ?? raw?.offer?.down_payment),
     monthly: toNumber(raw?.monthly ?? raw?.offer?.monthly ?? raw?.offer?.monthly_payment),
     discounted: toNumber(raw?.discounted ?? raw?.offer?.discounted ?? raw?.offer?.discounted_price),
@@ -1316,6 +1317,7 @@ export type Vehicle = {
   vehicle_history_url?: string | null;
   history_url?: string | null;
   msrp?: number;
+  estimated_monthly?: number;
   down?: number;
   monthly?: number;
   discounted?: number;

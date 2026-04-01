@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -17,6 +18,7 @@ import {
   Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import LeadFormButton from "@/components/lead-form-button";
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth-provider";
 import Logo from "@/components/logo";
@@ -64,6 +66,7 @@ export default function SiteHeader() {
   const isDealer = role === "dealer";
   const isAdmin = role === "admin" || role === "broker_admin" || role === "super_admin";
   const isCustomer = !!user && !isDealer && !isAdmin;
+  const [customQuoteReady, setCustomQuoteReady] = useState(false);
 
   const roleLinks = isAdmin ? adminLinks : isDealer ? dealerLinks : isCustomer ? customerLinks : guestLinks;
   const links = [...roleLinks, ...publicBrandLinks];
@@ -99,8 +102,20 @@ export default function SiteHeader() {
     return pathname === base || pathname.startsWith(`${base}/`);
   };
   const showFloatingDealRoom = isCustomer && !isActiveLink(customerDealRoomLink.href);
+  const showGuestCustomQuote = !user && customQuoteReady;
+
+  useEffect(() => {
+    if (user) {
+      setCustomQuoteReady(false);
+      return;
+    }
+    setCustomQuoteReady(false);
+    const timer = window.setTimeout(() => setCustomQuoteReady(true), 10_000);
+    return () => window.clearTimeout(timer);
+  }, [user]);
 
   return (
+    <>
     <header className="sticky top-0 z-50 w-full border-b border-ink-200/80 bg-white/90 backdrop-blur-md">
       <div className="container-wide flex h-14 items-center justify-between gap-2 sm:gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
@@ -177,6 +192,20 @@ export default function SiteHeader() {
                 <DialogTitle className="text-base">Menu</DialogTitle>
               </DialogHeader>
               <div className="mt-1 space-y-1.5">
+                {showGuestCustomQuote ? (
+                  <LeadFormButton
+                    title="Custom Quote"
+                    source="mobile_menu_custom_quote"
+                    requireVehicleInput
+                    vehicleInputLabel="Make and Model"
+                    vehicleInputPlaceholder="Please enter the make and model car you want a custom quote for"
+                    className="inline-flex h-auto w-full items-center justify-start gap-2 rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-sm font-medium text-ink-700"
+                    variant="ghost"
+                  >
+                    <MessageSquareQuote className="h-4 w-4" />
+                    Custom Quote
+                  </LeadFormButton>
+                ) : null}
                 {links.map(({ href, label }) => {
                   const Icon = iconForHref(href);
                   return (
@@ -250,6 +279,20 @@ export default function SiteHeader() {
               </Link>
             ) : null}
             <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+              {showGuestCustomQuote ? (
+                <LeadFormButton
+                  title="Custom Quote"
+                  source="site_header_custom_quote"
+                  requireVehicleInput
+                  vehicleInputLabel="Make and Model"
+                  vehicleInputPlaceholder="Please enter the make and model car you want a custom quote for"
+                  className="hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium lg:inline-flex"
+                  size="sm"
+                >
+                  <MessageSquareQuote className="h-3.5 w-3.5" />
+                  Custom Quote
+                </LeadFormButton>
+              ) : null}
               {desktopNavLinks.map(({ href, label }) => {
                 const Icon = iconForHref(href);
                 return (
@@ -271,20 +314,36 @@ export default function SiteHeader() {
           </nav>
         </div>
       </div>
-      {showFloatingDealRoom ? (
-        <div className="pointer-events-none fixed bottom-4 right-4 z-[60] md:hidden">
-          <Button
-            asChild
-            size="sm"
-            className="pointer-events-auto h-11 rounded-full bg-gradient-to-r from-red-500 to-red-400 px-5 text-base font-semibold text-white shadow-[0_10px_24px_rgba(239,68,68,0.35)]"
-          >
-            <Link href={customerDealRoomLink.href}>
-              <MessageSquare className="mr-1.5 h-4 w-4" />
-              Deal room
-            </Link>
-          </Button>
-        </div>
-      ) : null}
     </header>
+    {showFloatingDealRoom ? (
+      <div className="pointer-events-none fixed bottom-4 right-4 z-[60] md:hidden">
+        <Button
+          asChild
+          size="sm"
+          className="pointer-events-auto h-11 rounded-full bg-gradient-to-r from-red-500 to-red-400 px-5 text-base font-semibold text-white shadow-[0_10px_24px_rgba(239,68,68,0.35)]"
+        >
+          <Link href={customerDealRoomLink.href}>
+            <MessageSquare className="mr-1.5 h-4 w-4" />
+            Deal room
+          </Link>
+        </Button>
+      </div>
+    ) : null}
+    {showGuestCustomQuote ? (
+      <div className="pointer-events-none fixed bottom-4 right-4 z-[60] md:hidden">
+        <LeadFormButton
+          title="Custom Quote"
+          source="floating_custom_quote"
+          requireVehicleInput
+          vehicleInputLabel="Make and Model"
+          vehicleInputPlaceholder="Please enter the make and model car you want a custom quote for"
+          size="sm"
+          className="pointer-events-auto h-14 w-14 rounded-full bg-gradient-to-r from-brand-600 to-brand-500 p-0 text-white shadow-[0_10px_24px_rgba(37,99,235,0.35)]"
+        >
+          <MessageSquareQuote className="h-6 w-6" />
+        </LeadFormButton>
+      </div>
+    ) : null}
+    </>
   );
 }

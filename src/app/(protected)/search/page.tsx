@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { api, type Vehicle } from "@/lib/api";
@@ -37,6 +36,17 @@ const PAYMENT_MAX = 2000;
 const PAYMENT_TICKS = 79;
 const PAYMENT_SLIDER_ANY = PAYMENT_TICKS + 1;
 const PAYMENT_ANY_VALUE = 10000;
+const DEFAULT_FINANCE_TERM_MONTHS = 72;
+const DEFAULT_FINANCE_APR = 6.99;
+const TERM_MIN = 24;
+const TERM_MAX = 84;
+const TERM_STEP = 12;
+const DOWN_PAYMENT_MIN = 0;
+const DOWN_PAYMENT_MAX = 50000;
+const DOWN_PAYMENT_STEP = 500;
+const APR_MIN = 0;
+const APR_MAX = 15;
+const APR_STEP = 0.05;
 
 // Max vehicle price: 0–200k then Any
 const PRICE_MIN = 0;
@@ -49,6 +59,9 @@ const PRICE_ANY_VALUE = 999999;
 const defaultValues = {
   maxPrice: PRICE_ANY_VALUE,
   maxPayment: PAYMENT_ANY_VALUE,
+  downPayment: 0,
+  termMonths: DEFAULT_FINANCE_TERM_MONTHS,
+  apr: DEFAULT_FINANCE_APR,
   usedMaxPrice: PRICE_ANY_VALUE,
   maxMileage: 60000
 };
@@ -84,6 +97,12 @@ function parsePositiveNumber(value: string | null, fallback: number): number {
   if (value == null) return fallback;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseNonNegativeNumber(value: string | null, fallback: number): number {
+  if (value == null) return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
 function parseMaxPaymentFromSearchParam(value: string | null, fallback: number): number {
@@ -128,9 +147,11 @@ function SearchPageContent() {
   const initialMode: "price" | "payment" =
     queryMode === "payment" ? "payment" : initialVehicleType === "new" ? "payment" : "price";
   const [mode, setMode] = useState<"price" | "payment">(initialMode);
-  const [estimate, setEstimate] = useState(false);
   const [maxPrice, setMaxPrice] = useState(parsePositiveNumber(searchParams.get("max_price"), defaultValues.maxPrice));
   const [maxPayment, setMaxPayment] = useState(parseMaxPaymentFromSearchParam(searchParams.get("max_payment"), defaultValues.maxPayment));
+  const [downPayment, setDownPayment] = useState(parseNonNegativeNumber(searchParams.get("down_payment"), defaultValues.downPayment));
+  const [termMonths, setTermMonths] = useState(parsePositiveNumber(searchParams.get("term_months"), defaultValues.termMonths));
+  const [apr, setApr] = useState(parseNonNegativeNumber(searchParams.get("apr"), defaultValues.apr));
   const [usedMaxPrice, setUsedMaxPrice] = useState(parsePositiveNumber(searchParams.get("max_price"), defaultValues.usedMaxPrice));
   const [maxMileage, setMaxMileage] = useState(parsePositiveNumber(searchParams.get("max_mileage"), defaultValues.maxMileage));
   const [make, setMake] = useState(searchParams.get("make") ?? "");
@@ -170,12 +191,14 @@ function SearchPageContent() {
             : undefined
           : usedMaxPrice,
       max_payment: vehicleType === "new" && mode === "payment" ? maxPayment : undefined,
+      down_payment: vehicleType === "new" && mode === "payment" ? downPayment : undefined,
+      apr: vehicleType === "new" && mode === "payment" ? apr : undefined,
+      term_months: vehicleType === "new" && mode === "payment" ? termMonths : undefined,
       max_mileage: vehicleType !== "new" ? maxMileage : undefined,
-      estimate: vehicleType === "new" ? estimate : false,
       page,
       page_size: pageSize
     };
-  }, [vehicleType, make, model, trim, sort, mode, maxPrice, maxPayment, usedMaxPrice, maxMileage, estimate, page]);
+  }, [vehicleType, make, model, trim, sort, mode, maxPrice, maxPayment, downPayment, termMonths, apr, usedMaxPrice, maxMileage, page]);
   const [appliedParams, setAppliedParams] = useState(params);
 
   const resultsQuery = useQuery({
@@ -278,9 +301,11 @@ function SearchPageContent() {
     const nextModel = searchParams.get("model") ?? "";
     const nextTrim = searchParams.get("trim") ?? "";
     const nextSort = searchParams.get("sort") ?? sortOptions[0].value;
-    const nextEstimate = searchParams.get("estimate") === "true" || searchParams.get("estimate") === "1";
     const nextMaxMileage = parsePositiveNumber(searchParams.get("max_mileage"), defaultValues.maxMileage);
     const nextMaxPayment = parseMaxPaymentFromSearchParam(searchParams.get("max_payment"), defaultValues.maxPayment);
+    const nextDownPayment = parseNonNegativeNumber(searchParams.get("down_payment"), defaultValues.downPayment);
+    const nextTermMonths = parsePositiveNumber(searchParams.get("term_months"), defaultValues.termMonths);
+    const nextApr = parseNonNegativeNumber(searchParams.get("apr"), defaultValues.apr);
     const nextMaxPrice = parsePositiveNumber(searchParams.get("max_price"), defaultValues.maxPrice);
     const nextUsedMaxPrice = parsePositiveNumber(searchParams.get("max_price"), defaultValues.usedMaxPrice);
 
@@ -290,9 +315,11 @@ function SearchPageContent() {
     setModel(nextModel);
     setTrim(nextTrim);
     setSort(nextSort);
-    setEstimate(nextEstimate);
     setMaxMileage(nextMaxMileage);
     setMaxPayment(nextMaxPayment);
+    setDownPayment(nextDownPayment);
+    setTermMonths(nextTermMonths);
+    setApr(nextApr);
     setMaxPrice(nextMaxPrice);
     setUsedMaxPrice(nextUsedMaxPrice);
     setPage(nextPage);
@@ -310,8 +337,10 @@ function SearchPageContent() {
             : undefined
           : nextUsedMaxPrice,
       max_payment: nextVehicleType === "new" && nextMode === "payment" ? nextMaxPayment : undefined,
+      down_payment: nextVehicleType === "new" && nextMode === "payment" ? nextDownPayment : undefined,
+      term_months: nextVehicleType === "new" && nextMode === "payment" ? nextTermMonths : undefined,
+      apr: nextVehicleType === "new" && nextMode === "payment" ? nextApr : undefined,
       max_mileage: nextVehicleType !== "new" ? nextMaxMileage : undefined,
-      estimate: nextVehicleType === "new" ? nextEstimate : false,
       page: nextPage,
       page_size: pageSize
     });
@@ -400,8 +429,10 @@ function SearchPageContent() {
       model: string;
       trim: string;
       sort: string;
-      estimate: boolean;
       maxPayment: number;
+      downPayment: number;
+      termMonths: number;
+      apr: number;
       maxPrice: number;
       usedMaxPrice: number;
       maxMileage: number;
@@ -413,8 +444,10 @@ function SearchPageContent() {
     const nextModel = overrides?.model !== undefined ? overrides.model : model;
     const nextTrim = overrides?.trim !== undefined ? overrides.trim : trim;
     const nextSort = overrides?.sort !== undefined ? overrides.sort : sort;
-    const nextEstimate = overrides?.estimate !== undefined ? overrides.estimate : estimate;
     const nextMaxPayment = overrides?.maxPayment !== undefined ? overrides.maxPayment : maxPayment;
+    const nextDownPayment = overrides?.downPayment !== undefined ? overrides.downPayment : downPayment;
+    const nextTermMonths = overrides?.termMonths !== undefined ? overrides.termMonths : termMonths;
+    const nextApr = overrides?.apr !== undefined ? overrides.apr : apr;
     const nextMaxPrice = overrides?.maxPrice !== undefined ? overrides.maxPrice : maxPrice;
     const nextUsedMaxPrice = overrides?.usedMaxPrice !== undefined ? overrides.usedMaxPrice : usedMaxPrice;
     const nextMaxMileage = overrides?.maxMileage !== undefined ? overrides.maxMileage : maxMileage;
@@ -428,7 +461,9 @@ function SearchPageContent() {
     if (nextSort && nextSort !== sortOptions[0].value) query.set("sort", nextSort);
     if (nextVehicleType === "new" && nextMode === "payment") {
       query.set("max_payment", String(nextMaxPayment));
-      if (nextEstimate) query.set("estimate", "true");
+      query.set("down_payment", String(nextDownPayment));
+      query.set("term_months", String(nextTermMonths));
+      query.set("apr", String(nextApr));
     } else {
       const selectedMaxPrice = nextVehicleType === "new" ? nextMaxPrice : nextUsedMaxPrice;
       query.set("max_price", String(selectedMaxPrice));
@@ -453,8 +488,10 @@ function SearchPageContent() {
             : undefined
           : nextUsedMaxPrice,
       max_payment: nextVehicleType === "new" && nextMode === "payment" ? nextMaxPayment : undefined,
+      down_payment: nextVehicleType === "new" && nextMode === "payment" ? nextDownPayment : undefined,
+      term_months: nextVehicleType === "new" && nextMode === "payment" ? nextTermMonths : undefined,
+      apr: nextVehicleType === "new" && nextMode === "payment" ? nextApr : undefined,
       max_mileage: nextVehicleType !== "new" ? nextMaxMileage : undefined,
-      estimate: nextVehicleType === "new" ? nextEstimate : false,
       page: nextPage,
       page_size: pageSize
     });
@@ -467,8 +504,10 @@ function SearchPageContent() {
       if (overrides.model !== undefined) setModel(overrides.model);
       if (overrides.trim !== undefined) setTrim(overrides.trim);
       if (overrides.sort !== undefined) setSort(overrides.sort);
-      if (overrides.estimate !== undefined) setEstimate(overrides.estimate);
       if (overrides.maxPayment !== undefined) setMaxPayment(overrides.maxPayment);
+      if (overrides.downPayment !== undefined) setDownPayment(overrides.downPayment);
+      if (overrides.termMonths !== undefined) setTermMonths(overrides.termMonths);
+      if (overrides.apr !== undefined) setApr(overrides.apr);
       if (overrides.maxPrice !== undefined) setMaxPrice(overrides.maxPrice);
       if (overrides.usedMaxPrice !== undefined) setUsedMaxPrice(overrides.usedMaxPrice);
       if (overrides.maxMileage !== undefined) setMaxMileage(overrides.maxMileage);
@@ -480,10 +519,11 @@ function SearchPageContent() {
     setModel("");
     setTrim("");
     setSort(sortOptions[0].value);
-    setMode("price");
-    setEstimate(false);
     setMaxPrice(defaultValues.maxPrice);
     setMaxPayment(defaultValues.maxPayment);
+    setDownPayment(defaultValues.downPayment);
+    setTermMonths(defaultValues.termMonths);
+    setApr(defaultValues.apr);
     setUsedMaxPrice(defaultValues.usedMaxPrice);
     setMaxMileage(defaultValues.maxMileage);
     setPage(1);
@@ -502,6 +542,15 @@ function SearchPageContent() {
         label: maxPayment >= PAYMENT_ANY_VALUE ? "Payment: Any" : `Payment <= $${maxPayment}/mo`
       });
     }
+    if (vehicleType === "new" && mode === "payment" && downPayment !== defaultValues.downPayment) {
+      chips.push({ key: "downPayment", label: `Down payment: $${downPayment.toLocaleString()}` });
+    }
+    if (vehicleType === "new" && mode === "payment" && termMonths !== defaultValues.termMonths) {
+      chips.push({ key: "termMonths", label: `Term: ${termMonths} months` });
+    }
+    if (vehicleType === "new" && mode === "payment" && Math.abs(apr - defaultValues.apr) > 0.001) {
+      chips.push({ key: "apr", label: `APR: ${apr.toFixed(2)}%` });
+    }
     if (mode === "price" && maxPrice !== defaultValues.maxPrice && vehicleType === "new") {
       chips.push({
         key: "maxPrice",
@@ -518,7 +567,7 @@ function SearchPageContent() {
       chips.push({ key: "maxMileage", label: `Mileage <= ${maxMileage.toLocaleString()}` });
     }
     return chips;
-  }, [make, model, trim, sort, mode, maxPayment, maxPrice, usedMaxPrice, maxMileage, vehicleType]);
+  }, [make, model, trim, sort, mode, maxPayment, downPayment, termMonths, apr, maxPrice, usedMaxPrice, maxMileage, vehicleType]);
 
   function clearSingleFilter(key: string) {
     if (key === "make") {
@@ -539,6 +588,18 @@ function SearchPageContent() {
     }
     if (key === "maxPayment") {
       runSearch(1, { maxPayment: defaultValues.maxPayment });
+      return;
+    }
+    if (key === "downPayment") {
+      runSearch(1, { downPayment: defaultValues.downPayment });
+      return;
+    }
+    if (key === "termMonths") {
+      runSearch(1, { termMonths: defaultValues.termMonths });
+      return;
+    }
+    if (key === "apr") {
+      runSearch(1, { apr: defaultValues.apr });
       return;
     }
     if (key === "maxPrice") {
@@ -861,10 +922,66 @@ function SearchPageContent() {
                   )}
                 </div>
                 {vehicleType === "new" && mode === "payment" && (
-                  <div className="flex items-center gap-3">
-                    <Switch checked={estimate} onCheckedChange={(checked) => runSearch(1, { estimate: checked })} />
-                    <span className="text-sm text-ink-600">Estimate payment using profile</span>
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label>Down payment</Label>
+                        <Badge>${downPayment.toLocaleString()}</Badge>
+                      </div>
+                      <Slider
+                        value={[downPayment]}
+                        min={DOWN_PAYMENT_MIN}
+                        max={DOWN_PAYMENT_MAX}
+                        step={DOWN_PAYMENT_STEP}
+                        onValueChange={(v) => setDownPayment(v[0])}
+                        onValueCommit={(v) => runSearch(1, { downPayment: v[0] })}
+                      />
+                      <div className="relative h-4 text-[11px] text-ink-500">
+                        <span className="absolute left-0">$0</span>
+                        <span className="absolute right-0">${DOWN_PAYMENT_MAX.toLocaleString()}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label>Loan term</Label>
+                        <Badge>{termMonths} mo</Badge>
+                      </div>
+                      <Slider
+                        value={[termMonths]}
+                        min={TERM_MIN}
+                        max={TERM_MAX}
+                        step={TERM_STEP}
+                        onValueChange={(v) => setTermMonths(v[0])}
+                        onValueCommit={(v) => runSearch(1, { termMonths: v[0] })}
+                      />
+                      <div className="relative h-4 text-[11px] text-ink-500">
+                        <span className="absolute left-0">{TERM_MIN} mo</span>
+                        <span className="absolute right-0">{TERM_MAX} mo</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label>Interest rate</Label>
+                        <Badge>{apr.toFixed(2)}%</Badge>
+                      </div>
+                      <Slider
+                        value={[apr]}
+                        min={APR_MIN}
+                        max={APR_MAX}
+                        step={APR_STEP}
+                        onValueChange={(v) => setApr(Number(v[0].toFixed(2)))}
+                        onValueCommit={(v) => runSearch(1, { apr: Number(v[0].toFixed(2)) })}
+                      />
+                      <div className="relative h-4 text-[11px] text-ink-500">
+                        <span className="absolute left-0">{APR_MIN}%</span>
+                        <span className="absolute right-0">{APR_MAX}%</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-ink-600">
+                      Finance estimate uses a {termMonths}-month loan, {apr.toFixed(2)}% APR, ${downPayment.toLocaleString()} down,
+                      and estimated vehicle price plus 10% taxes.
+                    </p>
+                  </>
                 )}
                 {showUsedFilters && (
                   <div className="space-y-3">
@@ -1158,12 +1275,110 @@ function SearchPageContent() {
                   }}
                 />
               </div>
-
               {vehicleType === "new" && mode === "payment" && (
-                <div className="flex items-center gap-3">
-                  <Switch checked={estimate} onCheckedChange={(checked) => runSearch(1, { estimate: checked })} />
-                  <span className="text-xs text-ink-600">Estimate payment using profile</span>
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Down payment</Label>
+                      <Badge>${downPayment.toLocaleString()}</Badge>
+                    </div>
+                    <Slider
+                      value={[downPayment]}
+                      min={DOWN_PAYMENT_MIN}
+                      max={DOWN_PAYMENT_MAX}
+                      step={DOWN_PAYMENT_STEP}
+                      onValueChange={(v) => setDownPayment(v[0])}
+                      onValueCommit={(v) => runSearch(1, { downPayment: v[0] })}
+                    />
+                    <Input
+                      className="h-10"
+                      type="number"
+                      min={DOWN_PAYMENT_MIN}
+                      max={DOWN_PAYMENT_MAX}
+                      step={DOWN_PAYMENT_STEP}
+                      value={downPayment}
+                      onChange={(event) => {
+                        const raw = Number(event.target.value);
+                        setDownPayment(
+                          Number.isFinite(raw) ? Math.min(DOWN_PAYMENT_MAX, Math.max(DOWN_PAYMENT_MIN, Math.round(raw))) : DOWN_PAYMENT_MIN
+                        );
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter") return;
+                        event.preventDefault();
+                        runSearch(1, { downPayment });
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Loan term</Label>
+                      <Badge>{termMonths} mo</Badge>
+                    </div>
+                    <Slider
+                      value={[termMonths]}
+                      min={TERM_MIN}
+                      max={TERM_MAX}
+                      step={TERM_STEP}
+                      onValueChange={(v) => setTermMonths(v[0])}
+                      onValueCommit={(v) => runSearch(1, { termMonths: v[0] })}
+                    />
+                    <Input
+                      className="h-10"
+                      type="number"
+                      min={TERM_MIN}
+                      max={TERM_MAX}
+                      step={TERM_STEP}
+                      value={termMonths}
+                      onChange={(event) => {
+                        const raw = Number(event.target.value);
+                        setTermMonths(
+                          Number.isFinite(raw) ? Math.min(TERM_MAX, Math.max(TERM_MIN, Math.round(raw / TERM_STEP) * TERM_STEP)) : TERM_MIN
+                        );
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter") return;
+                        event.preventDefault();
+                        runSearch(1, { termMonths });
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Interest rate</Label>
+                      <Badge>{apr.toFixed(2)}%</Badge>
+                    </div>
+                    <Slider
+                      value={[apr]}
+                      min={APR_MIN}
+                      max={APR_MAX}
+                      step={APR_STEP}
+                      onValueChange={(v) => setApr(Number(v[0].toFixed(2)))}
+                      onValueCommit={(v) => runSearch(1, { apr: Number(v[0].toFixed(2)) })}
+                    />
+                    <Input
+                      className="h-10"
+                      type="number"
+                      min={APR_MIN}
+                      max={APR_MAX}
+                      step={APR_STEP}
+                      value={apr}
+                      onChange={(event) => {
+                        const raw = Number(event.target.value);
+                        setApr(Number.isFinite(raw) ? Math.min(APR_MAX, Math.max(APR_MIN, Number(raw.toFixed(2)))) : APR_MIN);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter") return;
+                        event.preventDefault();
+                        runSearch(1, { apr });
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-ink-600">
+                    Finance estimate uses a {termMonths}-month loan, {apr.toFixed(2)}% APR, ${downPayment.toLocaleString()} down, and
+                    estimated vehicle price plus 10% taxes.
+                  </p>
+                </>
               )}
 
               {showUsedFilters && (
@@ -1273,7 +1488,7 @@ function SearchPageContent() {
                 </Card>
               )}
               {sortedResultItems.map((vehicle) => (
-                <VehicleCard key={vehicle.vin} vehicle={vehicle} />
+                <VehicleCard key={vehicle.vin} vehicle={vehicle} paymentMode={vehicleType === "new" && mode === "payment"} />
               ))}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-4 border-t border-ink-200 pt-6">
@@ -1311,7 +1526,7 @@ function SearchPageContent() {
   );
 }
 
-function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
+function VehicleCard({ vehicle, paymentMode }: { vehicle: Vehicle; paymentMode: boolean }) {
   const normalizedType = (vehicle.vehicle_type ?? "new").toString().toLowerCase();
   const normalizedCondition = (vehicle.condition ?? "").toString().toLowerCase();
   const inferredType =
@@ -1327,7 +1542,7 @@ function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
     ? vehicle.listed_price ?? vehicle.discounted ?? vehicle.msrp ?? undefined
     : vehicle.discounted ?? vehicle.msrp ?? vehicle.listed_price ?? undefined;
   const msrpPrice = vehicle.msrp ?? undefined;
-  const monthlyPrice = vehicle.monthly ?? undefined;
+  const monthlyPrice = paymentMode ? (vehicle.estimated_monthly ?? vehicle.monthly ?? undefined) : vehicle.monthly ?? undefined;
   const fullName = `${vehicle.year ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""}`.trim();
   const subtitle = `${vehicle.trim ?? "Trim unavailable"} | ${isUsed ? "Used car" : "New car"}`;
   const imageUrl = pickVehicleImage(vehicle);
@@ -1335,7 +1550,7 @@ function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
   const detailsActionHref = detailsHref;
   const showMsrpSecondary =
     !isUsed && msrpPrice !== undefined && primaryPrice !== undefined && primaryPrice !== msrpPrice;
-  const imageBadgeLeaseLabel = monthlyPrice !== undefined ? `$${monthlyPrice.toLocaleString()}/mo lease` : null;
+  const imageBadgeLeaseLabel = monthlyPrice !== undefined ? `$${monthlyPrice.toLocaleString()}/mo ${paymentMode ? "est" : "lease"}` : null;
   return (
     <Card className="search-card group overflow-hidden rounded-xl border border-ink-300 bg-[#f6f7f9] shadow-sm transition-[transform,box-shadow,border-color] duration-150 motion-safe:hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg">
       <CardContent className="p-0">

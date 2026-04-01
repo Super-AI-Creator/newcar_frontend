@@ -23,6 +23,9 @@ type LeadFormButtonProps = Pick<ButtonProps, "variant" | "size" | "className"> &
   year?: string | number;
   source?: string;
   title?: string;
+  requireVehicleInput?: boolean;
+  vehicleInputLabel?: string;
+  vehicleInputPlaceholder?: string;
   children: ReactNode;
 };
 
@@ -34,6 +37,9 @@ export default function LeadFormButton({
   year,
   source,
   title = "Get Price",
+  requireVehicleInput = false,
+  vehicleInputLabel = "Make and Model",
+  vehicleInputPlaceholder = "Please enter the make and model car you want a custom quote for",
   children,
   variant,
   size,
@@ -48,6 +54,13 @@ export default function LeadFormButton({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [customVehicle, setCustomVehicle] = useState("");
+  const [touched, setTouched] = useState<{ name: boolean; email: boolean; phone: boolean; vehicle: boolean }>({
+    name: false,
+    email: false,
+    phone: false,
+    vehicle: false
+  });
   const [submittedLeadId, setSubmittedLeadId] = useState<number | null>(null);
   const [submittedDealId, setSubmittedDealId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -63,6 +76,8 @@ export default function LeadFormButton({
     setEmail(user?.email ?? "");
     setPhone("");
     setNotes("");
+    setCustomVehicle("");
+    setTouched({ name: false, email: false, phone: false, vehicle: false });
     setSubmittedLeadId(null);
     setSubmittedDealId(null);
     setSubmitAttempted(false);
@@ -71,17 +86,26 @@ export default function LeadFormButton({
   const nameError = useMemo(() => validateLeadName(name), [name]);
   const emailError = useMemo(() => validateLeadEmail(email), [email]);
   const phoneError = useMemo(() => validateLeadPhone(phone), [phone]);
+  const customVehicleError = useMemo(() => {
+    if (!requireVehicleInput) return null;
+    return customVehicle.trim() ? null : "Please enter the make and model you want a custom quote for.";
+  }, [customVehicle, requireVehicleInput]);
+  const showNameError = (submitAttempted || touched.name) && !!nameError;
+  const showEmailError = (submitAttempted || touched.email) && !!emailError;
+  const showPhoneError = (submitAttempted || touched.phone) && !!phoneError;
+  const showVehicleError = (submitAttempted || touched.vehicle) && !!customVehicleError;
+  const isFormValid = !nameError && !emailError && !phoneError && !customVehicleError;
 
   async function handleContinue() {
     setSubmitAttempted(true);
     const nErr = validateLeadName(name);
     const eErr = validateLeadEmail(email);
     const pErr = validateLeadPhone(phone);
-    if (nErr || eErr || pErr) {
+    if (nErr || eErr || pErr || customVehicleError) {
       toast({
         variant: "error",
         title: "Please check your information",
-        description: "Name, email, and phone are required and must be in the correct format."
+        description: "Please complete the required fields before continuing."
       });
       return;
     }
@@ -95,7 +119,7 @@ export default function LeadFormButton({
         model,
         trim,
         source,
-        vehicle: vehicleLabel || undefined,
+        vehicle: requireVehicleInput ? customVehicle.trim() : vehicleLabel || undefined,
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim(),
@@ -229,7 +253,7 @@ export default function LeadFormButton({
               }}
               noValidate
             >
-              {vehicleLabel && (
+              {vehicleLabel && !requireVehicleInput && (
                 <div className="flex min-w-0 flex-col gap-2 rounded-lg border border-ink-200 bg-ink-50 px-3 py-3 text-sm text-ink-700 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-4">
                   <p className="min-w-0 break-words">
                     Vehicle selected <span className="font-medium text-ink-900">{vehicleLabel}</span>
@@ -245,6 +269,28 @@ export default function LeadFormButton({
                   ) : null}
                 </div>
               )}
+              {requireVehicleInput && (
+                <div className="min-w-0 space-y-1.5">
+                  <Label htmlFor="lead-form-vehicle">{vehicleInputLabel}</Label>
+                  <Input
+                    id="lead-form-vehicle"
+                    name="vehicle"
+                    maxLength={255}
+                    value={customVehicle}
+                    onChange={(e) => setCustomVehicle(e.target.value)}
+                    onBlur={() => setTouched((prev) => ({ ...prev, vehicle: true }))}
+                    placeholder={vehicleInputPlaceholder}
+                    aria-invalid={showVehicleError}
+                    aria-describedby={showVehicleError ? "lead-form-vehicle-err" : undefined}
+                    className={cn("h-12", showVehicleError && "border-red-500 focus-visible:ring-red-500")}
+                  />
+                  {showVehicleError ? (
+                    <p id="lead-form-vehicle-err" className="text-sm text-red-600" role="alert">
+                      {customVehicleError}
+                    </p>
+                  ) : null}
+                </div>
+              )}
               <div className="grid min-w-0 gap-4 sm:grid-cols-2">
                 <div className="min-w-0 space-y-1.5">
                   <Label htmlFor="lead-form-name">Full name</Label>
@@ -252,14 +298,16 @@ export default function LeadFormButton({
                     id="lead-form-name"
                     name="name"
                     autoComplete="name"
+                    maxLength={120}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
                     placeholder="Enter your full name"
-                    aria-invalid={submitAttempted && !!nameError}
-                    aria-describedby={submitAttempted && nameError ? "lead-form-name-err" : undefined}
-                    className={cn("h-12", submitAttempted && nameError && "border-red-500 focus-visible:ring-red-500")}
+                    aria-invalid={showNameError}
+                    aria-describedby={showNameError ? "lead-form-name-err" : undefined}
+                    className={cn("h-12", showNameError && "border-red-500 focus-visible:ring-red-500")}
                   />
-                  {submitAttempted && nameError ? (
+                  {showNameError ? (
                     <p id="lead-form-name-err" className="text-sm text-red-600" role="alert">
                       {nameError}
                     </p>
@@ -273,14 +321,16 @@ export default function LeadFormButton({
                     type="email"
                     autoComplete="email"
                     inputMode="email"
+                    maxLength={254}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
                     placeholder="Enter your email"
-                    aria-invalid={submitAttempted && !!emailError}
-                    aria-describedby={submitAttempted && emailError ? "lead-form-email-err" : undefined}
-                    className={cn("h-12", submitAttempted && emailError && "border-red-500 focus-visible:ring-red-500")}
+                    aria-invalid={showEmailError}
+                    aria-describedby={showEmailError ? "lead-form-email-err" : undefined}
+                    className={cn("h-12", showEmailError && "border-red-500 focus-visible:ring-red-500")}
                   />
-                  {submitAttempted && emailError ? (
+                  {showEmailError ? (
                     <p id="lead-form-email-err" className="text-sm text-red-600" role="alert">
                       {emailError}
                     </p>
@@ -295,15 +345,17 @@ export default function LeadFormButton({
                   type="tel"
                   autoComplete="tel"
                   inputMode="tel"
+                  maxLength={20}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
                   placeholder="Enter your mobile number"
-                  aria-invalid={submitAttempted && !!phoneError}
-                  aria-describedby={submitAttempted && phoneError ? "lead-form-phone-err" : undefined}
-                  className={cn("h-12", submitAttempted && phoneError && "border-red-500 focus-visible:ring-red-500")}
+                  aria-invalid={showPhoneError}
+                  aria-describedby={showPhoneError ? "lead-form-phone-err" : undefined}
+                  className={cn("h-12", showPhoneError && "border-red-500 focus-visible:ring-red-500")}
                 />
                 <p className="text-xs text-ink-500">(No dealer spam)</p>
-                {submitAttempted && phoneError ? (
+                {showPhoneError ? (
                   <p id="lead-form-phone-err" className="text-sm text-red-600" role="alert">
                     {phoneError}
                   </p>
@@ -327,7 +379,7 @@ export default function LeadFormButton({
               <div className="flex justify-center pt-1 sm:pt-2">
                 <Button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || !isFormValid}
                   className="w-full max-w-[280px] rounded-xl bg-gradient-to-b from-[#4f91ff] to-[#2366d6] px-6 py-3 text-base font-semibold text-white shadow-[0_10px_24px_-12px_rgba(35,102,214,0.8)] hover:from-[#5b9aff] hover:to-[#2a70e1] sm:w-auto sm:min-w-[260px] sm:px-8 sm:text-lg"
                 >
                   {submitting ? "Saving..." : "Continue"}
