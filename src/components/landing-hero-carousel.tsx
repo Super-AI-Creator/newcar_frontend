@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
 const LANDING_SLIDES = [
@@ -19,9 +19,17 @@ type Props = {
   imageClassName?: string;
   priority?: boolean;
   slides?: Slide[];
+  /** Fires when all slide images have finished loading (or failed). */
+  onImagesReadyChange?: (ready: boolean) => void;
 };
 
-export default function LandingHeroCarousel({ className = "", imageClassName = "", priority = false, slides: slidesProp }: Props) {
+export default function LandingHeroCarousel({
+  className = "",
+  imageClassName = "",
+  priority = false,
+  slides: slidesProp,
+  onImagesReadyChange,
+}: Props) {
   const slides = slidesProp !== undefined ? slidesProp : LANDING_SLIDES;
   const slidesSig = slides.map((s) => s.src).join("\0");
   const [index, setIndex] = useState(0);
@@ -45,6 +53,12 @@ export default function LandingHeroCarousel({ className = "", imageClassName = "
   }, []);
 
   const allImagesReady = slides.length > 0 && slides.every((_, i) => loaded[i]);
+
+  const onReadyRef = useRef(onImagesReadyChange);
+  onReadyRef.current = onImagesReadyChange;
+  useEffect(() => {
+    onReadyRef.current?.(allImagesReady);
+  }, [allImagesReady]);
 
   const isExternal = (src: string) => src.startsWith("http://") || src.startsWith("https://");
 

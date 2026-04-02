@@ -36,6 +36,36 @@ function sliderValueToPayment(sliderValue: number): number | null {
   return Math.min(PAYMENT_MAX, Math.max(PAYMENT_MIN, snapped));
 }
 
+function KnowWhatYouWantSkeletonCard() {
+  return (
+    <Card className="border-ink-200 bg-white" aria-busy aria-label="Loading vehicle search">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <div className="h-5 w-5 shrink-0 animate-pulse rounded-md bg-brand-200/60" />
+          <div className="h-5 w-48 max-w-[70%] animate-pulse rounded-md bg-ink-100" />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="space-y-2">
+          <div className="h-3.5 w-24 animate-pulse rounded bg-ink-100" />
+          <div className="h-10 w-full animate-pulse rounded-md border border-ink-100 bg-ink-50" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-3.5 w-28 animate-pulse rounded bg-ink-100" />
+          <div className="h-10 w-full animate-pulse rounded-md border border-ink-100 bg-ink-50" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-3.5 w-32 animate-pulse rounded bg-ink-100" />
+          <div className="h-10 w-full animate-pulse rounded-md border border-ink-100 bg-ink-50" />
+        </div>
+        <div className="h-3 w-full animate-pulse rounded bg-ink-100/80" />
+        <div className="h-3 w-full max-w-md animate-pulse rounded bg-ink-100/80" />
+        <div className="h-10 w-full animate-pulse rounded-md bg-brand-200/40" />
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function HomeShopOptions({
   initialFilters,
 }: {
@@ -70,6 +100,7 @@ export function HomeShopOptionsContent({
   const models = useMemo(() => (make ? sanitizeOptions(modelsByMake[make]) : []), [make, modelsByMake]);
   const validMakeSelected = !make || makes.includes(make);
   const validModelSelected = !model || (make ? models.includes(model) : false);
+  const showKnowWhatYouWantSkeleton = filtersQuery.isPending && filtersQuery.data === undefined;
 
   useEffect(() => {
     if (filtersQuery.isLoading) return;
@@ -154,74 +185,78 @@ export function HomeShopOptionsContent({
           </CardContent>
         </Card>
 
-        <Card className="border-ink-200 bg-white">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <Search className="h-5 w-5 text-brand-700" />I Know What I Want
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-2">
-              <Label>Select Make</Label>
-              <Select
-                value={make || "__any_make__"}
-                onValueChange={(value) => {
-                  if (value === "__any_make__") {
-                    setMake("");
+        {showKnowWhatYouWantSkeleton ? (
+          <KnowWhatYouWantSkeletonCard />
+        ) : (
+          <Card className="border-ink-200 bg-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Search className="h-5 w-5 text-brand-700" />I Know What I Want
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <Label>Select Make</Label>
+                <Select
+                  value={make || "__any_make__"}
+                  onValueChange={(value) => {
+                    if (value === "__any_make__") {
+                      setMake("");
+                      setModel("");
+                      return;
+                    }
+                    setMake(value);
                     setModel("");
-                    return;
-                  }
-                  setMake(value);
-                  setModel("");
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Make" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__any_make__">Any make</SelectItem>
-                  {makes.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {item}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Select Model</Label>
-              <Select
-                value={model || "__any_model__"}
-                disabled={!make}
-                onValueChange={(value) => setModel(value === "__any_model__" ? "" : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={make ? "Select Model" : "Select make first"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__any_model__">Any model</SelectItem>
-                  {models.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {item}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Enter ZIP Code</Label>
-              <Input value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="90001" inputMode="numeric" />
-            </div>
-            <p className="text-xs text-ink-500">
-              Estimates depend on lender, incentives, and vehicle. ZIP is optional and helps when tax or regional offers apply.
-            </p>
-            <Button onClick={goByMakeModel} disabled={!validMakeSelected || !validModelSelected} className="h-10 w-full text-sm">
-              <span className="max-[420px]:hidden">See your matches</span>
-              <span className="hidden max-[420px]:inline">See your matches</span>
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Make" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__any_make__">Any make</SelectItem>
+                    {makes.map((item) => (
+                      <SelectItem key={item} value={item}>
+                        {item}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Select Model</Label>
+                <Select
+                  value={model || "__any_model__"}
+                  disabled={!make}
+                  onValueChange={(value) => setModel(value === "__any_model__" ? "" : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={make ? "Select Model" : "Select make first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__any_model__">Any model</SelectItem>
+                    {models.map((item) => (
+                      <SelectItem key={item} value={item}>
+                        {item}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Enter ZIP Code</Label>
+                <Input value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="90001" inputMode="numeric" />
+              </div>
+              <p className="text-xs text-ink-500">
+                Estimates depend on lender, incentives, and vehicle. ZIP is optional and helps when tax or regional offers apply.
+              </p>
+              <Button onClick={goByMakeModel} disabled={!validMakeSelected || !validModelSelected} className="h-10 w-full text-sm">
+                <span className="max-[420px]:hidden">See your matches</span>
+                <span className="hidden max-[420px]:inline">See your matches</span>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </section>
   );
