@@ -19,7 +19,12 @@ const DEFAULT_HERO = {
   kicker: "SHOP,  GET APPROVED AND GET THE CAR DELIVERED TO YOUR DOOR WITH A RED BOW",
   headline: "Buy Any New Car in California Without the Dealership",
   subtext: "SHOP, GET APPROVED AND GET THE CAR DELIVERED TO YOUR DOOR WITH A RED BOW.",
-  slide_urls: ["/images/panel-cars.jpg", "/images/landing_img (2).jpg", "/images/landing_img (3).jpg", "/images/landing_img (4).jpg"],
+  slide_urls: [
+    "/images/landing-1.jpg",
+    "/images/landing-2.jpg",
+    "/images/landing-3.jpg",
+    "/images/landing-4.jpg",
+  ],
   slide_focus: ["center", "center", "center", "center"] as string[],
 };
 const DEFAULT_LEASE = {

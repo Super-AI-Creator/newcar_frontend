@@ -4,10 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
 const LANDING_SLIDES = [
-  { src: "/images/panel-cars.jpg", alt: "New car delivery", focus: "center" },
-  { src: "/images/landing_img (2).jpg", alt: "New car ready for delivery", focus: "center" },
-  { src: "/images/landing_img (3).jpg", alt: "Car with red bow", focus: "center" },
-  { src: "/images/landing_img (4).jpg", alt: "Home delivery", focus: "center" }
+  { src: "/images/landing-1.jpg", alt: "New car delivery", focus: "center" },
+  { src: "/images/landing-2.jpg", alt: "New car ready for delivery", focus: "center" },
+  { src: "/images/landing-3.jpg", alt: "Car with red bow", focus: "center" },
+  { src: "/images/landing-4.jpg", alt: "Home delivery", focus: "center" },
 ];
 
 const ROTATE_MS = 5000;
@@ -62,13 +62,19 @@ export default function LandingHeroCarousel({
 
   const isExternal = (src: string) => src.startsWith("http://") || src.startsWith("https://");
 
+  /** External URLs with spaces need encoding for plain `<img>`; local `/public` paths use `src` as-is. */
+  const resolvedSrc = (src: string) => {
+    if (isExternal(src) && /\s/.test(src)) return encodeURI(src);
+    return src;
+  };
+
   const focusToCss = (focus?: string) => {
     const v = (focus ?? "center").toLowerCase();
-    // if (v === "top") return "0% 0%";
-    // if (v === "bottom") return "0% 0%";
-    // if (v === "left") return "0% 0%";
-    // if (v === "right") return "0% 0%";
-    return "100% 100%";
+    if (v === "top") return "50% 0%";
+    if (v === "bottom") return "50% 100%";
+    if (v === "left") return "0% 50%";
+    if (v === "right") return "100% 50%";
+    return "50% 50%";
   };
 
   return (
@@ -88,7 +94,7 @@ export default function LandingHeroCarousel({
               {isExternal(slide.src) ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={slide.src}
+                  src={resolvedSrc(slide.src)}
                   alt={i === index ? slide.alt : ""}
                   loading="eager"
                   decoding="async"
@@ -99,7 +105,7 @@ export default function LandingHeroCarousel({
                 />
               ) : (
                 <Image
-                  src={slide.src}
+                  src={resolvedSrc(slide.src)}
                   alt={i === index ? slide.alt : ""}
                   fill
                   loading="eager"

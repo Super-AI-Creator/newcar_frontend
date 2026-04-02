@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { api, type LandingHeroFallingPhrases } from "@/lib/api";
+import { normalizeHeroSlideUrl } from "@/lib/landing-hero-slides";
 import LandingHeroCarousel from "@/components/landing-hero-carousel";
 import HeroFallingPhrases from "@/components/hero-falling-phrases";
 import LeaseSpecials from "@/components/lease-specials";
@@ -24,7 +25,12 @@ const DEFAULT_HERO: {
   kicker: "SHOP,  GET APPROVED AND GET THE CAR DELIVERED TO YOUR DOOR WITH A RED BOW",
   headline: "Buy Any New Car in California Without the Dealership",
   subtext: "SHOP, GET APPROVED AND GET THE CAR DELIVERED TO YOUR DOOR WITH A RED BOW.",
-  slide_urls: ["/images/panel-cars.jpg", "/images/landing_img (2).jpg", "/images/landing_img (3).jpg", "/images/landing_img (4).jpg"],
+  slide_urls: [
+    "/images/landing-1.jpg",
+    "/images/landing-2.jpg",
+    "/images/landing-3.jpg",
+    "/images/landing-4.jpg",
+  ],
 };
 const DEFAULT_LEASE = { title: "Current Lease Specials Los Angeles", subtitle: "Shop and compare hundreds of lease offers, if they make it, we have it! 818-705-9200" };
 const DEFAULT_HOW = [
@@ -49,16 +55,14 @@ function HeroShimmerLine({ className }: { className: string }) {
   );
 }
 
-/** Full hero placeholder: left copy column + right image area until carousel images are ready. */
+/** Full hero placeholder: same overlays as live hero (brand gradient + photo-side dim). */
 function HeroSectionSkeleton() {
   return (
-    <div
-      className="absolute inset-0 z-30 flex min-h-[min(72vh,44rem)] flex-col bg-gradient-to-r from-ink-950 from-[38%] via-ink-900 to-brand-950/90 sm:min-h-[min(78vh,48rem)]"
-      aria-busy
-      aria-label="Loading hero"
-    >
-      <div className="container-wide flex flex-1 flex-col justify-center py-12 sm:py-20 lg:py-24">
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14">
+    <div className="absolute inset-0 z-30 overflow-hidden" aria-busy aria-label="Loading hero">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ink-950/90 via-ink-900/80 to-brand-900/55" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-black/45 via-black/15 to-transparent" />
+      <div className="relative z-[2] container-wide py-8 sm:py-12 lg:py-16">
+        <div className="grid items-center gap-8">
           <div className="max-w-3xl space-y-4">
             <HeroShimmerLine className="h-3 w-52 sm:w-64" />
             <HeroShimmerLine className="h-11 w-full max-w-xl sm:h-14" />
@@ -74,10 +78,6 @@ function HeroSectionSkeleton() {
               <HeroShimmerLine className="h-11 w-36 rounded-xl sm:w-40" />
             </div>
             <HeroShimmerLine className="h-3 w-56 sm:w-72" />
-          </div>
-          <div className="relative min-h-[14rem] w-full overflow-hidden rounded-2xl border border-white/10 bg-white/[0.07] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:min-h-[17rem] lg:min-h-[20rem]">
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-brand-500/10" />
-            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent motion-safe:animate-[landing-shimmer_2.2s_ease-in-out_infinite]" />
           </div>
         </div>
       </div>
@@ -156,7 +156,9 @@ export default function LandingPageSections() {
     if (v === "right") return "100% 50%";
     return "50% 50%";
   };
-  const slideUrls = (Array.isArray(hero.slide_urls) && hero.slide_urls.length ? hero.slide_urls : DEFAULT_HERO.slide_urls) ?? [];
+  const slideUrlsRaw =
+    (Array.isArray(hero.slide_urls) && hero.slide_urls.length ? hero.slide_urls : DEFAULT_HERO.slide_urls) ?? [];
+  const slideUrls = slideUrlsRaw.map((u) => (typeof u === "string" ? normalizeHeroSlideUrl(u) : u));
   const heroSlideFocus = (hero as { slide_focus?: string[] | undefined }).slide_focus;
   const defaultSlideFocus: string[] = ["center", "center", "center", "center"];
   const slideFocusRaw = Array.isArray(heroSlideFocus) && heroSlideFocus.length ? heroSlideFocus : defaultSlideFocus;
@@ -171,19 +173,29 @@ export default function LandingPageSections() {
 
   return (
     <>
-      <section className="relative min-h-[min(72vh,44rem)] overflow-hidden border-b border-ink-200 sm:min-h-[min(78vh,48rem)]">
-        <div className="absolute inset-0">
-          <LandingHeroCarousel
-            className="h-full w-full"
-            imageClassName="opacity-85"
-            priority
-            slides={carouselSlides}
-            onImagesReadyChange={onHeroImagesReadyChange}
+      <section className="relative overflow-hidden border-b border-ink-200">
+        {/* Split hero: flex guarantees 50/50 on md+ (no fragile inset overrides). Mobile = one column = full-width image. */}
+        <div className="absolute inset-0 z-0 flex flex-row">
+          <div
+            className="hidden w-1/2 shrink-0 bg-ink-950 md:block"
+            aria-hidden
           />
+          <div className="relative min-h-0 w-full flex-1 md:w-1/2 md:shrink-0 md:flex-none">
+            <LandingHeroCarousel
+              className="absolute inset-0 h-full w-full min-h-0"
+              imageClassName="opacity-85"
+              priority
+              slides={carouselSlides}
+              onImagesReadyChange={onHeroImagesReadyChange}
+            />
+          </div>
         </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-ink-950/90 via-ink-900/80 to-brand-900/55" />
+        {/* Brand tint (original hero look) */}
+        <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-ink-950/90 via-ink-900/80 to-brand-900/55" />
+        {/* Extra dim on the photo side so slides don’t read “washed out” */}
+        <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-l from-black/45 via-black/15 to-transparent" />
         {showHeroSkeleton ? <HeroSectionSkeleton /> : null}
-        <div className={`container-wide relative z-10 py-12 sm:py-20 lg:py-24 ${showHeroSkeleton ? "invisible" : ""}`} aria-hidden={showHeroSkeleton}>
+        <div className={`container-wide relative z-10 py-8 sm:py-12 lg:py-16 ${showHeroSkeleton ? "invisible" : ""}`} aria-hidden={showHeroSkeleton}>
           <div className="grid items-center gap-8">
             <div className="relative max-w-3xl">
               <HeroFallingPhrases config={hero.falling} />
