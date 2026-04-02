@@ -1304,12 +1304,26 @@ export default function AdminPage() {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {isSuperAdmin ? (
-                <AdminSuperAdminToolbar
-                  activeDealerCount={activeDealerCount}
-                  activeTotalCount={activeTotalCount}
-                  activeNewCount={activeNewCount}
-                  activeUsedCount={activeUsedCount}
-                />
+                <>
+                  <AdminSuperAdminToolbar
+                    activeDealerCount={activeDealerCount}
+                    activeTotalCount={activeTotalCount}
+                    activeNewCount={activeNewCount}
+                    activeUsedCount={activeUsedCount}
+                  />
+                  <Button
+                    onClick={() =>
+                      confirmAction(
+                        "Refresh lease specials now?",
+                        () => syncMutation.mutate(),
+                        "This pulls the latest lease specials from the connected sheet into the database."
+                      )
+                    }
+                    disabled={syncMutation.isPending}
+                  >
+                    {syncMutation.isPending ? "Refreshing..." : "Refresh Lease Specials"}
+                  </Button>
+                </>
               ) : (
                 <>
                   <Badge className="border border-ink-200 bg-ink-100 text-ink-700">

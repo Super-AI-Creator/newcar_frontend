@@ -23,10 +23,15 @@ type Testimonial = {
 
 const AUTOPLAY_INTERVAL_MS = 7000;
 
-export default function HomeTestimonials() {
+export default function HomeTestimonials({
+  initialTestimonials,
+}: {
+  initialTestimonials?: Testimonial[];
+} = {}) {
   const { data: testimonials = [], isLoading } = useQuery<Testimonial[]>({
     queryKey: ["testimonials"],
     queryFn: () => api.getTestimonials(),
+    initialData: initialTestimonials,
     staleTime: 60_000
   });
 

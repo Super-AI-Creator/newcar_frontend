@@ -23,6 +23,8 @@ type LeadFormButtonProps = Pick<ButtonProps, "variant" | "size" | "className"> &
   year?: string | number;
   source?: string;
   title?: string;
+  formHeading?: string;
+  formIntro?: string;
   requireVehicleInput?: boolean;
   vehicleInputLabel?: string;
   vehicleInputPlaceholder?: string;
@@ -37,6 +39,8 @@ export default function LeadFormButton({
   year,
   source,
   title = "Get Price",
+  formHeading = "Check Availability & Get a quote",
+  formIntro = "Your information stays 100% private. We do not share your name, phone, or email with any dealers. This helps us verify you're a real buyer and negotiate the best price on your behalf.",
   requireVehicleInput = false,
   vehicleInputLabel = "Make and Model",
   vehicleInputPlaceholder = "Please enter the make and model car you want a custom quote for",
@@ -238,11 +242,10 @@ export default function LeadFormButton({
           <>
             <DialogHeader className="min-w-0 border-b border-ink-200 px-5 py-5 pr-12 sm:px-8 sm:py-6 sm:pr-14">
               <DialogTitle className="break-words text-2xl font-semibold leading-tight text-ink-900 sm:text-[44px] sm:leading-[1.06]">
-                Check Availability & Get a quote
+                {formHeading}
               </DialogTitle>
               <p className="break-words pt-2 text-sm leading-relaxed text-ink-700 sm:text-[17px]">
-                Your information stays 100% private. We do not share your name, phone, or email with any dealers.
-                This helps us verify you&apos;re a real buyer and negotiate the best price on your behalf.
+                {formIntro}
               </p>
             </DialogHeader>
             <form

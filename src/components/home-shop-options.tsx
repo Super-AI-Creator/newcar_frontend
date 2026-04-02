@@ -36,7 +36,19 @@ function sliderValueToPayment(sliderValue: number): number | null {
   return Math.min(PAYMENT_MAX, Math.max(PAYMENT_MIN, snapped));
 }
 
-export default function HomeShopOptions() {
+export default function HomeShopOptions({
+  initialFilters,
+}: {
+  initialFilters?: Awaited<ReturnType<typeof api.getFilters>>;
+} = {}) {
+  return <HomeShopOptionsContent initialFilters={initialFilters} />;
+}
+
+export function HomeShopOptionsContent({
+  initialFilters,
+}: {
+  initialFilters?: Awaited<ReturnType<typeof api.getFilters>>;
+}) {
   const router = useRouter();
   const [paymentSliderValue, setPaymentSliderValue] = useState(() => paymentToSliderValue(500));
   const [paymentMode, setPaymentMode] = useState<"lease" | "buy">("lease");
@@ -48,6 +60,7 @@ export default function HomeShopOptions() {
   const filtersQuery = useQuery<Awaited<ReturnType<typeof api.getFilters>>>({
     queryKey: ["home-shop-options-filters"] as const,
     queryFn: () => api.getFilters({ vehicle_type: "new" }),
+    initialData: initialFilters,
     staleTime: 60_000,
     refetchOnWindowFocus: false
   });

@@ -32,10 +32,15 @@ function SkeletonCard() {
   );
 }
 
-export default function LeaseSpecials() {
+export default function LeaseSpecials({
+  initialSpecials,
+}: {
+  initialSpecials?: Awaited<ReturnType<typeof api.homepageSpecials>>;
+} = {}) {
   const specialsQuery = useQuery({
     queryKey: ["homepage-lease-specials"],
     queryFn: () => api.homepageSpecials({ limit: HOMEPAGE_SPECIAL_LIMIT }),
+    initialData: initialSpecials,
   });
 
   const vehicles = (specialsQuery.data?.results ?? []).slice(0, HOMEPAGE_SPECIAL_LIMIT);
