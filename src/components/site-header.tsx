@@ -334,7 +334,7 @@ export default function SiteHeader() {
       </div>
     ) : null}
     {showGuestCustomQuote ? (
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[60] md:hidden">
+      <div className="pointer-events-none fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] z-[60] md:hidden">
         <LeadFormButton
           title="Custom Quote"
           source="floating_custom_quote"
@@ -344,9 +344,16 @@ export default function SiteHeader() {
           vehicleInputLabel="Make and Model"
           vehicleInputPlaceholder="Please enter the make and model car you want a custom quote for"
           size="sm"
-          className="pointer-events-auto h-14 w-14 rounded-full bg-gradient-to-r from-brand-600 to-brand-500 p-0 text-white shadow-[0_10px_24px_rgba(37,99,235,0.35)]"
+          className="pointer-events-auto flex h-auto min-h-[4.25rem] w-[4.25rem] flex-col items-center justify-center gap-1 rounded-2xl bg-gradient-to-b from-brand-600 to-brand-500 px-1.5 py-2 text-white shadow-[0_10px_24px_rgba(37,99,235,0.35)] sm:w-auto sm:min-w-0 sm:flex-row sm:gap-1.5 sm:rounded-full sm:bg-gradient-to-r sm:px-4 sm:py-2.5"
         >
-          <MessageSquareQuote className="h-6 w-6" />
+          <MessageSquareQuote className="h-5 w-5 shrink-0" aria-hidden />
+          <span className="max-w-[3.25rem] text-center text-[10px] font-semibold leading-[1.15] tracking-tight sm:max-w-none sm:text-sm sm:leading-none sm:tracking-normal">
+            <span className="hidden sm:inline">Custom Quote</span>
+            <span className="flex flex-col sm:hidden">
+              <span>Custom</span>
+              <span>quote</span>
+            </span>
+          </span>
         </LeadFormButton>
       </div>
     ) : null}

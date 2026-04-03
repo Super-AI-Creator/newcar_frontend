@@ -140,8 +140,8 @@ export function AdminBrokerAdminDataPanel({
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-ink-600">
-            Lease Specials page reads from offer overrides. Google sheet sync writes source <strong>sheet</strong>; manual admin updates write source{" "}
-            <strong>broker</strong> by year/make/model.
+            Lease Specials page reads from offer overrides (listings without a monthly payment are hidden). Google sheet sync writes source <strong>sheet</strong>;
+            manual admin updates write source <strong>broker</strong> by year/make/model.
           </p>
           <div className="grid gap-2 md:grid-cols-8">
             <Input value={offerYear} onChange={(e) => setOfferYear(e.target.value)} placeholder="Year" />

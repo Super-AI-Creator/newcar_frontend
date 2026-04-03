@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { normalizeLegacyPublicImageUrl } from "@/lib/landing-hero-slides";
 
 const LANDING_SLIDES = [
   { src: "/images/landing-1.jpg", alt: "New car delivery", focus: "center" },
@@ -62,10 +63,12 @@ export default function LandingHeroCarousel({
 
   const isExternal = (src: string) => src.startsWith("http://") || src.startsWith("https://");
 
-  /** External URLs with spaces need encoding for plain `<img>`; local `/public` paths use `src` as-is. */
+  /** Map legacy DB paths; external URLs with spaces need encoding for plain `<img>`. */
   const resolvedSrc = (src: string) => {
-    if (isExternal(src) && /\s/.test(src)) return encodeURI(src);
-    return src;
+    if (isExternal(src)) {
+      return /\s/.test(src) ? encodeURI(src) : src;
+    }
+    return normalizeLegacyPublicImageUrl(src);
   };
 
   const focusToCss = (focus?: string) => {

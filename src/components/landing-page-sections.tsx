@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { api, type LandingHeroFallingPhrases } from "@/lib/api";
-import { normalizeHeroSlideUrl } from "@/lib/landing-hero-slides";
+import { normalizeLegacyPublicImageUrl } from "@/lib/landing-hero-slides";
 import LandingHeroCarousel from "@/components/landing-hero-carousel";
 import HeroFallingPhrases from "@/components/hero-falling-phrases";
 import LeaseSpecials from "@/components/lease-specials";
@@ -158,7 +158,7 @@ export default function LandingPageSections() {
   };
   const slideUrlsRaw =
     (Array.isArray(hero.slide_urls) && hero.slide_urls.length ? hero.slide_urls : DEFAULT_HERO.slide_urls) ?? [];
-  const slideUrls = slideUrlsRaw.map((u) => (typeof u === "string" ? normalizeHeroSlideUrl(u) : u));
+  const slideUrls = slideUrlsRaw.map((u) => (typeof u === "string" ? normalizeLegacyPublicImageUrl(u) : u));
   const heroSlideFocus = (hero as { slide_focus?: string[] | undefined }).slide_focus;
   const defaultSlideFocus: string[] = ["center", "center", "center", "center"];
   const slideFocusRaw = Array.isArray(heroSlideFocus) && heroSlideFocus.length ? heroSlideFocus : defaultSlideFocus;
@@ -323,7 +323,7 @@ export default function LandingPageSections() {
                           />
                         ) : (
                           <Image
-                            src={step.image_url || "/images/hero-cars.jpg"}
+                            src={normalizeLegacyPublicImageUrl(step.image_url || "/images/hero-cars.jpg")}
                             alt={step.label ?? ""}
                             fill
                             className="object-cover"

@@ -10,7 +10,10 @@ const LEGACY_HERO_SLIDE_URL_MAP: Record<string, string> = {
   "/images/landing-img (4).png": "/images/landing-4.jpg",
 };
 
-export function normalizeHeroSlideUrl(src: string): string {
+export function normalizeLegacyPublicImageUrl(src: string): string {
   const u = src.trim();
   return LEGACY_HERO_SLIDE_URL_MAP[u] ?? u;
 }
+
+/** @deprecated alias — same as normalizeLegacyPublicImageUrl */
+export const normalizeHeroSlideUrl = normalizeLegacyPublicImageUrl;
