@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { SiteFooter } from "@/components/site-footer";
 import { useAuth } from "@/components/auth-provider";
 import { TurnstileWidget } from "@/components/turnstile-widget";
 import { isTurnstileEnabled } from "@/lib/turnstile";
@@ -121,7 +120,6 @@ export default function WhiteLabelCreditUnionPage({ params }: Props) {
             </Button>
           </CardContent>
         </Card>
-        <SiteFooter poweredBy="Powered by New Car Superstore" />
       </div>
     );
   }
@@ -414,7 +412,11 @@ export default function WhiteLabelCreditUnionPage({ params }: Props) {
         )}
       </main>
 
-      <SiteFooter poweredBy="Powered by New Car Superstore" />
+      <footer className="border-t border-ink-200 bg-white py-4">
+        <div className="container-wide text-center text-xs text-ink-500">
+          {siteName ? `${siteName} member portal` : "Credit union member portal"}
+        </div>
+      </footer>
     </div>
   );
 }

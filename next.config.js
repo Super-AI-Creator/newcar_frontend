@@ -35,6 +35,23 @@ const nextConfig = {
   },
   async redirects() {
     return [{ source: "/terms", destination: "/privacy", permanent: true }];
+  },
+  async headers() {
+    return [
+      {
+        // Avoid stale HTML after deploys causing chunk mismatches on client browsers.
+        // Static hashed assets under /_next keep their immutable caching behavior.
+        source: "/:path((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\..*).*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate"
+          },
+          { key: "Pragma", value: "no-cache" },
+          { key: "Expires", value: "0" }
+        ]
+      }
+    ];
   }
 };
 

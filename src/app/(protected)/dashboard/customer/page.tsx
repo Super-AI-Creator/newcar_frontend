@@ -270,12 +270,19 @@ export default function CustomerDashboard() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
+  const memberUserId = (() => {
+    const raw = searchParams.get("memberUserId");
+    if (!raw) return undefined;
+    const n = Number(raw);
+    return Number.isInteger(n) && n > 0 ? n : undefined;
+  })();
+  const isCuViewingMember = user?.role === "credit_union" && !!memberUserId;
 
   useEffect(() => {
-    if (user?.role === "credit_union") {
+    if (user?.role === "credit_union" && !memberUserId) {
       router.replace("/dashboard/credit-union");
     }
-  }, [user?.role, router]);
+  }, [user?.role, memberUserId, router]);
   const [selectedThreadKey, setSelectedThreadKey] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
   const [docsDialogOpen, setDocsDialogOpen] = useState(false);
@@ -291,30 +298,30 @@ export default function CustomerDashboard() {
   const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const favoritesQuery = useQuery({
-    queryKey: ["favorites"],
-    queryFn: api.favorites
+    queryKey: ["favorites", memberUserId ?? "self"],
+    queryFn: () => api.favorites(memberUserId ? { member_user_id: memberUserId } : undefined)
   });
   const messagesQuery = useQuery({
-    queryKey: ["messages"],
-    queryFn: api.messages
+    queryKey: ["messages", memberUserId ?? "self"],
+    queryFn: () => api.messages(memberUserId ? { member_user_id: memberUserId } : undefined)
   });
   const dealsQuery = useQuery({
-    queryKey: ["deals-mine"],
-    queryFn: api.myDeals
+    queryKey: ["deals-mine", memberUserId ?? "self"],
+    queryFn: () => api.myDeals(memberUserId ? { member_user_id: memberUserId } : undefined)
   });
   const docsQuery = useQuery({
-    queryKey: ["docs-mine"],
-    queryFn: () => api.myDocSubmissions({ page_size: 100 }),
+    queryKey: ["docs-mine", memberUserId ?? "self"],
+    queryFn: () => api.myDocSubmissions({ page_size: 100, ...(memberUserId ? { member_user_id: memberUserId } : {}) }),
     refetchOnMount: "always"
   });
   const creditAppsQuery = useQuery({
-    queryKey: ["credit-apps-mine"],
-    queryFn: () => api.myCreditApplications({ page_size: 100 }),
+    queryKey: ["credit-apps-mine", memberUserId ?? "self"],
+    queryFn: () => api.myCreditApplications({ page_size: 100, ...(memberUserId ? { member_user_id: memberUserId } : {}) }),
     refetchOnMount: "always"
   });
   const approvalsQuery = useQuery({
-    queryKey: ["approvals-mine"],
-    queryFn: () => api.listMyApprovals(),
+    queryKey: ["approvals-mine", memberUserId ?? "self"],
+    queryFn: () => api.listMyApprovals(memberUserId ? { member_user_id: memberUserId } : undefined),
   });
 
   const primaryApproval = approvalsQuery.data?.[0];
@@ -355,7 +362,8 @@ export default function CustomerDashboard() {
   }, [claimCode, pathname, router, searchParams, toast]);
 
   const sendMessageMutation = useMutation({
-    mutationFn: (payload: { vin?: string; message: string }) => api.sendMessage(payload),
+    mutationFn: (payload: { vin?: string; message: string }) =>
+      api.sendMessage(memberUserId ? { ...payload, member_user_id: memberUserId } : payload),
     onSuccess: () => {
       setMessageDraft("");
       messagesQuery.refetch();
@@ -555,7 +563,7 @@ export default function CustomerDashboard() {
       if (payload.other) {
         formData.set("other", payload.other);
       }
-      return api.forwardDocs(formData);
+      return api.forwardDocs(formData, memberUserId ? { member_user_id: memberUserId } : undefined);
     },
     onSuccess: () => {
       docsQuery.refetch();
@@ -632,6 +640,14 @@ export default function CustomerDashboard() {
     <div className="app-page min-h-screen">
       <SiteHeader />
       <main className="app-main space-y-4 sm:space-y-8">
+        {isCuViewingMember && (
+          <section className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+            CU staff member view is active. You are managing this member workspace.
+            <Link href="/dashboard/credit-union" className="ml-2 font-semibold underline">
+              Back to CU dashboard
+            </Link>
+          </section>
+        )}
         <section className="tc-fade-up relative w-full overflow-hidden rounded-2xl border border-ink-200 bg-white px-4 py-4 shadow-sm sm:rounded-3xl sm:px-6 sm:py-6">
           <div className="pointer-events-none absolute inset-0 aurora-bg opacity-35" aria-hidden />
           <img
@@ -642,11 +658,11 @@ export default function CustomerDashboard() {
           />
           <div className="relative">
             <p className="market-kicker text-[10px] sm:text-xs">
-              {primaryApproval ? "Credit Union Member" : "Deal Room"}
+              {isCuViewingMember ? "Member Workspace (CU)" : primaryApproval ? "Credit Union Member" : "Deal Room"}
             </p>
             <div className="mt-0.5 flex items-start justify-between gap-3">
               <h1 className="market-heading min-w-0 text-xl leading-tight sm:text-3xl md:text-4xl">
-                {primaryApproval ? "Your approval & deals" : "Your deals & messages"}
+                {isCuViewingMember ? "Member approval & deals" : primaryApproval ? "Your approval & deals" : "Your deals & messages"}
               </h1>
               <Badge className="shrink-0 border border-ink-200 bg-ink-100 px-2 py-0.5 text-[10px] font-medium text-ink-700 sm:text-xs">
                 {(favoritesQuery.data?.items.length ?? 0) === 1

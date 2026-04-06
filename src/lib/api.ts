@@ -488,8 +488,15 @@ export const api = {
       total: toNumber(data.total ?? data.vehicle_price)
     };
   },
-  favorites: async () => {
-    const rows = await apiFetch<Array<{ vin: string }>>("/favorites");
+  favorites: async (params?: { member_user_id?: number } | unknown) => {
+    const query = new URLSearchParams();
+    const memberUserId =
+      params && typeof params === "object" && "member_user_id" in params
+        ? Number((params as { member_user_id?: number }).member_user_id)
+        : undefined;
+    if (memberUserId) query.set("member_user_id", String(memberUserId));
+    const qs = query.toString();
+    const rows = await apiFetch<Array<{ vin: string }>>(`/favorites${qs ? `?${qs}` : ""}`);
     const vehicles = await Promise.all(
       (rows ?? []).map(async (item) => {
         try {
@@ -501,8 +508,11 @@ export const api = {
     );
     return { items: vehicles };
   },
-  toggleFavorite: async (vin: string) => {
-    const data = await apiFetch<{ status?: string }>(`/favorites/${vin}`, { method: "POST" });
+  toggleFavorite: async (vin: string, params?: { member_user_id?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.member_user_id) query.set("member_user_id", String(params.member_user_id));
+    const qs = query.toString();
+    const data = await apiFetch<{ status?: string }>(`/favorites/${vin}${qs ? `?${qs}` : ""}`, { method: "POST" });
     return { saved: data.status === "added" || data.status === "exists" };
   },
   getRecommendations: async (params: {
@@ -547,9 +557,21 @@ export const api = {
       })
     };
   },
-  messages: () => apiFetch<{ items: Message[] }>("/messages"),
-  sendMessage: async (payload: { vin?: string; message: string }) => {
-    const data = await apiFetch<{ status?: string }>("/broker/message", {
+  messages: (params?: { member_user_id?: number } | unknown) => {
+    const query = new URLSearchParams();
+    const memberUserId =
+      params && typeof params === "object" && "member_user_id" in params
+        ? Number((params as { member_user_id?: number }).member_user_id)
+        : undefined;
+    if (memberUserId) query.set("member_user_id", String(memberUserId));
+    const qs = query.toString();
+    return apiFetch<{ items: Message[] }>(`/messages${qs ? `?${qs}` : ""}`);
+  },
+  sendMessage: async (payload: { vin?: string; message: string; member_user_id?: number }) => {
+    const query = new URLSearchParams();
+    if (payload.member_user_id) query.set("member_user_id", String(payload.member_user_id));
+    const qs = query.toString();
+    const data = await apiFetch<{ status?: string }>(`/broker/message${qs ? `?${qs}` : ""}`, {
       method: "POST",
       body: JSON.stringify({
         vin: payload.vin,
@@ -587,14 +609,24 @@ export const api = {
       body: JSON.stringify(payload)
     });
   },
-  createDeal: async (payload: { vin: string; customer_note?: string }) => {
-    return apiFetch<Deal>("/deals", {
+  createDeal: async (payload: { vin: string; customer_note?: string; member_user_id?: number }) => {
+    const query = new URLSearchParams();
+    if (payload.member_user_id) query.set("member_user_id", String(payload.member_user_id));
+    const qs = query.toString();
+    return apiFetch<Deal>(`/deals${qs ? `?${qs}` : ""}`, {
       method: "POST",
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ vin: payload.vin, customer_note: payload.customer_note })
     });
   },
-  myDeals: async () => {
-    const data = await apiFetch<{ items?: Deal[] }>("/deals/mine");
+  myDeals: async (params?: { member_user_id?: number } | unknown) => {
+    const query = new URLSearchParams();
+    const memberUserId =
+      params && typeof params === "object" && "member_user_id" in params
+        ? Number((params as { member_user_id?: number }).member_user_id)
+        : undefined;
+    if (memberUserId) query.set("member_user_id", String(memberUserId));
+    const qs = query.toString();
+    const data = await apiFetch<{ items?: Deal[] }>(`/deals/mine${qs ? `?${qs}` : ""}`);
     return { items: data.items ?? [] };
   },
   allDeals: async () => {
@@ -1133,8 +1165,11 @@ export const api = {
     return apiFetch<{ deleted: boolean; id: number }>(`/admin/articles/${encodeURIComponent(String(id))}`, { method: "DELETE" });
   },
 
-  forwardDocs: async (formData: FormData) => {
-    const data = await apiFetch<{ status?: string; id?: number }>("/docs/forward", {
+  forwardDocs: async (formData: FormData, params?: { member_user_id?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.member_user_id) query.set("member_user_id", String(params.member_user_id));
+    const qs = query.toString();
+    const data = await apiFetch<{ status?: string; id?: number }>(`/docs/forward${qs ? `?${qs}` : ""}`, {
       method: "POST",
       body: formData
     });
@@ -1176,22 +1211,24 @@ export const api = {
       body: JSON.stringify(payload)
     });
   },
-  myDocSubmissions: async (params?: { vin?: string; page?: number; page_size?: number }) => {
+  myDocSubmissions: async (params?: { vin?: string; page?: number; page_size?: number; member_user_id?: number }) => {
     const query = new URLSearchParams();
     if (params?.vin) query.set("vin", params.vin);
     if (params?.page) query.set("page", String(params.page));
     if (params?.page_size) query.set("page_size", String(params.page_size));
+    if (params?.member_user_id) query.set("member_user_id", String(params.member_user_id));
     const qs = query.toString();
     const data = await apiFetch<{ items?: DocumentSubmissionRecord[]; total?: number }>(
       `/docs/mine${qs ? `?${qs}` : ""}`
     );
     return { items: data.items ?? [], total: data.total ?? (data.items ?? []).length };
   },
-  myCreditApplications: async (params?: { vin?: string; page?: number; page_size?: number }) => {
+  myCreditApplications: async (params?: { vin?: string; page?: number; page_size?: number; member_user_id?: number }) => {
     const query = new URLSearchParams();
     if (params?.vin) query.set("vin", params.vin);
     if (params?.page) query.set("page", String(params.page));
     if (params?.page_size) query.set("page_size", String(params.page_size));
+    if (params?.member_user_id) query.set("member_user_id", String(params.member_user_id));
     const qs = query.toString();
     const data = await apiFetch<{ items?: CreditApplicationRecord[]; total?: number }>(
       `/credit/mine${qs ? `?${qs}` : ""}`
@@ -1282,8 +1319,15 @@ export const api = {
     );
     return data.item;
   },
-  listMyApprovals: async () => {
-    const data = await apiFetch<{ items: ApprovalRecord[] }>("/approvals/mine");
+  listMyApprovals: async (params?: { member_user_id?: number } | unknown) => {
+    const query = new URLSearchParams();
+    const memberUserId =
+      params && typeof params === "object" && "member_user_id" in params
+        ? Number((params as { member_user_id?: number }).member_user_id)
+        : undefined;
+    if (memberUserId) query.set("member_user_id", String(memberUserId));
+    const qs = query.toString();
+    const data = await apiFetch<{ items: ApprovalRecord[] }>(`/approvals/mine${qs ? `?${qs}` : ""}`);
     return data.items ?? [];
   },
   getApprovalByCode: async (code: string) => {

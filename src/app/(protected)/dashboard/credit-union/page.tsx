@@ -398,6 +398,14 @@ export default function CreditUnionDashboardPage() {
                       >
                         View letter
                       </Link>
+                      {a.user_id ? (
+                        <Link
+                          href={`/dashboard/customer?memberUserId=${encodeURIComponent(String(a.user_id))}`}
+                          className="text-sky-700 hover:underline text-xs"
+                        >
+                          Open member workspace
+                        </Link>
+                      ) : null}
                     </div>
                   </li>
                 ))}
