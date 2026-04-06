@@ -137,8 +137,8 @@ function LeaseSpecialsPageContent() {
   const filtersQuery = useQuery({
     queryKey: ["filters", "lease-specials"],
     queryFn: () => api.getFilters({ vehicle_type: "new", offers_only: true }),
-    staleTime: 60_000,
-    refetchOnWindowFocus: false
+    staleTime: 0,
+    refetchOnWindowFocus: true
   });
 
   const sanitizeOptions = (items: string[] | undefined) =>
@@ -170,8 +170,8 @@ function LeaseSpecialsPageContent() {
   const resultsQuery = useQuery({
     queryKey: ["lease-specials", appliedParams],
     queryFn: () => api.search(appliedParams),
-    staleTime: 20_000,
-    refetchOnWindowFocus: false
+    staleTime: 0,
+    refetchOnWindowFocus: true
   });
 
   const resultItems = resultsQuery.data?.results ?? [];

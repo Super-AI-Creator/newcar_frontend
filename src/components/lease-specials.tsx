@@ -41,6 +41,8 @@ export default function LeaseSpecials({
     queryKey: ["homepage-lease-specials"],
     queryFn: () => api.homepageSpecials({ limit: HOMEPAGE_SPECIAL_LIMIT }),
     initialData: initialSpecials,
+    staleTime: 0,
+    refetchOnWindowFocus: true
   });
 
   const vehicles = (specialsQuery.data?.results ?? []).slice(0, HOMEPAGE_SPECIAL_LIMIT);
