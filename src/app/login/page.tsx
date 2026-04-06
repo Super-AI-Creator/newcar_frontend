@@ -9,9 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 import { api } from "@/lib/api";
-import { AlertCircle } from "lucide-react";
 import { navigateAfterSignIn } from "@/lib/post-auth-navigation";
+import { isTurnstileEnabled } from "@/lib/turnstile";
+import { verifyTurnstileToken } from "@/lib/verify-turnstile-client";
+import { AlertCircle } from "lucide-react";
 import { z } from "zod";
 
 const emailSchema = z.string().email();
@@ -51,11 +54,14 @@ function LoginPageContent() {
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "redirecting">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileRemount, setTurnstileRemount] = useState(0);
 
-  const canSubmit = useMemo(
-    () => emailSchema.safeParse(email).success && password.trim().length > 0,
-    [email, password]
-  );
+  const canSubmit = useMemo(() => {
+    const credsOk = emailSchema.safeParse(email).success && password.trim().length > 0;
+    if (!isTurnstileEnabled()) return credsOk;
+    return credsOk && Boolean(turnstileToken);
+  }, [email, password, turnstileToken]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -63,6 +69,20 @@ function LoginPageContent() {
     if (!canSubmit) {
       setMessage("Enter a valid email and password.");
       return;
+    }
+
+    if (isTurnstileEnabled()) {
+      if (!turnstileToken) {
+        setMessage("Complete the security check below.");
+        return;
+      }
+      const check = await verifyTurnstileToken(turnstileToken);
+      if (!check.ok) {
+        setMessage("Security check failed. Please try again.");
+        setTurnstileToken(null);
+        setTurnstileRemount((k) => k + 1);
+        return;
+      }
     }
 
     setStatus("loading");
@@ -139,6 +159,12 @@ function LoginPageContent() {
                     disabled={isBusy}
                   />
                 </div>
+                <TurnstileWidget
+                  action="login"
+                  remountKey={turnstileRemount}
+                  onToken={setTurnstileToken}
+                  className="flex justify-center"
+                />
                 <Button type="submit" disabled={!canSubmit || isBusy} className="w-full">
                   {status === "redirecting" ? "Redirecting..." : status === "loading" ? "Signing in..." : "Sign In"}
                 </Button>

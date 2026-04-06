@@ -6,9 +6,10 @@ const nextConfig = {
     // Vercel can log "Skipped not serializable cache item ... PostCSSSyntaxError"
     // when webpack persistent cache attempts to serialize PostCSS errors.
     // Disabling cache avoids noisy/fragile deploy builds.
-    if (!dev) {
-      config.cache = false;
-    }
+    //
+    // Dev: persistent cache on Windows often causes missing `./vendor-chunks/*.js` and
+    // PackFileCacheStrategy ENOENT after interrupted compiles — disable in dev too.
+    config.cache = false;
     return config;
   },
   images: {

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import type { Deal, Vehicle } from "@/lib/api";
+import { DealCuBadge } from "@/components/deal-cu-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -126,6 +127,7 @@ export function AdminDealCard({
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <DealCuBadge deal={deal} />
             <HeaderStatusChip kind="timeline" value={deal.status} />
             <HeaderStatusChip kind="docs" value={docStatus?.status ?? "not_submitted"} />
             <HeaderStatusChip kind="credit" value={creditStatus?.status ?? "not_submitted"} />

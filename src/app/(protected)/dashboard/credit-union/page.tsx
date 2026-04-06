@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import SiteHeader from "@/components/site-header";
 import { useAuth } from "@/components/auth-provider";
@@ -57,6 +57,22 @@ export default function CreditUnionDashboardPage() {
     queryKey: ["approvals-mine"],
     queryFn: () => api.listMyApprovals(),
     enabled: !!cuId,
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: (payload: { approvalId: number; status: string }) =>
+      api.updateApprovalStatus(cuId!, payload.approvalId, payload.status),
+    onSuccess: () => {
+      approvalsQuery.refetch();
+      toast({ variant: "success", title: "Status updated" });
+    },
+    onError: (e: unknown) => {
+      toast({
+        variant: "error",
+        title: "Failed to update status",
+        description: (e as { message?: string })?.message,
+      });
+    },
   });
 
   const createApprovalMutation = useMutation({
@@ -123,6 +139,62 @@ export default function CreditUnionDashboardPage() {
   const cu = cuQuery.data;
   const approvals = approvalsQuery.data ?? [];
 
+  const stats = useMemo(() => {
+    const all = approvals;
+    const byStatus: Record<string, number> = {};
+    let fundedVolume = 0;
+    let recentCreated = 0;
+    const now = Date.now();
+    for (const a of all) {
+      const key = (a.status ?? "pending").toLowerCase();
+      byStatus[key] = (byStatus[key] ?? 0) + 1;
+      if (key === "funded" && typeof a.loan_amount === "number") {
+        fundedVolume += a.loan_amount;
+      }
+      if (a.created_at) {
+        const createdAt = Date.parse(a.created_at);
+        if (!Number.isNaN(createdAt) && now - createdAt <= 7 * 24 * 60 * 60 * 1000) {
+          recentCreated += 1;
+        }
+      }
+    }
+    return {
+      total: all.length,
+      pending: byStatus.pending ?? 0,
+      active: byStatus.active ?? 0,
+      funded: byStatus.funded ?? 0,
+      lost: byStatus.lost ?? 0,
+      canceled: byStatus.canceled ?? 0,
+      fundedVolume,
+      recentCreated,
+    };
+  }, [approvals]);
+
+  const loansNeedingAttention = useMemo(() => {
+    const now = Date.now();
+    return approvals
+      .filter((a) => {
+        const status = (a.status ?? "pending").toLowerCase();
+        if (!["pending", "active"].includes(status)) return false;
+        if (!a.created_at) return false;
+        const createdAt = Date.parse(a.created_at);
+        if (Number.isNaN(createdAt)) return false;
+        const ageDays = (now - createdAt) / (24 * 60 * 60 * 1000);
+        return ageDays >= 3;
+      })
+      .sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? ""))
+      .slice(0, 5)
+      .map((a) => {
+        const createdAt = a.created_at ? new Date(a.created_at) : null;
+        const ageDays = createdAt ? Math.round((now - createdAt.getTime()) / (24 * 60 * 60 * 1000)) : null;
+        const status = (a.status ?? "pending").toLowerCase();
+        let reason = "Older approval";
+        if (status === "pending") reason = "PO or funding not completed";
+        if (status === "active") reason = "Member has not finalized purchase";
+        return { approval: a, ageDays, reason };
+      });
+  }, [approvals]);
+
   return (
     <div className="app-page min-h-screen">
       <SiteHeader />
@@ -132,7 +204,7 @@ export default function CreditUnionDashboardPage() {
             <div>
               <p className="market-kicker">Credit Union</p>
               <h1 className="market-heading text-3xl sm:text-4xl">{cu?.name ?? "Dashboard"}</h1>
-              <p className="mt-1 text-sm text-ink-600">Create and manage pre-approvals for members.</p>
+              <p className="mt-1 text-sm text-ink-600">Create and track member pre-approvals and loan status.</p>
             </div>
             {cu?.slug && (
               <Button asChild variant="outline" size="sm">
@@ -143,7 +215,83 @@ export default function CreditUnionDashboardPage() {
               </Button>
             )}
           </div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <StatPill label="Total approvals" value={stats.total} />
+            <StatPill label="Pending" value={stats.pending} />
+            <StatPill label="Active" value={stats.active} />
+            <StatPill label="Funded" value={stats.funded} />
+            <StatPill label="Lost" value={stats.lost} />
+            <StatPill label="Canceled" value={stats.canceled} />
+          </div>
         </section>
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Card className="bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-sm">Loan pipeline snapshot</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-ink-700">
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-lg border border-ink-200 bg-ink-50 px-3 py-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-ink-500">Loans created (7d)</p>
+                  <p className="mt-1 text-lg font-semibold text-ink-900">
+                    {stats.recentCreated.toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-ink-200 bg-ink-50 px-3 py-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-ink-500">Currently funded</p>
+                  <p className="mt-1 text-lg font-semibold text-ink-900">
+                    {stats.funded.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-ink-600">
+                This snapshot is based on approvals created and their current status. Use it as a quick view into your
+                CU pipeline.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white shadow-sm lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-sm">Loans needing attention</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-ink-700">
+              {loansNeedingAttention.length === 0 && (
+                <p className="text-sm text-ink-500">
+                  No aging pending or active loans at the moment.
+                </p>
+              )}
+              {loansNeedingAttention.length > 0 && (
+                <ul className="space-y-1.5">
+                  {loansNeedingAttention.map(({ approval, ageDays, reason }) => (
+                    <li
+                      key={approval.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-ink-900">
+                          {formatCurrency(approval.loan_amount)} · {approval.term_months} mo ·{" "}
+                          <span className="font-mono text-xs">{approval.approval_code}</span>
+                        </p>
+                        <p className="text-[11px] text-ink-700">
+                          {reason}
+                          {ageDays != null ? ` · ~${ageDays} days old` : null}
+                        </p>
+                      </div>
+                      <Link
+                        href={`/approvals/${encodeURIComponent(approval.approval_code)}`}
+                        className="text-xs font-medium text-brand-700 hover:underline"
+                      >
+                        View letter
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="bg-white shadow-sm">
@@ -205,18 +353,52 @@ export default function CreditUnionDashboardPage() {
           <Card className="bg-white shadow-sm">
             <CardHeader>
               <CardTitle>Recent pre-approvals</CardTitle>
-              <p className="text-sm text-ink-600">{approvals.length} total</p>
+              <p className="text-sm text-ink-600">
+                {approvals.length} total · Funded volume {formatCurrency(stats.fundedVolume)}
+              </p>
             </CardHeader>
             <CardContent>
               {approvals.length === 0 && <p className="text-sm text-ink-500">No pre-approvals yet.</p>}
               <ul className="space-y-2 max-h-[400px] overflow-y-auto">
                 {approvals.slice(0, 50).map((a: ApprovalRecord) => (
-                  <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-200 bg-ink-50/50 px-3 py-2 text-sm">
-                    <span className="font-medium">{formatCurrency(a.loan_amount)} · {a.term_months} mo</span>
-                    <span className="text-ink-600">{a.approval_code}</span>
-                    <Link href={`/approvals/${encodeURIComponent(a.approval_code)}`} className="text-brand-600 hover:underline text-xs">
-                      View letter
-                    </Link>
+                  <li
+                    key={a.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-200 bg-ink-50/50 px-3 py-2 text-sm"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">
+                        {formatCurrency(a.loan_amount)} · {a.term_months} mo
+                      </p>
+                      <p className="text-xs text-ink-600">
+                        Code {a.approval_code}
+                        {a.credit_union_name ? ` · ${a.credit_union_name}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge status={a.status} />
+                      <select
+                        className="rounded border border-ink-200 bg-white px-2 py-1 text-xs"
+                        value={a.status}
+                        onChange={(event) =>
+                          updateStatusMutation.mutate({
+                            approvalId: a.id,
+                            status: event.target.value,
+                          })
+                        }
+                      >
+                        {["pending", "active", "funded", "lost", "canceled"].map((status) => (
+                          <option key={status} value={status}>
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                      <Link
+                        href={`/approvals/${encodeURIComponent(a.approval_code)}`}
+                        className="text-brand-600 hover:underline text-xs"
+                      >
+                        View letter
+                      </Link>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -225,5 +407,32 @@ export default function CreditUnionDashboardPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+function StatPill({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border border-ink-200 bg-ink-50/70 px-4 py-3">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-ink-500">{label}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums text-ink-900">
+        {Number.isFinite(value) ? value.toLocaleString() : "—"}
+      </p>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status?: string | null }) {
+  const normalized = (status ?? "pending").toLowerCase();
+  let color = "border-ink-200 bg-white text-ink-700";
+  if (normalized === "pending") color = "border-amber-200 bg-amber-50 text-amber-800";
+  else if (normalized === "active") color = "border-sky-200 bg-sky-50 text-sky-800";
+  else if (normalized === "funded") color = "border-emerald-200 bg-emerald-50 text-emerald-800";
+  else if (normalized === "lost" || normalized === "canceled")
+    color = "border-rose-200 bg-rose-50 text-rose-800";
+  else if (normalized === "claimed") color = "border-brand-200 bg-brand-50 text-brand-800";
+  return (
+    <Badge className={`border text-[11px] font-medium capitalize ${color}`}>
+      {normalized}
+    </Badge>
   );
 }

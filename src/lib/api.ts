@@ -1272,12 +1272,34 @@ export const api = {
     );
     return data;
   },
+  updateApprovalStatus: async (cuId: number, approvalId: number, status: string) => {
+    const data = await apiFetch<{ item: ApprovalRecord }>(
+      `/admin/credit-unions/${cuId}/approvals/${approvalId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      }
+    );
+    return data.item;
+  },
   listMyApprovals: async () => {
     const data = await apiFetch<{ items: ApprovalRecord[] }>("/approvals/mine");
     return data.items ?? [];
   },
   getApprovalByCode: async (code: string) => {
-    return apiFetch<ApprovalRecord & { credit_union_name?: string; credit_union_slug?: string }>(`/approvals/by-code/${encodeURIComponent(code)}`);
+    return apiFetch<
+      ApprovalRecord & {
+        credit_union_name?: string | null;
+        credit_union_slug?: string | null;
+        credit_union_logo_url?: string | null;
+        credit_union_address?: string | null;
+        credit_union_phone?: string | null;
+        credit_union_portal_url?: string | null;
+        contact_name?: string | null;
+        contact_phone?: string | null;
+        contact_email?: string | null;
+      }
+    >(`/approvals/by-code/${encodeURIComponent(code)}`);
   },
   claimApproval: async (code: string) => {
     return apiFetch<{ item: ApprovalRecord; claimed?: boolean; already_claimed?: boolean }>(`/approvals/claim/${encodeURIComponent(code)}`, {
@@ -1371,6 +1393,9 @@ export type Deal = {
   customer_name?: string | null;
   customer_email?: string | null;
   customer_phone?: string | null;
+  credit_union_id?: number | null;
+  credit_union_name?: string | null;
+  approval_amount?: number | null;
 };
 
 export type DealEvent = {
