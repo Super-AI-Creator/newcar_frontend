@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowUpDown, CarFront, CircleDollarSign, Info, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api, type Vehicle } from "@/lib/api";
+import { displayPrice, firstDisplayPrice } from "@/lib/vehicle-pricing";
 import { DEFAULT_CAR_IMAGE, pickVehicleImage } from "@/lib/vehicle-image";
 import DealSearchLoader from "@/components/deal-search-loader";
 import LeadFormButton from "@/components/lead-form-button";
@@ -178,7 +179,7 @@ function LeaseSpecialsPageContent() {
   const sortedResultItems = useMemo(() => {
     const items = [...resultItems];
     const vehiclePrice = (item: Vehicle, fallback: number) =>
-      item.discounted ?? item.msrp ?? item.listed_price ?? fallback;
+      firstDisplayPrice(item.discounted, item.msrp, item.listed_price) ?? fallback;
     const byTextAsc = (a: string | undefined, b: string | undefined) => {
       const left = (a ?? "").trim();
       const right = (b ?? "").trim();
@@ -189,11 +190,11 @@ function LeaseSpecialsPageContent() {
 
     if (sort === "payment_low_high") {
       items.sort((a, b) => {
-        const aHasMonthly = typeof a.monthly === "number";
-        const bHasMonthly = typeof b.monthly === "number";
+        const aMonthly = displayPrice(a.monthly);
+        const bMonthly = displayPrice(b.monthly);
+        const aHasMonthly = aMonthly !== undefined;
+        const bHasMonthly = bMonthly !== undefined;
         if (aHasMonthly && bHasMonthly) {
-          const aMonthly = a.monthly as number;
-          const bMonthly = b.monthly as number;
           if (aMonthly !== bMonthly) return aMonthly - bMonthly;
         } else if (aHasMonthly !== bHasMonthly) {
           return aHasMonthly ? -1 : 1;
@@ -205,11 +206,11 @@ function LeaseSpecialsPageContent() {
       });
     } else if (sort === "payment_high_low") {
       items.sort((a, b) => {
-        const aHasMonthly = typeof a.monthly === "number";
-        const bHasMonthly = typeof b.monthly === "number";
+        const aMonthly = displayPrice(a.monthly);
+        const bMonthly = displayPrice(b.monthly);
+        const aHasMonthly = aMonthly !== undefined;
+        const bHasMonthly = bMonthly !== undefined;
         if (aHasMonthly && bHasMonthly) {
-          const aMonthly = a.monthly as number;
-          const bMonthly = b.monthly as number;
           if (aMonthly !== bMonthly) return bMonthly - aMonthly;
         } else if (aHasMonthly !== bHasMonthly) {
           return aHasMonthly ? -1 : 1;
@@ -951,7 +952,10 @@ function LeaseSpecialCard({
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
-  const primaryPrice = vehicle.discounted ?? vehicle.msrp ?? vehicle.listed_price ?? undefined;
+  const primaryPrice = firstDisplayPrice(vehicle.discounted, vehicle.msrp, vehicle.listed_price);
+  const msrpDisplay = displayPrice(vehicle.msrp);
+  const monthlyDisplay = displayPrice(vehicle.monthly);
+  const downDisplay = displayPrice(vehicle.down);
   const detailsHref = `/vehicles/${encodeURIComponent(vehicle.vin)}`;
   const detailsActionHref = detailsHref;
   const fullName = `${vehicle.year ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""} ${vehicle.trim ?? ""}`.trim();
@@ -960,9 +964,9 @@ function LeaseSpecialCard({
   const leaseMeta: string[] = [];
   if (vehicle.term_months && vehicle.term_months > 0) leaseMeta.push(`${vehicle.term_months} mo`);
   if (vehicle.miles_per_year && vehicle.miles_per_year > 0) leaseMeta.push(`${vehicle.miles_per_year.toLocaleString()} mi/yr`);
-  const leaseBase = vehicle.discounted ?? vehicle.msrp;
+  const leaseBase = firstDisplayPrice(vehicle.discounted, vehicle.msrp);
   const leasePaymentDisclosure =
-    vehicle.monthly !== undefined
+    monthlyDisplay !== undefined
       ? leaseBase !== undefined
         ? `Lease payment is based on offer-sheet MSRP $${leaseBase.toLocaleString()}, not discounted price.`
         : "Lease payment is based on offer-sheet MSRP and lease structure, not discounted price."
@@ -999,9 +1003,9 @@ function LeaseSpecialCard({
               }}
             />
           </Link>
-          {vehicle.monthly !== undefined && vehicle.monthly !== null && (
+          {monthlyDisplay !== undefined && (
             <div className="absolute bottom-2 left-2 rounded-full bg-emerald-600/95 px-2.5 py-1 text-[11px] font-semibold text-white shadow sm:bottom-3 sm:left-3 sm:text-xs">
-              ${vehicle.monthly.toLocaleString()}/mo
+              ${monthlyDisplay.toLocaleString()}/mo
             </div>
           )}
         </div>
@@ -1018,14 +1022,16 @@ function LeaseSpecialCard({
               <p className="text-[22px] font-bold leading-none text-ink-900 max-[420px]:text-xl sm:text-xl">
                 {primaryPrice !== undefined ? `$${primaryPrice.toLocaleString()}` : "Call for price"}
               </p>
-              {vehicle.msrp !== undefined && <p className="hidden text-xs text-ink-700 sm:block">MSRP ${vehicle.msrp.toLocaleString()}</p>}
+              {msrpDisplay !== undefined && (
+                <p className="hidden text-xs text-ink-700 sm:block">MSRP ${msrpDisplay.toLocaleString()}</p>
+              )}
             </div>
             <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 sm:text-xs">
-              {vehicle.monthly !== undefined ? `$${vehicle.monthly.toLocaleString()}/mo lease` : "Monthly offer coming soon"}
+              {monthlyDisplay !== undefined ? `$${monthlyDisplay.toLocaleString()}/mo lease` : "Monthly offer coming soon"}
               <Info className="h-4 w-4 text-ink-500" />
             </p>
             {leasePaymentDisclosure && <p className="mt-1 text-[11px] leading-snug text-ink-600">{leasePaymentDisclosure}</p>}
-            {vehicle.down !== undefined && <p className="mt-1 text-xs text-ink-700">Down ${vehicle.down.toLocaleString()}</p>}
+            {downDisplay !== undefined && <p className="mt-1 text-xs text-ink-700">Down ${downDisplay.toLocaleString()}</p>}
             {leaseMeta.length > 0 && <p className="mt-1 text-xs text-ink-700">{leaseMeta.join(" | ")}</p>}
           </div>
 

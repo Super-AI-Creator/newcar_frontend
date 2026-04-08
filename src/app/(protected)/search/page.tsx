@@ -14,6 +14,7 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { api, type Vehicle } from "@/lib/api";
+import { firstDisplayPrice, resolveSearchCardPrimaryPrice, displayPrice } from "@/lib/vehicle-pricing";
 import { DEFAULT_CAR_IMAGE, pickVehicleImage } from "@/lib/vehicle-image";
 import LeadFormButton from "@/components/lead-form-button";
 import Link from "next/link";
@@ -246,9 +247,9 @@ function SearchPageContent() {
               ? "used"
               : "new";
       if (inferredType === "used") {
-        return v.listed_price ?? v.discounted ?? v.msrp ?? null;
+        return firstDisplayPrice(v.listed_price, v.discounted, v.msrp) ?? null;
       }
-      return v.discounted ?? v.msrp ?? v.listed_price ?? null;
+      return firstDisplayPrice(v.discounted, v.msrp, v.listed_price) ?? null;
     };
 
     if (sort === "msrp_low_high") {
@@ -1538,11 +1539,11 @@ function VehicleCard({ vehicle, paymentMode }: { vehicle: Vehicle; paymentMode: 
       ? "used"
       : "new";
   const isUsed = inferredType === "used";
-  const primaryPrice = isUsed
-    ? vehicle.listed_price ?? vehicle.discounted ?? vehicle.msrp ?? undefined
-    : vehicle.discounted ?? vehicle.msrp ?? vehicle.listed_price ?? undefined;
-  const msrpPrice = vehicle.msrp ?? undefined;
-  const monthlyPrice = paymentMode ? (vehicle.estimated_monthly ?? vehicle.monthly ?? undefined) : vehicle.monthly ?? undefined;
+  const primaryPrice = resolveSearchCardPrimaryPrice(vehicle, isUsed);
+  const msrpPrice = displayPrice(vehicle.msrp);
+  const monthlyPrice = paymentMode
+    ? firstDisplayPrice(vehicle.estimated_monthly, vehicle.monthly)
+    : firstDisplayPrice(vehicle.monthly, vehicle.estimated_monthly);
   const fullName = `${vehicle.year ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""}`.trim();
   const subtitle = `${vehicle.trim ?? "Trim unavailable"} | ${isUsed ? "Used car" : "New car"}`;
   const imageUrl = pickVehicleImage(vehicle);

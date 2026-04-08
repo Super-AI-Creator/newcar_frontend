@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { api, type ManualVehicleRecord, type Vehicle } from "@/lib/api";
 import { env } from "@/lib/env";
 import { DEFAULT_CAR_IMAGE, pickVehicleImage } from "@/lib/vehicle-image";
+import { displayPrice } from "@/lib/vehicle-pricing";
 import { useToast } from "@/components/toast-provider";
 import { useAuth } from "@/components/auth-provider";
 import LeadFormButton from "@/components/lead-form-button";
@@ -40,7 +41,7 @@ function formatSpecValue(value: unknown): string | undefined {
 }
 
 function formatMoney(value: number | null | undefined): string | undefined {
-  if (value === null || value === undefined) return undefined;
+  if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) return undefined;
   return `$${value.toLocaleString()}`;
 }
 
@@ -412,10 +413,10 @@ export default function VehicleDetailPage() {
   const historyLink = vehicleQuery.data?.vehicle_history_url ?? vehicleQuery.data?.history_url;
   const hasOfferSheetData = useMemo(
     () =>
+      displayPrice(vehicleQuery.data?.monthly) !== undefined ||
+      displayPrice(vehicleQuery.data?.down) !== undefined ||
+      displayPrice(vehicleQuery.data?.discounted) !== undefined ||
       [
-        vehicleQuery.data?.monthly,
-        vehicleQuery.data?.down,
-        vehicleQuery.data?.discounted,
         vehicleQuery.data?.term_months,
         vehicleQuery.data?.miles_per_year
       ].some((value) => value !== undefined && value !== null),
@@ -541,7 +542,7 @@ export default function VehicleDetailPage() {
     isUsed
   ]);
   const leasePaymentDisclosure = useMemo(() => {
-    if (vehicleQuery.data?.monthly === undefined || vehicleQuery.data?.monthly === null) return undefined;
+    if (displayPrice(vehicleQuery.data?.monthly) === undefined) return undefined;
     const msrpForLease = formatMoney(vehicleQuery.data?.discounted ?? vehicleQuery.data?.msrp);
     if (msrpForLease) {
       return `Lease payment is based on a MSRP ${msrpForLease} vehicle , 1st payment, tax and license fees extra, not everyone will qualify.`;
@@ -681,11 +682,11 @@ export default function VehicleDetailPage() {
                       {hasOfferSheetData ? "Offer-sheet and key vehicle facts" : "Pricing and key vehicle facts"}
                     </p>
                   </div>
-                  {vehicleQuery.data?.monthly !== undefined && vehicleQuery.data?.monthly !== null && (
+                  {displayPrice(vehicleQuery.data?.monthly) !== undefined && (
                     <div className="text-right">
                       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-brand-700">Lease payment</p>
                       <p className="text-2xl font-display font-semibold text-ink-900">
-                        ${vehicleQuery.data.monthly.toLocaleString()}
+                        ${displayPrice(vehicleQuery.data?.monthly)!.toLocaleString()}
                         <span className="ml-1 text-sm font-medium text-ink-600">/mo</span>
                       </p>
                       {leasePaymentDisclosure && <p className="mt-1 max-w-[20rem] text-[11px] leading-snug text-ink-500">{leasePaymentDisclosure}</p>}
@@ -885,18 +886,20 @@ export default function VehicleDetailPage() {
                     <>
                       <p className="text-sm text-ink-600">Lease offer available for well qualified buyers.</p>
                       <div className="rounded-xl border border-ink-200 bg-ink-50 p-3.5">
-                        {vehicleQuery.data?.monthly !== undefined && vehicleQuery.data?.monthly !== null ? (
+                        {displayPrice(vehicleQuery.data?.monthly) !== undefined ? (
                           <div className="mb-3 rounded-lg border border-brand-200 bg-white px-3 py-2.5">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-700">Lease payment</p>
-                            <p className="text-xl font-display font-semibold text-ink-900">${vehicleQuery.data.monthly.toLocaleString()} /mo</p>
+                            <p className="text-xl font-display font-semibold text-ink-900">
+                              ${displayPrice(vehicleQuery.data?.monthly)!.toLocaleString()} /mo
+                            </p>
                             {leasePaymentDisclosure && <p className="mt-1 text-[11px] leading-snug text-ink-500">{leasePaymentDisclosure}</p>}
                           </div>
                         ) : null}
                         <dl className="space-y-2 text-sm">
-                          {vehicleQuery.data?.down !== undefined && vehicleQuery.data?.down !== null && (
+                          {displayPrice(vehicleQuery.data?.down) !== undefined && (
                             <div className="flex items-center justify-between rounded-md bg-white px-3 py-2">
                               <dt className="text-ink-600">Down payment</dt>
-                              <dd className="font-semibold text-ink-900">${vehicleQuery.data.down.toLocaleString()}</dd>
+                              <dd className="font-semibold text-ink-900">${displayPrice(vehicleQuery.data?.down)!.toLocaleString()}</dd>
                             </div>
                           )}
                           {vehicleQuery.data?.term_months !== undefined && vehicleQuery.data?.term_months !== null && (
@@ -911,15 +914,15 @@ export default function VehicleDetailPage() {
                               <dd className="font-semibold text-ink-900">{vehicleQuery.data.miles_per_year.toLocaleString()}</dd>
                             </div>
                           )}
-                          {vehicleQuery.data?.discounted !== undefined && vehicleQuery.data?.discounted !== null && (
+                          {displayPrice(vehicleQuery.data?.discounted) !== undefined && (
                             <div className="flex items-center justify-between rounded-md bg-white px-3 py-2">
                               <dt className="text-ink-600">MSRP</dt>
-                              <dd className="font-semibold text-ink-900">${vehicleQuery.data.discounted.toLocaleString()}</dd>
+                              <dd className="font-semibold text-ink-900">${displayPrice(vehicleQuery.data?.discounted)!.toLocaleString()}</dd>
                             </div>
                           )}
                         </dl>
                       </div>
-                      {(vehicleQuery.data?.monthly === undefined || vehicleQuery.data?.monthly === null) && (
+                      {displayPrice(vehicleQuery.data?.monthly) === undefined && (
                         <p className="text-sm text-ink-600">Monthly payment is not listed for this offer. Please call for details.</p>
                       )}
                     </>
