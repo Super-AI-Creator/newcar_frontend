@@ -164,6 +164,7 @@ export default function AdminPage() {
   const [manualDownPayment, setManualDownPayment] = useState("");
   const [manualMonthlyPayment, setManualMonthlyPayment] = useState("");
   const [manualDiscountedPrice, setManualDiscountedPrice] = useState("");
+  const [selectedManualVins, setSelectedManualVins] = useState<string[]>([]);
   const [seoPageKey, setSeoPageKey] = useState<string>("home");
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDescription, setSeoDescription] = useState("");
@@ -477,6 +478,21 @@ export default function AdminPage() {
     },
     onError: (err: unknown) =>
       toast({ variant: "error", title: "Delete failed", description: errorMessage(err, "Could not delete manual vehicle.") })
+  });
+  const deleteManualVehiclesBulkMutation = useMutation({
+    mutationFn: (vins: string[]) => api.deleteAdminManualVehiclesBulk(vins),
+    onSuccess: (result) => {
+      manualVehiclesQuery.refetch();
+      homepageFeaturedQuery.refetch();
+      setSelectedManualVins([]);
+      toast({
+        variant: "success",
+        title: "Manual vehicles deleted",
+        description: `${result.deleted_count} vehicle(s) deleted.`
+      });
+    },
+    onError: (err: unknown) =>
+      toast({ variant: "error", title: "Bulk delete failed", description: errorMessage(err, "Could not delete selected manual vehicles.") })
   });
   const saveInventoryVinToManualMutation = useMutation({
     mutationFn: async ({ vin }: { vin: string }) => {
@@ -1129,6 +1145,11 @@ export default function AdminPage() {
     });
   };
 
+  useEffect(() => {
+    const availableVins = new Set(manualVehicles.map((item) => (item.vin ?? "").trim().toUpperCase()).filter(Boolean));
+    setSelectedManualVins((prev) => prev.filter((vin) => availableVins.has(vin)));
+  }, [manualVehicles]);
+
   const addManualPhotoInput = () => {
     setManualPhotoUrls((prev) => [...prev, ""]);
   };
@@ -1638,8 +1659,11 @@ export default function AdminPage() {
                 uploadManualVehiclePhotoMutation={uploadManualVehiclePhotoMutation}
                 upsertManualVehicleMutation={upsertManualVehicleMutation}
                 deleteManualVehicleMutation={deleteManualVehicleMutation}
+                deleteManualVehiclesBulkMutation={deleteManualVehiclesBulkMutation}
                 manualVehiclesQuery={manualVehiclesQuery}
                 manualVehicles={manualVehicles}
+                selectedManualVins={selectedManualVins}
+                setSelectedManualVins={setSelectedManualVins}
                 saveManualVehicle={saveManualVehicle}
                 resetManualVehicleForm={resetManualVehicleForm}
                 populateManualVehicleForm={populateManualVehicleForm}

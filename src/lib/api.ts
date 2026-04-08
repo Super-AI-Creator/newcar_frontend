@@ -1005,6 +1005,15 @@ export const api = {
       method: "DELETE"
     });
   },
+  deleteAdminManualVehiclesBulk: async (vins: string[]) => {
+    return apiFetch<{ requested_count: number; deleted_count: number; deleted_vins: string[]; not_found_vins: string[] }>(
+      "/admin/manual-vehicles/bulk-delete",
+      {
+        method: "POST",
+        body: JSON.stringify({ vins })
+      }
+    );
+  },
   adminSeoSettings: async (params?: { q?: string; include_inactive?: boolean; limit?: number }) => {
     const query = new URLSearchParams();
     if (params?.q) query.set("q", params.q);

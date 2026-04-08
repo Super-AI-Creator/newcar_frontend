@@ -97,8 +97,11 @@ export type AdminSuperAdminDataPanelProps = {
   uploadManualVehiclePhotoMutation: UseMutationResult<any, any, File, any>;
   upsertManualVehicleMutation: UseMutationResult<any, any, any, any>;
   deleteManualVehicleMutation: UseMutationResult<any, any, string, any>;
+  deleteManualVehiclesBulkMutation: UseMutationResult<any, any, string[], any>;
   manualVehiclesQuery: UseQueryResult<any>;
   manualVehicles: ManualVehicleRecord[];
+  selectedManualVins: string[];
+  setSelectedManualVins: Dispatch<SetStateAction<string[]>>;
 
   saveManualVehicle: () => void;
   resetManualVehicleForm: () => void;
@@ -175,8 +178,11 @@ export function AdminSuperAdminDataPanel({
   uploadManualVehiclePhotoMutation,
   upsertManualVehicleMutation,
   deleteManualVehicleMutation,
+  deleteManualVehiclesBulkMutation,
   manualVehiclesQuery,
   manualVehicles,
+  selectedManualVins,
+  setSelectedManualVins,
   saveManualVehicle,
   resetManualVehicleForm,
   populateManualVehicleForm,
@@ -185,6 +191,25 @@ export function AdminSuperAdminDataPanel({
   confirmAction,
   toast
 }: AdminSuperAdminDataPanelProps) {
+  const selectedManualVinsSet = new Set(selectedManualVins);
+  const allManualVins = manualVehicles.map((item) => (item.vin ?? "").trim().toUpperCase()).filter(Boolean);
+  const allSelected = allManualVins.length > 0 && allManualVins.every((vin) => selectedManualVinsSet.has(vin));
+  const hasSelected = selectedManualVins.length > 0;
+
+  const toggleManualVin = (vin: string, checked: boolean) => {
+    setSelectedManualVins((prev) => {
+      if (checked) {
+        if (prev.includes(vin)) return prev;
+        return [...prev, vin];
+      }
+      return prev.filter((item) => item !== vin);
+    });
+  };
+
+  const toggleAllManualVins = (checked: boolean) => {
+    setSelectedManualVins(checked ? allManualVins : []);
+  };
+
   return (
     <>
       <Card className="border-ink-200 bg-white">
@@ -513,15 +538,46 @@ export function AdminSuperAdminDataPanel({
             <Button size="sm" variant="outline" onClick={() => manualVehiclesQuery.refetch()} disabled={manualVehiclesQuery.isFetching}>
               Refresh
             </Button>
+            <label className="ml-2 inline-flex items-center gap-2 text-sm text-ink-700">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={(e) => toggleAllManualVins(e.target.checked)}
+                className="h-4 w-4 rounded border-ink-300"
+              />
+              Select all
+            </label>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!hasSelected || deleteManualVehiclesBulkMutation.isPending}
+              onClick={() =>
+                confirmAction(
+                  `Delete ${selectedManualVins.length} selected manual vehicle(s)?`,
+                  () => deleteManualVehiclesBulkMutation.mutate(selectedManualVins),
+                  "This permanently removes the selected manual vehicle records."
+                )
+              }
+            >
+              Delete Selected
+            </Button>
           </div>
 
           <div className="space-y-2">
             {manualVehicles.map((item) => (
               <div key={item.vin} className="rounded-lg border border-ink-200 bg-ink-50 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-ink-900">
-                    {item.year ?? "-"} {item.make ?? ""} {item.model ?? ""} {item.trim ?? ""}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedManualVinsSet.has((item.vin ?? "").trim().toUpperCase())}
+                      onChange={(e) => toggleManualVin((item.vin ?? "").trim().toUpperCase(), e.target.checked)}
+                      className="h-4 w-4 rounded border-ink-300"
+                    />
+                    <p className="text-sm font-semibold text-ink-900">
+                      {item.year ?? "-"} {item.make ?? ""} {item.model ?? ""} {item.trim ?? ""}
+                    </p>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" onClick={() => populateManualVehicleForm(item)}>
                       Edit
