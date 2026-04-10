@@ -215,8 +215,16 @@ function SearchPageContent() {
   const trimsByMakeModel = filtersQuery.data?.trims_by_make_model ?? {};
   const models = useMemo(() => {
     if (!make) return [];
-    return sanitizeOptions(modelsByMake[make]);
-  }, [make, modelsByMake]);
+    const candidateModels = sanitizeOptions(modelsByMake[make]);
+    if (candidateModels.length === 0) return candidateModels;
+    const makeNames = new Set(makes.map((item) => item.trim().toLowerCase()));
+    const selectedMake = make.trim().toLowerCase();
+    // Defensive cleanup: some feeds leak make names into model lists.
+    return candidateModels.filter((item) => {
+      const normalized = item.trim().toLowerCase();
+      return normalized === selectedMake || !makeNames.has(normalized);
+    });
+  }, [make, makes, modelsByMake]);
   const trims = useMemo(() => {
     if (!make || !model) return [];
     return sanitizeOptions(trimsByMakeModel[`${make}|||${model}`]);
@@ -1445,6 +1453,17 @@ function SearchPageContent() {
           <Card className="tc-fade-up bg-white">
             <CardContent>
               <DealSearchLoader />
+            </CardContent>
+          </Card>
+        )}
+
+        {submitted && resultsQuery.isError && (
+          <Card className="tc-fade-up bg-white">
+            <CardContent className="flex flex-col items-start gap-3 py-6">
+              <p className="text-sm text-red-700">We could not load inventory right now. Please try again.</p>
+              <Button size="sm" onClick={() => resultsQuery.refetch()}>
+                Retry
+              </Button>
             </CardContent>
           </Card>
         )}

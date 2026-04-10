@@ -390,7 +390,7 @@ export default function VehicleDetailPage() {
     if (base.length === 0 && vehicleQuery.data) {
       base.push(pickVehicleImage(vehicleQuery.data));
     }
-    return base.slice(0, 5);
+    return base;
   }, [vehicleQuery.data]);
 
   useEffect(() => {
@@ -410,7 +410,6 @@ export default function VehicleDetailPage() {
   const isUsed = inferredType === "used";
   const isCpo = normalizedCondition === "cpo";
   const badgeLabel = isCpo ? "CPO" : isUsed ? "USED" : "NEW";
-  const historyLink = vehicleQuery.data?.vehicle_history_url ?? vehicleQuery.data?.history_url;
   const hasOfferSheetData = useMemo(
     () =>
       displayPrice(vehicleQuery.data?.monthly) !== undefined ||
@@ -713,18 +712,6 @@ export default function VehicleDetailPage() {
                       ))}
                     </div>
                   </details>
-                )}
-                {historyLink && (
-                  <div className="border-t border-ink-200 px-4 py-3">
-                    <a
-                      className="inline-flex items-center rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100"
-                      href={historyLink}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      View vehicle history
-                    </a>
-                  </div>
                 )}
               </div>
               {!isBrokerUser && (

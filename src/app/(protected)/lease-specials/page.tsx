@@ -149,8 +149,16 @@ function LeaseSpecialsPageContent() {
   const modelsByMake = filtersQuery.data?.models_by_make ?? {};
   const models = useMemo(() => {
     if (!make) return [];
-    return sanitizeOptions(modelsByMake[make]);
-  }, [make, modelsByMake]);
+    const candidateModels = sanitizeOptions(modelsByMake[make]);
+    if (candidateModels.length === 0) return candidateModels;
+    const makeNames = new Set(makes.map((item) => item.trim().toLowerCase()));
+    const selectedMake = make.trim().toLowerCase();
+    // Defensive cleanup: some feeds leak make names into model lists.
+    return candidateModels.filter((item) => {
+      const normalized = item.trim().toLowerCase();
+      return normalized === selectedMake || !makeNames.has(normalized);
+    });
+  }, [make, makes, modelsByMake]);
 
   const params = useMemo(
     () => ({
@@ -310,6 +318,7 @@ function LeaseSpecialsPageContent() {
     ? sortedResultItems.length
     : resultsQuery.data?.total ?? sortedResultItems.length;
   const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
+  const currentPage = Math.min(page, totalPages);
   const activeFilters = useMemo(() => {
     const chips: Array<{ key: string; label: string }> = [];
     if (make) chips.push({ key: "make", label: `Make: ${make}` });
@@ -431,6 +440,11 @@ function LeaseSpecialsPageContent() {
     setModel(normalizedModel);
     runSearch(1, { make: normalizedMake, model: normalizedModel });
   }, [filtersQuery.isLoading, makes, models, make, model]);
+
+  useEffect(() => {
+    if (page <= totalPages) return;
+    runSearch(totalPages);
+  }, [page, totalPages]);
 
   function clearSingleFilter(key: string) {
     if (key === "make") {
@@ -886,6 +900,17 @@ function LeaseSpecialsPageContent() {
           </Card>
         )}
 
+        {resultsQuery.isError && (
+          <Card className="bg-white">
+            <CardContent className="flex flex-col items-start gap-3 py-6">
+              <p className="text-sm text-red-700">We could not load lease specials right now. Please try again.</p>
+              <Button size="sm" onClick={() => resultsQuery.refetch()}>
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {resultsQuery.data && (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 pb-3">
@@ -900,7 +925,7 @@ function LeaseSpecialsPageContent() {
 
             {(() => {
               const pageItems = clientOnlySorts.has(sort)
-                ? sortedResultItems.slice((page - 1) * pageSize, page * pageSize)
+                ? sortedResultItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
                 : sortedResultItems;
               return (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -923,12 +948,12 @@ function LeaseSpecialsPageContent() {
             })()}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-200 pt-5">
-              <p className="text-sm text-ink-500">Page {page} of {totalPages}</p>
+              <p className="text-sm text-ink-500">Page {currentPage} of {totalPages}</p>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => runSearch(page - 1)}>
+                <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => runSearch(currentPage - 1)}>
                   Previous
                 </Button>
-                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => runSearch(page + 1)}>
+                <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => runSearch(currentPage + 1)}>
                   Next
                 </Button>
               </div>
