@@ -4,7 +4,11 @@ import "@/styles/globals.css";
 import Providers from "@/components/providers";
 import { resolveSeoMetadata } from "@/lib/seo";
 
-const GOOGLE_TAG_ID = "G-5Z13V7V5JW";
+/** GA4 measurement ID (override with NEXT_PUBLIC_GA_MEASUREMENT_ID). */
+const GOOGLE_TAG_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? "G-3CG563JYV9";
+/** Google Search Console HTML tag verification (override with NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION). */
+const GOOGLE_SITE_VERIFICATION =
+  process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ?? "BARs5p7wf3-Jpv2lad_nTzjQQHndHyc5E87JWXHMksg";
 
 export async function generateMetadata(): Promise<Metadata> {
   const fallback: Metadata = {
@@ -12,17 +16,28 @@ export async function generateMetadata(): Promise<Metadata> {
     description: "Modern marketplace for new car deals.",
     icons: {
       icon: "/images/logo.png"
+    },
+    verification: {
+      google: GOOGLE_SITE_VERIFICATION
     }
   };
   try {
     const resolved = await resolveSeoMetadata("site_default", fallback);
     const resolvedIcons =
       typeof resolved.icons === "object" && resolved.icons !== null ? resolved.icons : undefined;
+    const resolvedVerification =
+      typeof resolved.verification === "object" && resolved.verification !== null
+        ? resolved.verification
+        : {};
     return {
       ...resolved,
       icons: {
         ...(resolvedIcons ?? {}),
         icon: "/images/logo.png",
+      },
+      verification: {
+        ...resolvedVerification,
+        google: GOOGLE_SITE_VERIFICATION
       }
     };
   } catch {
