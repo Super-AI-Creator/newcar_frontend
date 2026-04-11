@@ -107,7 +107,8 @@ function normalizeVehicle(raw: any): Vehicle {
       null,
     history_url: raw?.history_url ?? raw?.historyUrl ?? raw?.carfax_url ?? details?.carfax_url ?? null,
     listing_url: raw?.listing_url ?? raw?.listingUrl ?? undefined,
-    dealer: raw?.dealer ?? undefined
+    dealer: raw?.dealer ?? undefined,
+    carfax_url: raw?.carfax_url ?? raw?.carfaxUrl ?? null
   };
 }
 
@@ -1407,6 +1408,7 @@ export type Vehicle = {
   updatedAt?: string;
   listing_url?: string | null;
   dealer?: string;
+  carfax_url?: string | null;
 };
 
 export type Message = {
@@ -1595,11 +1597,23 @@ export type LeadDeliveryRecord = {
   webhook_delivered_at?: string | null;
 };
 
+export type AdminGeneralStatusDealerItem = {
+  id?: number | string | null;
+  name?: string | null;
+  brand?: string | null;
+  vehicle_type?: string | null;
+  scrape_method?: string | null;
+  last_scrape_status?: string | null;
+  website_url?: string | null;
+  updated_at?: string | null;
+};
+
 export type AdminGeneralStatus = {
   generated_at?: string | null;
   dealers: {
     active_count: number;
     names: string[];
+    items?: AdminGeneralStatusDealerItem[];
   };
   vehicles: {
     active_new_count: number;

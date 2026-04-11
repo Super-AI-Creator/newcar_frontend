@@ -2,10 +2,14 @@ import type { MetadataRoute } from "next";
 import fs from "fs";
 import path from "path";
 import { getArticles } from "@/lib/articles";
+import { env } from "@/lib/env";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://newcarsuperstore.com");
+
+/** Regenerate sitemap periodically so inventory + new pages are not stuck at deploy time. */
+export const revalidate = 3600;
 
 const APP_DIR = path.join(process.cwd(), "src", "app");
 const ROUTE_PRIORITY: Record<string, number> = {
@@ -36,11 +40,18 @@ const ROUTE_CHANGE_FREQUENCY: Record<string, MetadataRoute.Sitemap[number]["chan
   login: "monthly",
   register: "monthly",
 };
-const EXCLUDED_SEGMENTS = new Set(["(protected)", "admin"]);
 
 function normalizeDate(value: string): Date {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+/** Strip Next route groups like `(protected)`; omit admin/dashboard and dynamic segments. */
+function shouldOmitDiscoverableRoute(cleanSegments: string[]): boolean {
+  if (cleanSegments.some((s) => s.startsWith("[") && s.endsWith("]"))) return true;
+  if (cleanSegments.includes("admin")) return true;
+  if (cleanSegments[0] === "dashboard") return true;
+  return false;
 }
 
 function discoverPublicStaticRoutes(baseDir: string): string[] {
@@ -57,9 +68,8 @@ function discoverPublicStaticRoutes(baseDir: string): string[] {
       }
       if (!entry.isFile() || entry.name !== "page.tsx") continue;
       const routeSegments = segments.filter((segment) => segment !== "");
-      if (routeSegments.some((segment) => EXCLUDED_SEGMENTS.has(segment))) continue;
-      if (routeSegments.some((segment) => segment.startsWith("[") && segment.endsWith("]"))) continue;
       const cleanSegments = routeSegments.filter((segment) => !(segment.startsWith("(") && segment.endsWith(")")));
+      if (shouldOmitDiscoverableRoute(cleanSegments)) continue;
       const routePath = cleanSegments.join("/");
       routes.add(routePath);
     }
@@ -69,7 +79,58 @@ function discoverPublicStaticRoutes(baseDir: string): string[] {
   return Array.from(routes).sort();
 }
 
-export default function sitemap(): MetadataRoute.Sitemap {
+async function fetchInventoryVehicleEntries(baseUrl: string): Promise<MetadataRoute.Sitemap> {
+  const apiBase = (env.apiBaseUrl || "").trim().replace(/\/$/, "");
+  if (!apiBase) return [];
+
+  const pageSize = 500;
+  const maxPages = 40;
+  const out: MetadataRoute.Sitemap = [];
+  const seenVins = new Set<string>();
+
+  for (let page = 1; page <= maxPages; page++) {
+    const qs = new URLSearchParams({
+      vehicle_type: "all",
+      page: String(page),
+      page_size: String(pageSize)
+    });
+    const url = `${apiBase}/inventory/search?${qs.toString()}`;
+    let res: Response;
+    try {
+      res = await fetch(url, { next: { revalidate: 3600 } });
+    } catch {
+      break;
+    }
+    if (!res.ok) break;
+    let data: { items?: unknown[]; results?: unknown[]; total?: number };
+    try {
+      data = (await res.json()) as { items?: unknown[]; results?: unknown[]; total?: number };
+    } catch {
+      break;
+    }
+    const rawItems = Array.isArray(data.items) ? data.items : Array.isArray(data.results) ? data.results : [];
+    if (rawItems.length === 0) break;
+
+    for (const row of rawItems) {
+      const item = row as { vin?: string };
+      const vin = typeof item?.vin === "string" ? item.vin.trim().toUpperCase() : "";
+      if (!vin || seenVins.has(vin)) continue;
+      seenVins.add(vin);
+      out.push({
+        url: `${baseUrl}/vehicles/${encodeURIComponent(vin)}`,
+        lastModified: new Date(),
+        changeFrequency: "weekly",
+        priority: 0.65
+      });
+    }
+
+    if (rawItems.length < pageSize) break;
+  }
+
+  return out;
+}
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const entries: MetadataRoute.Sitemap = [];
   const seenUrls = new Set<string>();
@@ -83,7 +144,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url,
       lastModified: now,
       changeFrequency: ROUTE_CHANGE_FREQUENCY[routePath] ?? "monthly",
-      priority: ROUTE_PRIORITY[routePath] ?? 0.6,
+      priority: ROUTE_PRIORITY[routePath] ?? 0.6
     });
   }
 
@@ -96,11 +157,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url,
       lastModified: normalizeDate(article.date),
       changeFrequency: ROUTE_CHANGE_FREQUENCY["articles/[slug]"] ?? "monthly",
-      priority: ROUTE_PRIORITY["articles/[slug]"] ?? 0.7,
+      priority: ROUTE_PRIORITY["articles/[slug]"] ?? 0.7
     });
   }
 
-  // Ensure important marketing/search pages are always present even if files move.
   const importantRoutes = [
     "",
     "search",
@@ -110,7 +170,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "testimonials",
     "credit-application",
     "most-reviewed-auto-broker-los-angeles",
-    "privacy",
+    "privacy"
   ];
   for (const routePath of importantRoutes) {
     const url = routePath ? `${BASE_URL}/${routePath}` : BASE_URL;
@@ -118,10 +178,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
     seenUrls.add(url);
     entries.push({
       url,
-    lastModified: now,
+      lastModified: now,
       changeFrequency: ROUTE_CHANGE_FREQUENCY[routePath] ?? "monthly",
-      priority: ROUTE_PRIORITY[routePath] ?? 0.6,
+      priority: ROUTE_PRIORITY[routePath] ?? 0.6
     });
+  }
+
+  const vehicleEntries = await fetchInventoryVehicleEntries(BASE_URL);
+  for (const row of vehicleEntries) {
+    if (!row.url || seenUrls.has(row.url)) continue;
+    seenUrls.add(row.url);
+    entries.push(row);
   }
 
   return entries;

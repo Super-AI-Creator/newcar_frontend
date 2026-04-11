@@ -4,7 +4,7 @@ import type { ChangeEvent, Dispatch, RefObject, SetStateAction } from "react";
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 import { Flag, Upload } from "lucide-react";
 
-import type { ManualVehicleRecord, Vehicle } from "@/lib/api";
+import type { AdminGeneralStatusDealerItem, ManualVehicleRecord, Vehicle } from "@/lib/api";
 import { SeoSettingsCard, type SeoSettingsCardProps } from "@/components/admin/seo-settings-card";
 import { formatCurrency, formatDateTime, vehicleTitle } from "@/components/admin/admin-broker-ops-shared";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ export type AdminSuperAdminDataPanelProps = {
   generalStatusQuery: UseQueryResult<any>;
   generalStatus: {
     generated_at?: string | null;
-    dealers: { active_count: number; names: string[] };
+    dealers: { active_count: number; names: string[]; items?: AdminGeneralStatusDealerItem[] };
     vehicles: { active_new_count: number; active_used_count: number; active_total_count: number };
   } | null | undefined;
 
@@ -210,6 +210,16 @@ export function AdminSuperAdminDataPanel({
     setSelectedManualVins(checked ? allManualVins : []);
   };
 
+  const dealerFeedRows: AdminGeneralStatusDealerItem[] =
+    generalStatus?.dealers.items && generalStatus.dealers.items.length > 0
+      ? generalStatus.dealers.items
+      : [...(generalStatus?.dealers.names ?? [])]
+          .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+          .map((name, index) => ({
+            id: index + 1,
+            name
+          }));
+
   return (
     <>
       <Card className="border-ink-200 bg-white">
@@ -254,16 +264,72 @@ export function AdminSuperAdminDataPanel({
                 </div>
               </div>
 
-              <div className="rounded-lg border border-ink-200 bg-ink-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Active dealer names</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {generalStatus.dealers.names.map((name) => (
-                    <Badge key={name} className="border-ink-300 bg-white text-ink-700">
-                      {name}
-                    </Badge>
-                  ))}
-                  {generalStatus.dealers.names.length === 0 && <p className="text-sm text-ink-600">No active dealers found in feed.</p>}
-                </div>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Active feed sources</p>
+                {dealerFeedRows.length === 0 ? (
+                  <p className="rounded-lg border border-ink-200 bg-ink-50/80 px-4 py-6 text-center text-sm text-ink-600">
+                    No active dealers found in feed.
+                  </p>
+                ) : (
+                  <div
+                    className="max-h-[min(22rem,50vh)] overflow-x-auto overflow-y-scroll rounded-lg border border-ink-200 bg-white pr-0.5 shadow-sm [scrollbar-color:theme(colors.ink.500)_theme(colors.ink.100)] [scrollbar-gutter:stable] [scrollbar-width:auto] [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-thumb]:rounded-md [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-solid [&::-webkit-scrollbar-thumb]:border-ink-100 [&::-webkit-scrollbar-thumb]:bg-ink-500 [&::-webkit-scrollbar-thumb]:hover:bg-ink-600 [&::-webkit-scrollbar-track]:rounded-md [&::-webkit-scrollbar-track]:bg-ink-100"
+                  >
+                    <table className="w-full min-w-[56rem] border-collapse text-left text-sm">
+                      <thead className="sticky top-0 z-10 bg-ink-50/95 shadow-[0_1px_0_0_theme(colors.ink.200)] backdrop-blur-sm">
+                        <tr className="border-b border-ink-200 bg-ink-50/90">
+                          <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase tracking-wide text-ink-500">ID</th>
+                          <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
+                            Dealer / Source
+                          </th>
+                          <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase tracking-wide text-ink-500">Brand</th>
+                          <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase tracking-wide text-ink-500">Vehicle type</th>
+                          <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase tracking-wide text-ink-500">Scrape method</th>
+                          <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase tracking-wide text-ink-500">Last status</th>
+                          <th className="min-w-[10rem] px-3 py-3 text-xs font-semibold uppercase tracking-wide text-ink-500">Website</th>
+                          <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase tracking-wide text-ink-500">Updated</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dealerFeedRows.map((row, index) => {
+                          const key = row.id != null ? String(row.id) : `row-${index}`;
+                          const website = row.website_url?.trim() ?? "";
+                          const showLink = /^https?:\/\//i.test(website);
+                          return (
+                            <tr key={key} className="border-b border-ink-100 last:border-b-0">
+                              <td className="whitespace-nowrap px-3 py-3 align-middle text-ink-600 tabular-nums">{row.id ?? "—"}</td>
+                              <td className="max-w-[14rem] px-3 py-3 align-middle font-medium text-ink-900">
+                                <span className="line-clamp-2 break-words">{row.name?.trim() || "—"}</span>
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-3 align-middle text-ink-700">{row.brand?.trim() || "—"}</td>
+                              <td className="whitespace-nowrap px-3 py-3 align-middle text-ink-700">{row.vehicle_type?.trim() || "—"}</td>
+                              <td className="whitespace-nowrap px-3 py-3 align-middle text-ink-700">{row.scrape_method?.trim() || "—"}</td>
+                              <td className="max-w-[10rem] px-3 py-3 align-middle text-ink-700">
+                                <span className="line-clamp-2 break-words">{row.last_scrape_status?.trim() || "—"}</span>
+                              </td>
+                              <td className="min-w-0 max-w-[14rem] px-3 py-3 align-middle text-ink-700">
+                                {showLink ? (
+                                  <a
+                                    href={website}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="line-clamp-2 break-all text-brand-700 underline-offset-2 hover:underline"
+                                  >
+                                    {website}
+                                  </a>
+                                ) : (
+                                  <span className="line-clamp-2 break-all text-ink-600">{website || "—"}</span>
+                                )}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-3 align-middle text-ink-600">
+                                {row.updated_at ? formatDateTime(row.updated_at) : "—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </>
           )}
