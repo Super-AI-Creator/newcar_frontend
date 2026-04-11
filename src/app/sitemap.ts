@@ -79,25 +79,37 @@ function discoverPublicStaticRoutes(baseDir: string): string[] {
   return Array.from(routes).sort();
 }
 
+/** Vercel/Next static generation defaults to ~60s; keep inventory work well under that. */
+const INVENTORY_FETCH_BUDGET_MS = 22_000;
+const INVENTORY_PAGE_TIMEOUT_MS = 4_000;
+const INVENTORY_PAGE_SIZE = 500;
+const INVENTORY_MAX_PAGES = 40;
+
 async function fetchInventoryVehicleEntries(baseUrl: string): Promise<MetadataRoute.Sitemap> {
   const apiBase = (env.apiBaseUrl || "").trim().replace(/\/$/, "");
   if (!apiBase) return [];
 
-  const pageSize = 500;
-  const maxPages = 40;
   const out: MetadataRoute.Sitemap = [];
   const seenVins = new Set<string>();
+  const started = Date.now();
 
-  for (let page = 1; page <= maxPages; page++) {
+  for (let page = 1; page <= INVENTORY_MAX_PAGES; page++) {
+    if (Date.now() - started > INVENTORY_FETCH_BUDGET_MS) break;
+
     const qs = new URLSearchParams({
       vehicle_type: "all",
       page: String(page),
-      page_size: String(pageSize)
+      page_size: String(INVENTORY_PAGE_SIZE)
     });
     const url = `${apiBase}/inventory/search?${qs.toString()}`;
+
     let res: Response;
     try {
-      res = await fetch(url, { next: { revalidate: 3600 } });
+      const signal =
+        typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+          ? AbortSignal.timeout(INVENTORY_PAGE_TIMEOUT_MS)
+          : undefined;
+      res = await fetch(url, { next: { revalidate: 3600 }, ...(signal ? { signal } : {}) });
     } catch {
       break;
     }
@@ -124,7 +136,7 @@ async function fetchInventoryVehicleEntries(baseUrl: string): Promise<MetadataRo
       });
     }
 
-    if (rawItems.length < pageSize) break;
+    if (rawItems.length < INVENTORY_PAGE_SIZE) break;
   }
 
   return out;
