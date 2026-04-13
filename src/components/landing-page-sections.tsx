@@ -13,6 +13,7 @@ import HeroFallingPhrases from "@/components/hero-falling-phrases";
 import LeaseSpecials from "@/components/lease-specials";
 import HomeShopOptions from "@/components/home-shop-options";
 import HomeTestimonials from "@/components/home-testimonials";
+import TradeInValueDialog from "@/components/trade-in-value-dialog";
 import { BadgeDollarSign, Building2, ChevronRight, MapPin, Gauge, ShieldCheck } from "lucide-react";
 
 const DEFAULT_HERO: {
@@ -221,14 +222,7 @@ export default function LandingPageSections() {
                   <Button asChild size="lg" className="rounded-xl">
                     <Link href="/lease-specials">Lease Specials</Link>
                   </Button>
-                  <Button
-                    asChild
-                    size="lg"
-                    variant="outline"
-                    className="rounded-xl border-white/60 bg-white/10 text-white shadow-sm hover:border-white hover:bg-white hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900"
-                  >
-                    <a href="https://newcarsuperstore.typeform.com/to/lX0SiNPY" target="_blank" rel="noreferrer noopener">Trade in Value</a>
-                  </Button>
+                  <TradeInValueDialog />
                 </div>
                 <p className="mt-3 text-xs text-zinc-300/90">Most people finish browsing in a few minutes.</p>
               </div>

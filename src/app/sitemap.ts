@@ -2,11 +2,9 @@ import type { MetadataRoute } from "next";
 import fs from "fs";
 import path from "path";
 import { getArticles } from "@/lib/articles";
+import { fetchPublicArticleSummaries, mergeArticleSummaries } from "@/lib/articles-api";
 import { env } from "@/lib/env";
-
-const BASE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://newcarsuperstore.com");
+import { getPublicSiteUrl } from "@/lib/site-url";
 
 /** Regenerate sitemap periodically so inventory + new pages are not stuck at deploy time. */
 export const revalidate = 3600;
@@ -143,13 +141,14 @@ async function fetchInventoryVehicleEntries(baseUrl: string): Promise<MetadataRo
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const baseUrl = getPublicSiteUrl();
   const now = new Date();
   const entries: MetadataRoute.Sitemap = [];
   const seenUrls = new Set<string>();
 
   const staticRoutes = discoverPublicStaticRoutes(APP_DIR);
   for (const routePath of staticRoutes) {
-    const url = routePath ? `${BASE_URL}/${routePath}` : BASE_URL;
+    const url = routePath ? `${baseUrl}/${routePath}` : baseUrl;
     if (seenUrls.has(url)) continue;
     seenUrls.add(url);
     entries.push({
@@ -160,9 +159,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   }
 
-  const articles = getArticles();
+  const apiArticles = await fetchPublicArticleSummaries();
+  const articles = mergeArticleSummaries(getArticles(), apiArticles);
   for (const article of articles) {
-    const url = `${BASE_URL}/articles/${article.slug}`;
+    const url = `${baseUrl}/articles/${article.slug}`;
     if (seenUrls.has(url)) continue;
     seenUrls.add(url);
     entries.push({
@@ -185,7 +185,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "privacy"
   ];
   for (const routePath of importantRoutes) {
-    const url = routePath ? `${BASE_URL}/${routePath}` : BASE_URL;
+    const url = routePath ? `${baseUrl}/${routePath}` : baseUrl;
     if (seenUrls.has(url)) continue;
     seenUrls.add(url);
     entries.push({
@@ -196,7 +196,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   }
 
-  const vehicleEntries = await fetchInventoryVehicleEntries(BASE_URL);
+  const vehicleEntries = await fetchInventoryVehicleEntries(baseUrl);
   for (const row of vehicleEntries) {
     if (!row.url || seenUrls.has(row.url)) continue;
     seenUrls.add(row.url);
