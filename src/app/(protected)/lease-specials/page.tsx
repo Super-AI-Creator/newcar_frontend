@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpDown, CarFront, CircleDollarSign, Info, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowUpDown, CarFront, ChevronDown, ChevronUp, CircleDollarSign, Info, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api, type Vehicle } from "@/lib/api";
 import { displayPrice, firstDisplayPrice } from "@/lib/vehicle-pricing";
@@ -101,6 +101,39 @@ function getBackendSort(sort: string) {
   return clientOnlySorts.has(sort) ? undefined : sort;
 }
 
+function modelGroupKey(vehicle: Vehicle): string {
+  const mk = (vehicle.make ?? "").trim().toLowerCase();
+  const md = (vehicle.model ?? "").trim().toLowerCase();
+  if (!mk && !md) return `vin:${(vehicle.vin ?? "").toUpperCase()}`;
+  return `${mk}::${md}`;
+}
+
+type LeaseModelGroup = {
+  key: string;
+  groupLabel: string;
+  vehicles: Vehicle[];
+};
+
+/** Preserve sort order: first row per make+model is the “featured” listing. */
+function buildLeaseModelGroups(sorted: Vehicle[]): LeaseModelGroup[] {
+  const map = new Map<string, Vehicle[]>();
+  const order: string[] = [];
+  for (const v of sorted) {
+    const k = modelGroupKey(v);
+    if (!map.has(k)) {
+      map.set(k, []);
+      order.push(k);
+    }
+    map.get(k)!.push(v);
+  }
+  return order.map((key) => {
+    const vehicles = map.get(key)!;
+    const v0 = vehicles[0];
+    const groupLabel = [v0.make, v0.model].filter(Boolean).join(" ").trim() || "Vehicle";
+    return { key, groupLabel, vehicles };
+  });
+}
+
 export default function LeaseSpecialsPage() {
   return (
     <Suspense fallback={<LeaseSpecialsPageFallback />}>
@@ -131,6 +164,7 @@ function LeaseSpecialsPageContent() {
   const [sort, setSort] = useState(searchParams.get("sort") ?? sortOptions[0].value);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
+  const [expandedModelGroupKeys, setExpandedModelGroupKeys] = useState<Set<string>>(() => new Set());
   const [maxPayment, setMaxPayment] = useState(parsePositiveNumber(searchParams.get("max_payment"), defaultMaxPayment));
   const [maxPrice, setMaxPrice] = useState(parsePositiveNumber(searchParams.get("max_price"), defaultMaxPrice));
   const [page, setPage] = useState(parsePositiveNumber(searchParams.get("page"), 1));
@@ -314,11 +348,46 @@ function LeaseSpecialsPageContent() {
     }
     return items;
   }, [resultItems, sort]);
+
+  const useModelGrouping = clientOnlySorts.has(sort) && !model.trim();
+
+  const modelGroups = useMemo(() => {
+    if (!useModelGrouping) return null;
+    return buildLeaseModelGroups(sortedResultItems);
+  }, [useModelGrouping, sortedResultItems]);
+
   const totalResults = clientOnlySorts.has(sort)
     ? sortedResultItems.length
     : resultsQuery.data?.total ?? sortedResultItems.length;
-  const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
+
+  const totalPages = useMemo(() => {
+    if (useModelGrouping && modelGroups) {
+      return Math.max(1, Math.ceil(modelGroups.length / pageSize));
+    }
+    return Math.max(1, Math.ceil(totalResults / pageSize));
+  }, [useModelGrouping, modelGroups, totalResults]);
+
   const currentPage = Math.min(page, totalPages);
+
+  const pageModelGroups = useMemo((): LeaseModelGroup[] => {
+    if (useModelGrouping && modelGroups) {
+      const start = (currentPage - 1) * pageSize;
+      return modelGroups.slice(start, start + pageSize);
+    }
+    const slice = clientOnlySorts.has(sort)
+      ? sortedResultItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+      : sortedResultItems;
+    return slice.map((v) => ({
+      key: v.vin ?? `idx-${v.make}-${v.model}`,
+      groupLabel: "",
+      vehicles: [v]
+    }));
+  }, [useModelGrouping, modelGroups, sortedResultItems, sort, currentPage]);
+
+  const searchParamsSignature = searchParams.toString();
+  useEffect(() => {
+    setExpandedModelGroupKeys(new Set());
+  }, [searchParamsSignature]);
   const activeFilters = useMemo(() => {
     const chips: Array<{ key: string; label: string }> = [];
     if (make) chips.push({ key: "make", label: `Make: ${make}` });
@@ -914,41 +983,52 @@ function LeaseSpecialsPageContent() {
         {resultsQuery.data && (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 pb-3">
-              <p className="flex items-center gap-1 text-sm font-medium text-ink-700">
-                <CircleDollarSign className="h-4 w-4 text-brand-700" />
-              {totalResults.toLocaleString()} matching cars
+              <p className="flex flex-wrap items-center gap-x-1 text-sm font-medium text-ink-700">
+                <CircleDollarSign className="h-4 w-4 shrink-0 text-brand-700" />
+                <span>{totalResults.toLocaleString()} matching cars</span>
+                {useModelGrouping && modelGroups && modelGroups.length > 0 ? (
+                  <span className="font-normal text-ink-500">
+                    · {modelGroups.length.toLocaleString()} model{modelGroups.length === 1 ? "" : "s"} (grouped)
+                  </span>
+                ) : null}
               </p>
               <div className="hidden max-w-xl text-right text-sm leading-snug text-ink-500 sm:block">
                 Monthly lease payments are estimates and depend on multiple factors; not everyone will qualify. Please confirm details with your auto broker.
               </div>
             </div>
 
-            {(() => {
-              const pageItems = clientOnlySorts.has(sort)
-                ? sortedResultItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-                : sortedResultItems;
-              return (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {pageItems.length === 0 && (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {pageModelGroups.length === 0 && (
                 <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
-                  <CardContent className="py-10 text-center text-ink-500">
-                    {emptyStateMessage}
-                  </CardContent>
+                  <CardContent className="py-10 text-center text-ink-500">{emptyStateMessage}</CardContent>
                 </Card>
               )}
-              {pageItems.map((vehicle) => (
-                <LeaseSpecialCard
-                  key={vehicle.vin}
-                  vehicle={vehicle}
+              {pageModelGroups.map((group) => (
+                <LeaseSpecialModelGroup
+                  key={group.key}
+                  group={group}
+                  grouped={useModelGrouping && group.vehicles.length > 1}
+                  expanded={expandedModelGroupKeys.has(group.key)}
+                  onToggleExpanded={() =>
+                    setExpandedModelGroupKeys((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(group.key)) next.delete(group.key);
+                      else next.add(group.key);
+                      return next;
+                    })
+                  }
                   returnUrl={searchReturnUrl}
                 />
               ))}
-                </div>
-              );
-            })()}
+            </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-200 pt-5">
-              <p className="text-sm text-ink-500">Page {currentPage} of {totalPages}</p>
+              <p className="text-sm text-ink-500">
+                Page {currentPage} of {totalPages}
+                {useModelGrouping && modelGroups && pageModelGroups.length > 0 ? (
+                  <span className="text-ink-400"> · {pageModelGroups.length} model lineups on this page</span>
+                ) : null}
+              </p>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => runSearch(currentPage - 1)}>
                   Previous
@@ -963,6 +1043,66 @@ function LeaseSpecialsPageContent() {
         </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+function LeaseSpecialModelGroup({
+  group,
+  grouped,
+  expanded,
+  onToggleExpanded,
+  returnUrl
+}: {
+  group: LeaseModelGroup;
+  grouped: boolean;
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  returnUrl?: string;
+}) {
+  const primary = group.vehicles[0];
+  if (!grouped || group.vehicles.length <= 1) {
+    return <LeaseSpecialCard vehicle={primary} returnUrl={returnUrl} />;
+  }
+  const rest = group.vehicles.slice(1);
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <LeaseSpecialCard vehicle={primary} returnUrl={returnUrl} />
+      <div className="flex flex-col gap-2 rounded-lg border border-ink-200 bg-white/95 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <p className="min-w-0 text-xs leading-snug text-ink-600 sm:text-sm">
+          <span className="font-semibold text-ink-900">{rest.length} more</span>{" "}
+          <span className="text-ink-600">
+            {group.groupLabel} special{rest.length === 1 ? "" : "s"} (same model, other trims or terms).
+          </span>
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 shrink-0 gap-1.5 rounded-full px-3 text-xs sm:text-sm"
+          aria-expanded={expanded}
+          onClick={onToggleExpanded}
+        >
+          {expanded ? (
+            <>
+              <ChevronUp className="h-4 w-4" aria-hidden />
+              Show less
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-4 w-4" aria-hidden />
+              See all
+            </>
+          )}
+        </Button>
+      </div>
+      {expanded ? (
+        <div className="flex min-w-0 flex-col gap-3 border-t border-ink-200 pt-3">
+          {rest.map((v) => (
+            <LeaseSpecialCard key={v.vin ?? `${group.key}-alt`} vehicle={v} returnUrl={returnUrl} />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
