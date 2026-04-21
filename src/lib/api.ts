@@ -610,6 +610,21 @@ export const api = {
       body: JSON.stringify(payload)
     });
   },
+  uploadTradeInPhoto: async (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const data = await apiFetch<{ url?: string; filename?: string; content_type?: string; size_bytes?: number }>(
+      "/leads/upload-photo",
+      {
+        method: "POST",
+        body: form
+      }
+    );
+    return {
+      ...data,
+      url: normalizeImageUrl(data.url) ?? data.url ?? ""
+    };
+  },
   createDeal: async (payload: { vin: string; customer_note?: string; member_user_id?: number }) => {
     const query = new URLSearchParams();
     if (payload.member_user_id) query.set("member_user_id", String(payload.member_user_id));

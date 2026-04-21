@@ -29,6 +29,7 @@ import {
   XCircle
 } from "lucide-react";
 import { DealCuBadge } from "@/components/deal-cu-badge";
+import TradeInValueDialog from "@/components/trade-in-value-dialog";
 import { api, type Vehicle } from "@/lib/api";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
@@ -963,6 +964,14 @@ export default function CustomerDashboard() {
                                 >
                                   <Link href={`/vehicles/${encodeURIComponent(activeThread.vin!)}`}>Open Vehicle details</Link>
                                 </Button>
+                                <TradeInValueDialog
+                                  triggerLabel="Trade in value"
+                                  triggerTone="neutral"
+                                  variant="outline"
+                                  size="sm"
+                                  leadSource="trade_in_deal_room"
+                                  prefillVin={activeThread.vin}
+                                />
                                 <Button
                                   type="button"
                                   variant="outline"
