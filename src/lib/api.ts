@@ -1683,6 +1683,8 @@ export type CreditUnionRecord = {
   slug: string;
   logo_url?: string | null;
   banner_url?: string | null;
+  testimonial_image_url?: string | null;
+  testimonial_text?: string | null;
   hero_title?: string | null;
   hero_subtitle?: string | null;
   phone?: string | null;
@@ -1704,6 +1706,8 @@ export type CreditUnionCreatePayload = {
   slug?: string | null;
   logo_url?: string | null;
   banner_url?: string | null;
+  testimonial_image_url?: string | null;
+  testimonial_text?: string | null;
   hero_title?: string | null;
   hero_subtitle?: string | null;
   phone?: string | null;
@@ -1720,6 +1724,8 @@ export type CreditUnionUpdatePayload = {
   slug?: string | null;
   logo_url?: string | null;
   banner_url?: string | null;
+  testimonial_image_url?: string | null;
+  testimonial_text?: string | null;
   hero_title?: string | null;
   hero_subtitle?: string | null;
   phone?: string | null;
