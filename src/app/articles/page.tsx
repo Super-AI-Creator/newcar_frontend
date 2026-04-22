@@ -1,18 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { getArticles } from "@/lib/articles";
 import { fetchPublicArticleSummaries, mergeArticleSummaries } from "@/lib/articles-api";
-import { getPublicSiteUrl } from "@/lib/site-url";
+import { getCanonicalSiteOrigin } from "@/lib/site-url";
+
+const site = getCanonicalSiteOrigin();
 
 export const metadata: Metadata = {
   title: "Articles | NewCarSuperstore",
   description: "Guides and articles about leasing and buying new cars in California — without the dealership runaround.",
-  alternates: { canonical: `${getPublicSiteUrl()}/articles` },
+  alternates: { canonical: `${site}/articles` },
   openGraph: {
     title: "Articles | NewCarSuperstore",
     description: "Guides and articles about leasing and buying new cars in California — without the dealership runaround.",
-    url: `${getPublicSiteUrl()}/articles`,
+    url: `${site}/articles`,
     siteName: "NewCarSuperstore",
     type: "website",
   },
@@ -50,6 +53,7 @@ export default async function ArticlesIndexPage() {
           )}
         </ul>
       </main>
+      <SiteFooter />
     </div>
   );
 }

@@ -14,6 +14,9 @@ import LeaseSpecials from "@/components/lease-specials";
 import HomeShopOptions from "@/components/home-shop-options";
 import HomeTestimonials from "@/components/home-testimonials";
 import TradeInValueDialog from "@/components/trade-in-value-dialog";
+import { HomeSeoIntroSection } from "@/components/marketing-seo-sections";
+import { MarketingFaqSection } from "@/components/marketing-faq-section";
+import { HOME_FAQ_ITEMS } from "@/content/marketing-faq";
 import { BadgeDollarSign, Building2, ChevronRight, MapPin, Gauge, ShieldCheck } from "lucide-react";
 
 const DEFAULT_HERO: {
@@ -39,6 +42,20 @@ const DEFAULT_HOW = [
   { image_url: "/images/deal-1.jpg", label: "Get Your Best Rate", image_focus: "center" },
   { image_url: "/images/panel-cars.jpg", label: "Home Delivery With a Bow", image_focus: "center" },
 ];
+
+/** SEO / accessibility copy for default hero photography (matches /images/landing-*.jpg). */
+const LANDING_HERO_ALT_BY_FILE: Record<string, string> = {
+  "landing-1.jpg": "A happy woman leans against a new red Subaru.",
+  "landing-2.jpg": "A happy family posing with their new Honda Civic.",
+  "landing-3.jpg": "Four people posing with thumbs up beside three cars.",
+  "landing-4.jpg": "Two men shaking hands in front of a BMW."
+};
+
+function landingHeroSlideAlt(src: string, index: number): string {
+  const path = normalizeLegacyPublicImageUrl(typeof src === "string" ? src : "");
+  const file = path.split("/").pop()?.split("?")[0] ?? "";
+  return LANDING_HERO_ALT_BY_FILE[file] ?? `Hero slide ${index + 1}`;
+}
 
 function SectionShimmerLine({ className }: { className: string }) {
   return (
@@ -165,7 +182,7 @@ export default function LandingPageSections() {
   const slideFocusRaw = Array.isArray(heroSlideFocus) && heroSlideFocus.length ? heroSlideFocus : defaultSlideFocus;
   const slides = slideUrls.map((src, i) => ({
     src,
-    alt: `Slide ${i + 1}`,
+    alt: landingHeroSlideAlt(src, i),
     focus: slideFocusRaw[i] ?? "center",
   }));
   const carouselSlides = slides;
@@ -233,6 +250,8 @@ export default function LandingPageSections() {
 
       <>
         <HomeShopOptions initialFilters={filtersQuery.data} />
+
+        <HomeSeoIntroSection />
 
           <section className="border-b border-ink-200/80 bg-white/80 py-8 sm:py-10">
             <div className="container-wide">
@@ -346,6 +365,14 @@ export default function LandingPageSections() {
               </div>
             </div>
           </section>
+
+        <MarketingFaqSection
+          id="homepage-faq"
+          heading="Frequently asked questions"
+          kicker="Common questions about shopping statewide, leasing, financing, and delivery in California."
+          items={HOME_FAQ_ITEMS}
+          variant="pearl"
+        />
       </>
 
       <style jsx global>{`

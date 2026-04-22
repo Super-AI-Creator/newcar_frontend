@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import SiteHeader from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -22,6 +23,9 @@ import DealSearchLoader from "@/components/deal-search-loader";
 import LeadFormButton from "@/components/lead-form-button";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
+import { LeaseSpecialsSeoIntroSection } from "@/components/marketing-seo-sections";
+import { MarketingFaqSection } from "@/components/marketing-faq-section";
+import { LEASE_SPECIALS_FAQ_ITEMS } from "@/content/marketing-faq";
 
 const sortOptions = [
   { value: "payment_low_high", label: "Lowest payment first" },
@@ -585,8 +589,7 @@ function LeaseSpecialsPageContent() {
           <div className="relative">
             <img
               src="/images/ribon.png"
-              alt=""
-              aria-hidden
+              alt="A vibrant red satin ribbon bow tied diagonally across."
               className="pointer-events-none absolute m-0 p-0 right-0 top-0 w-64 max-w-none translate-x-[38%] -translate-y-[38%] opacity-95 sm:w-80 sm:translate-x-[42%] sm:-translate-y-[42%]"
             />
             <p className="market-kicker">Lease Offers</p>
@@ -594,11 +597,23 @@ function LeaseSpecialsPageContent() {
               <CarFront className="h-7 w-7 text-brand-700" />
               Lease Specials
             </h1>
-            <p className="mt-2 hidden max-w-2xl text-sm text-ink-600 sm:block">
-              Live inventory with active lease offers. Use the narrow down menu to find your best deal fast.
+            <p className="mt-2 max-w-2xl text-sm text-ink-600 sm:max-w-3xl">
+              Live <strong>online lease specials in California</strong> with real payments. Use filters to{" "}
+              <strong>compare car lease offers in California</strong> by monthly payment, price, make, and model — including{" "}
+              <strong>new car lease specials</strong> when available.
             </p>
           </div>
         </section>
+
+        <LeaseSpecialsSeoIntroSection />
+
+        <MarketingFaqSection
+          id="lease-specials-faq"
+          heading="Frequently asked questions"
+          kicker="California lease specials, comparing offers, regions we cover, and how monthly payments work."
+          items={LEASE_SPECIALS_FAQ_ITEMS}
+          variant="white"
+        />
 
         <section className="sm:hidden">
           <div className="flex items-center justify-between">
@@ -1040,6 +1055,7 @@ function LeaseSpecialsPageContent() {
         </div>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }

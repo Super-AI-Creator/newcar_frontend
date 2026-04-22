@@ -653,8 +653,7 @@ export default function CustomerDashboard() {
           <div className="pointer-events-none absolute inset-0 aurora-bg opacity-35" aria-hidden />
           <img
             src="/images/ribon.png"
-            alt=""
-            aria-hidden
+            alt="A vibrant red satin ribbon bow tied diagonally across."
             className="pointer-events-none absolute m-0 p-0 right-0 top-0 w-64 max-w-none translate-x-[16%] -translate-y-[14%] opacity-95 sm:w-80 sm:translate-x-[18%] sm:-translate-y-[16%]"
           />
           <div className="relative">

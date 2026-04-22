@@ -6,7 +6,7 @@ import { ArticleBody } from "@/components/article-body";
 import { fetchPublicArticleSummaries } from "@/lib/articles-api";
 import { getArticleBySlug, getArticleSlugs } from "@/lib/articles";
 import { env } from "@/lib/env";
-import { getPublicSiteUrl } from "@/lib/site-url";
+import { getCanonicalSiteOrigin } from "@/lib/site-url";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const article = (await getArticleFromApi(slug)) ?? getArticleBySlug(slug);
   if (!article) return { title: "Article | NewCarSuperstore" };
-  const site = getPublicSiteUrl();
+  const site = getCanonicalSiteOrigin();
   const canonical = `${site}/articles/${encodeURIComponent(article.slug)}`;
   const description = article.description?.trim() || undefined;
   return {
@@ -82,7 +82,7 @@ export default async function ArticlePage({ params }: Props) {
   const { slug } = await params;
   const article = (await getArticleFromApi(slug)) ?? getArticleBySlug(slug);
   if (!article) notFound();
-  const pageUrl = `${getPublicSiteUrl()}/articles/${encodeURIComponent(article.slug)}`;
+  const pageUrl = `${getCanonicalSiteOrigin()}/articles/${encodeURIComponent(article.slug)}`;
 
   return (
     <div className="min-h-screen bg-white text-ink-900">

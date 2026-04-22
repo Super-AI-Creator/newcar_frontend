@@ -1,80 +1,23 @@
 import type { MetadataRoute } from "next";
-import fs from "fs";
-import path from "path";
 import { getArticles } from "@/lib/articles";
 import { fetchPublicArticleSummaries, mergeArticleSummaries } from "@/lib/articles-api";
 import { env } from "@/lib/env";
-import { getPublicSiteUrl } from "@/lib/site-url";
+import { getCanonicalSiteOrigin } from "@/lib/site-url";
 
-/** Regenerate sitemap periodically so inventory + new pages are not stuck at deploy time. */
+/**
+ * Sitemap shape aligned with SEO export (core marketing URLs + articles + testimonials).
+ * Inventory `/vehicles/{vin}` is off by default; set `NEXT_PUBLIC_SITEMAP_INCLUDE_VEHICLE_PAGES=true` to restore.
+ */
 export const revalidate = 3600;
-
-const APP_DIR = path.join(process.cwd(), "src", "app");
-const ROUTE_PRIORITY: Record<string, number> = {
-  "": 1,
-  articles: 0.9,
-  "articles/[slug]": 0.7,
-  "lease-specials": 0.9,
-  search: 0.8,
-  reviews: 0.8,
-  testimonials: 0.8,
-  "credit-application": 0.7,
-  "most-reviewed-auto-broker-los-angeles": 0.7,
-  privacy: 0.6,
-  login: 0.5,
-  register: 0.5,
-};
-const ROUTE_CHANGE_FREQUENCY: Record<string, MetadataRoute.Sitemap[number]["changeFrequency"]> = {
-  "": "weekly",
-  articles: "weekly",
-  "articles/[slug]": "monthly",
-  "lease-specials": "daily",
-  search: "weekly",
-  reviews: "monthly",
-  testimonials: "monthly",
-  "credit-application": "monthly",
-  "most-reviewed-auto-broker-los-angeles": "monthly",
-  privacy: "yearly",
-  login: "monthly",
-  register: "monthly",
-};
 
 function normalizeDate(value: string): Date {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 
-/** Strip Next route groups like `(protected)`; omit admin/dashboard and dynamic segments. */
-function shouldOmitDiscoverableRoute(cleanSegments: string[]): boolean {
-  if (cleanSegments.some((s) => s.startsWith("[") && s.endsWith("]"))) return true;
-  if (cleanSegments.includes("admin")) return true;
-  if (cleanSegments[0] === "dashboard") return true;
-  return false;
-}
-
-function discoverPublicStaticRoutes(baseDir: string): string[] {
-  const routes = new Set<string>();
-  if (!fs.existsSync(baseDir)) return [];
-
-  function walk(currentDir: string, segments: string[]) {
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-      if (entry.isDirectory()) {
-        walk(fullPath, [...segments, entry.name]);
-        continue;
-      }
-      if (!entry.isFile() || entry.name !== "page.tsx") continue;
-      const routeSegments = segments.filter((segment) => segment !== "");
-      const cleanSegments = routeSegments.filter((segment) => !(segment.startsWith("(") && segment.endsWith(")")));
-      if (shouldOmitDiscoverableRoute(cleanSegments)) continue;
-      const routePath = cleanSegments.join("/");
-      routes.add(routePath);
-    }
-  }
-
-  walk(baseDir, []);
-  return Array.from(routes).sort();
+function includeVehiclePages(): boolean {
+  const v = (process.env.NEXT_PUBLIC_SITEMAP_INCLUDE_VEHICLE_PAGES ?? "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
 }
 
 /** Vercel/Next static generation defaults to ~60s; keep inventory work well under that. */
@@ -141,66 +84,69 @@ async function fetchInventoryVehicleEntries(baseUrl: string): Promise<MetadataRo
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = getPublicSiteUrl();
+  const baseUrl = getCanonicalSiteOrigin();
   const now = new Date();
   const entries: MetadataRoute.Sitemap = [];
   const seenUrls = new Set<string>();
 
-  const staticRoutes = discoverPublicStaticRoutes(APP_DIR);
-  for (const routePath of staticRoutes) {
-    const url = routePath ? `${baseUrl}/${routePath}` : baseUrl;
-    if (seenUrls.has(url)) continue;
-    seenUrls.add(url);
-    entries.push({
-      url,
-      lastModified: now,
-      changeFrequency: ROUTE_CHANGE_FREQUENCY[routePath] ?? "monthly",
-      priority: ROUTE_PRIORITY[routePath] ?? 0.6
-    });
+  function push(entry: MetadataRoute.Sitemap[number]) {
+    if (!entry.url || seenUrls.has(entry.url)) return;
+    seenUrls.add(entry.url);
+    entries.push(entry);
   }
+
+  /** Priority / changefreq per SEO sitemap export (2026-04-14). */
+  const core: MetadataRoute.Sitemap = [
+    { url: `${baseUrl}/`, lastModified: now, changeFrequency: "weekly", priority: 1 },
+    {
+      url: `${baseUrl}/lease-specials`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.8
+    },
+    {
+      url: `${baseUrl}/search?vehicle_type=used`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.8
+    },
+    { url: `${baseUrl}/articles`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${baseUrl}/reviews`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    {
+      url: `${baseUrl}/most-reviewed-auto-broker-los-angeles`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.8
+    },
+    { url: `${baseUrl}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.8 },
+    { url: `${baseUrl}/contact-us`, lastModified: now, changeFrequency: "yearly", priority: 0.75 },
+    { url: `${baseUrl}/why-us`, lastModified: now, changeFrequency: "yearly", priority: 0.75 },
+    { url: `${baseUrl}/about-us`, lastModified: now, changeFrequency: "yearly", priority: 0.75 }
+  ];
+  for (const e of core) push(e);
 
   const apiArticles = await fetchPublicArticleSummaries();
   const articles = mergeArticleSummaries(getArticles(), apiArticles);
-  for (const article of articles) {
-    const url = `${baseUrl}/articles/${article.slug}`;
-    if (seenUrls.has(url)) continue;
-    seenUrls.add(url);
-    entries.push({
-      url,
+  const sortedArticles = [...articles].sort((a, b) => a.slug.localeCompare(b.slug));
+  for (const article of sortedArticles) {
+    push({
+      url: `${baseUrl}/articles/${article.slug}`,
       lastModified: normalizeDate(article.date),
-      changeFrequency: ROUTE_CHANGE_FREQUENCY["articles/[slug]"] ?? "monthly",
-      priority: ROUTE_PRIORITY["articles/[slug]"] ?? 0.7
+      changeFrequency: "monthly",
+      priority: 0.64
     });
   }
 
-  const importantRoutes = [
-    "",
-    "search",
-    "lease-specials",
-    "articles",
-    "reviews",
-    "testimonials",
-    "credit-application",
-    "most-reviewed-auto-broker-los-angeles",
-    "privacy"
-  ];
-  for (const routePath of importantRoutes) {
-    const url = routePath ? `${baseUrl}/${routePath}` : baseUrl;
-    if (seenUrls.has(url)) continue;
-    seenUrls.add(url);
-    entries.push({
-      url,
-      lastModified: now,
-      changeFrequency: ROUTE_CHANGE_FREQUENCY[routePath] ?? "monthly",
-      priority: ROUTE_PRIORITY[routePath] ?? 0.6
-    });
-  }
+  push({
+    url: `${baseUrl}/testimonials`,
+    lastModified: now,
+    changeFrequency: "monthly",
+    priority: 0.64
+  });
 
-  const vehicleEntries = await fetchInventoryVehicleEntries(baseUrl);
-  for (const row of vehicleEntries) {
-    if (!row.url || seenUrls.has(row.url)) continue;
-    seenUrls.add(row.url);
-    entries.push(row);
+  if (includeVehiclePages()) {
+    const vehicleEntries = await fetchInventoryVehicleEntries(baseUrl);
+    for (const row of vehicleEntries) push(row);
   }
 
   return entries;

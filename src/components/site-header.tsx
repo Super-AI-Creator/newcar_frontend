@@ -6,9 +6,12 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BadgeDollarSign,
+  Building2,
   CarFront,
+  CircleHelp,
   ClipboardCheck,
   Heart,
+  Mail,
   Menu,
   MessageSquare,
   MessageSquareQuote,
@@ -25,7 +28,10 @@ import Logo from "@/components/logo";
 
 const publicBrandLinks = [
   { href: "/articles", label: "Articles" },
-  { href: "/reviews", label: "Reviews" }
+  { href: "/reviews", label: "Reviews" },
+  { href: "/why-us", label: "Why us" },
+  { href: "/about-us", label: "About us" },
+  { href: "/contact-us", label: "Contact us" }
 ];
 
 const customerDealRoomLink = { href: "/dashboard/customer", label: "Deal Room" } as const;
@@ -92,6 +98,9 @@ export default function SiteHeader() {
     if (base === "/recommendations") return Sparkles;
     if (base === "/prequal") return ShoppingBag;
     if (base === "/reviews") return MessageSquareQuote;
+    if (base === "/why-us") return CircleHelp;
+    if (base === "/about-us") return Building2;
+    if (base === "/contact-us") return Mail;
     if (base === "/dashboard/dealer") return CarFront;
     if (base === "/admin") return Star;
     return Search;
@@ -116,15 +125,15 @@ export default function SiteHeader() {
 
   return (
     <>
-    <header className="sticky top-0 z-50 w-full border-b border-ink-200/80 bg-white/90 backdrop-blur-md">
-      <div className="container-wide flex h-14 items-center justify-between gap-2 sm:gap-4">
+    <header className="sticky top-0 z-50 w-full border-b border-ink-200/80 bg-white/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+      <div className="container-wide flex min-h-14 items-center justify-between gap-2 sm:gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
           {!hideBack ? (
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="h-9 w-9 shrink-0 rounded-full p-0"
+              className="h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 rounded-full p-0 md:h-9 md:w-9 md:min-h-0 md:min-w-0"
               aria-label="Go back"
               onClick={goBack}
             >
@@ -142,14 +151,15 @@ export default function SiteHeader() {
           </Link>
           <a
             href="tel:18187059200"
-            className="hidden text-sm font-semibold text-ink-800 sm:inline-block"
+            className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-md px-1 text-xs font-semibold text-ink-800 sm:min-h-0 sm:px-0 sm:text-sm"
+            aria-label="Call NewCarSuperstore at 818-705-9200"
           >
             818-705-9200
           </a>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {isCustomer ? (
-            <Button asChild size="sm" className="h-9 rounded-full px-3 md:hidden">
+            <Button asChild size="sm" className="h-11 min-h-[44px] rounded-full px-3 md:hidden">
               <Link href={customerDealRoomLink.href}>
                 <MessageSquare className="mr-1 h-4 w-4" />
                 Deal Room
@@ -183,11 +193,16 @@ export default function SiteHeader() {
           )}
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 w-9 rounded-full p-0 md:hidden" aria-label="Open menu">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-11 w-11 min-h-[44px] min-w-[44px] rounded-full p-0 md:hidden"
+                aria-label="Open menu"
+              >
                 <Menu className="h-4 w-4" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="left-0 top-0 h-screen w-[86vw] max-w-[330px] translate-x-0 translate-y-0 rounded-none px-3 pb-4 pt-3">
+            <DialogContent className="left-0 top-0 h-[100dvh] max-h-[100dvh] w-[86vw] max-w-[330px] translate-x-0 translate-y-0 rounded-none px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
               <DialogHeader className="mb-2 border-b border-ink-200 pb-2">
                 <DialogTitle className="text-base">Menu</DialogTitle>
               </DialogHeader>
@@ -201,7 +216,7 @@ export default function SiteHeader() {
                     requireVehicleInput
                     vehicleInputLabel="Make and Model"
                     vehicleInputPlaceholder="Please enter the make and model car you want a custom quote for"
-                    className="inline-flex h-auto w-full items-center justify-start gap-2 rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-sm font-medium text-ink-700"
+                    className="inline-flex h-auto min-h-[44px] w-full items-center justify-start gap-2 rounded-lg border border-ink-200 bg-white px-3 py-3 text-sm font-medium text-ink-700"
                     variant="ghost"
                   >
                     <MessageSquareQuote className="h-4 w-4" />
@@ -214,7 +229,7 @@ export default function SiteHeader() {
                     <DialogClose asChild key={href}>
                       <Link
                         href={href}
-                        className={`inline-flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium ${
+                        className={`inline-flex min-h-[44px] w-full items-center gap-2 rounded-lg border px-3 py-3 text-sm font-medium ${
                           isActiveLink(href)
                             ? "border-brand-600 bg-brand-50 text-brand-800"
                             : "border-ink-200 bg-white text-ink-700 active:bg-ink-100"

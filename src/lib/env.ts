@@ -27,4 +27,6 @@ export const env = {
   cuPortalBaseUrl: trimTrailingSlash(
     (process.env.NEXT_PUBLIC_CU_PORTAL_BASE_URL ?? "").trim().replace(/^\/+/, "")
   ),
+  /** Shown on /contact-us; defaults in `marketing-contact.ts` if unset. */
+  contactEmail: (process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "").trim(),
 };

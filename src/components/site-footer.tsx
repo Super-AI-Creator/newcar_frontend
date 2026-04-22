@@ -7,6 +7,7 @@ import { Facebook, Instagram, MapPin, Phone, Plus, Twitter, Youtube } from "luci
 import { FOOTER_DISCLOSURE_DEFAULT } from "@/content/footer-disclosure-default";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import Logo from "@/components/logo";
 
 const DEFAULT_FOOTER = {
   facebook_url: "https://www.facebook.com/newcarsuperstore/",
@@ -73,22 +74,45 @@ function PhoneLine({ text }: { text: string }) {
   );
 }
 
-/** Turn bare http(s) URLs in disclosure copy into links (privacy policy, etc.). */
+/** Disclosure may paste `…/privacy-policy` with trailing punctuation — normalize to in-app `/privacy`. */
+function isLegacyPrivacyPolicyUrl(part: string): boolean {
+  const raw = part.trim().replace(/[),.;:!?]+$/g, "");
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.replace(/^www\./i, "").toLowerCase();
+    const path = u.pathname.replace(/\/$/, "") || "/";
+    return host === "newcarsuperstore.com" && path === "/privacy-policy";
+  } catch {
+    return false;
+  }
+}
+
+/** Turn bare http(s) URLs in disclosure copy into links; legacy /privacy-policy → /privacy. */
 function FooterDisclosureBody({ text }: { text: string }) {
   const parts = text.split(/(https?:\/\/[^\s]+)/gi);
   return (
     <>
       {parts.map((part, i) =>
         /^https?:\/\//i.test(part) ? (
-          <a
-            key={i}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="break-all text-white/80 underline decoration-white/30 underline-offset-2 hover:text-white hover:decoration-white/60"
-          >
-            {part}
-          </a>
+          isLegacyPrivacyPolicyUrl(part) ? (
+            <Link
+              key={i}
+              href="/privacy"
+              className="break-all text-white/80 underline decoration-white/30 underline-offset-2 hover:text-white hover:decoration-white/60"
+            >
+              https://newcarsuperstore.com/privacy
+            </Link>
+          ) : (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all text-white/80 underline decoration-white/30 underline-offset-2 hover:text-white hover:decoration-white/60"
+            >
+              {part}
+            </a>
+          )
         ) : (
           <span key={i}>{part}</span>
         )
@@ -142,6 +166,13 @@ export function SiteFooter({ poweredBy }: { poweredBy?: string }) {
       <div className="container-wide py-10">
         {/* Group contact + social so wide screens don’t look like an empty strip */}
         <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 text-center sm:gap-7">
+          <Link
+            href="/"
+            className="inline-flex rounded-lg p-1 ring-offset-2 ring-offset-ink-950 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            aria-label="NewCarSuperstore home"
+          >
+            <Logo imageClassName="h-11 w-auto sm:h-12" />
+          </Link>
           {(address || phoneLine) && (
             <div className="flex w-full flex-col items-center gap-5 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-10 sm:gap-y-4">
               {address ? (
@@ -204,9 +235,15 @@ export function SiteFooter({ poweredBy }: { poweredBy?: string }) {
               <FooterNavLink href={footer.link_broker_url} label={footer.link_broker_label} />
             </div>
             <div className="mt-4 flex max-w-full flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-white/10 pt-4 text-xs text-white/80 sm:justify-end">
-              <a href="tel:+18187059200" className="hover:text-brand-300 hover:underline">
+              <Link href="/contact-us" className="hover:text-brand-300 hover:underline" title="Contact us">
                 Contact
-              </a>
+              </Link>
+              <Link href="/why-us" className="hover:text-brand-300 hover:underline">
+                Why us
+              </Link>
+              <Link href="/about-us" className="hover:text-brand-300 hover:underline">
+                About us
+              </Link>
               <Link href="/reviews" className="hover:text-brand-300 hover:underline">
                 Reviews
               </Link>
@@ -215,9 +252,6 @@ export function SiteFooter({ poweredBy }: { poweredBy?: string }) {
               </Link>
               <Link href="/privacy" className="hover:text-brand-300 hover:underline">
                 Privacy &amp; terms
-              </Link>
-              <Link href="/?view=home" className="hover:text-brand-300 hover:underline">
-                Why us
               </Link>
             </div>
           </div>

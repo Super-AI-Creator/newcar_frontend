@@ -5,6 +5,9 @@ export const SEO_PRESET_PAGE_KEYS = [
   "lease_specials",
   "reviews",
   "credit_application",
+  "contact_us",
+  "why_us",
+  "about_us",
 ] as const;
 
 export type SeoJsonLdStarter = { id: string; label: string; template: string };

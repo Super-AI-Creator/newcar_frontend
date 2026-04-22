@@ -61,6 +61,14 @@ function isBlockedBot(normalizedUa: string): boolean {
 }
 
 export function middleware(request: NextRequest) {
+  const host = request.headers.get("host")?.split(":")[0]?.toLowerCase() ?? "";
+  if (host === "www.newcarsuperstore.com") {
+    const url = request.nextUrl.clone();
+    url.hostname = "newcarsuperstore.com";
+    url.protocol = "https:";
+    return NextResponse.redirect(url, 308);
+  }
+
   if (!isProtectionActive()) {
     return NextResponse.next();
   }

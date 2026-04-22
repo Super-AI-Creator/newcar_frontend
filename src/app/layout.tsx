@@ -1,8 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "@/styles/globals.css";
 import Providers from "@/components/providers";
+import { JsonLd } from "@/components/json-ld";
+import { localBusinessJsonLd, organizationJsonLd } from "@/lib/json-ld/newcarsuperstore";
 import { resolveSeoMetadata } from "@/lib/seo";
+import { getCanonicalSiteOrigin } from "@/lib/site-url";
 
 /** Google Tag Manager container ID (override with NEXT_PUBLIC_GTM_ID). */
 const GTM_CONTAINER_ID = process.env.NEXT_PUBLIC_GTM_ID ?? "GTM-NXPDHCM6";
@@ -18,8 +21,19 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','${GTM_CONTAINER_ID}');`;
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
+};
+
 export async function generateMetadata(): Promise<Metadata> {
+  const apex = new URL(`${getCanonicalSiteOrigin()}/`);
   const fallback: Metadata = {
+    metadataBase: apex,
     title: "NewCarSuperstore",
     description: "Modern marketplace for new car deals.",
     icons: {
@@ -39,6 +53,7 @@ export async function generateMetadata(): Promise<Metadata> {
         : {};
     return {
       ...resolved,
+      metadataBase: apex,
       icons: {
         ...(resolvedIcons ?? {}),
         icon: "/images/logo.png",
@@ -54,15 +69,20 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const site = getCanonicalSiteOrigin();
   return (
     <html lang="en">
       <head>
-        <Script id="google-tag-manager" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: GTM_HEAD_SNIPPET }} />
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+        <JsonLd data={organizationJsonLd(site)} />
+        <JsonLd data={localBusinessJsonLd(site)} />
+        <Script id="google-tag-manager" strategy="lazyOnload" dangerouslySetInnerHTML={{ __html: GTM_HEAD_SNIPPET }} />
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_TAG_ID}`}
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
-        <Script id="google-analytics" strategy="afterInteractive">
+        <Script id="google-analytics" strategy="lazyOnload">
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
@@ -71,7 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `}
         </Script>
       </head>
-      <body className="min-h-screen bg-white text-ink-900 antialiased">
+      <body className="min-h-[100dvh] min-h-screen overflow-x-clip bg-white text-ink-900 antialiased">
         <noscript>
           <iframe
             src={`https://www.googletagmanager.com/ns.html?id=${GTM_CONTAINER_ID}`}

@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import SiteHeader from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
@@ -122,6 +123,7 @@ export default function ReviewsPage() {
           )}
         </section>
       </main>
+      <SiteFooter />
     </div>
   );
 }
