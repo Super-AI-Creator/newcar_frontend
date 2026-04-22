@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import SiteHeader from "@/components/site-header";
+import MarketplaceStickyHeader from "@/components/marketplace-sticky-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -207,7 +208,9 @@ function SearchPageContent() {
     queryFn: () => api.search(appliedParams),
     enabled: submitted,
     staleTime: 20_000,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    retry: 1,
+    retryDelay: 400
   });
 
   const makes = sanitizeOptions(filtersQuery.data?.makes);
@@ -297,6 +300,18 @@ function SearchPageContent() {
     return backendTotal;
   })();
   const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
+  const cuReferralSlug = (searchParams.get("cu") ?? "").trim();
+  const searchShellHeader = cuReferralSlug ? (
+    <MarketplaceStickyHeader cuSlug={cuReferralSlug} />
+  ) : (
+    <SiteHeader />
+  );
+  const resultsCountLabel =
+    submitted && resultsQuery.isError
+      ? "—"
+      : submitted && !resultsQuery.data && (resultsQuery.isPending || resultsQuery.isFetching)
+        ? "Loading…"
+        : `${totalResults.toLocaleString()} results`;
   const queryVehicleTypeForRedirect = searchParams.get("vehicle_type");
   const allowsGuestSearch =
     queryVehicleTypeForRedirect === "all" || queryVehicleTypeForRedirect === "used" || queryVehicleTypeForRedirect === "new";
@@ -481,6 +496,10 @@ function SearchPageContent() {
       }
     }
     query.set("page", String(nextPage));
+    const cuKeep = (searchParams.get("cu") ?? "").trim();
+    if (cuKeep) query.set("cu", cuKeep);
+    const searchModeKeep = (searchParams.get("search_mode") ?? "").trim();
+    if (searchModeKeep) query.set("search_mode", searchModeKeep);
     router.replace(`${pathname}?${query.toString()}`);
     setPage(nextPage);
     setAppliedParams({
@@ -635,7 +654,7 @@ function SearchPageContent() {
     const leaseHref = searchParams.toString() ? `/lease-specials?${searchParams.toString()}` : "/lease-specials";
     return (
       <div className="app-page min-h-screen">
-        <SiteHeader />
+        {searchShellHeader}
         <main className="app-main space-y-4">
           <section className="rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-4 sm:px-6 sm:py-5">
             <h1 className="text-lg font-semibold text-ink-900 sm:text-xl">Sign in to search all inventory</h1>
@@ -665,7 +684,7 @@ function SearchPageContent() {
 
   return (
     <div className="app-page min-h-screen">
-      <SiteHeader />
+      {searchShellHeader}
       <main className="app-main space-y-4 sm:space-y-8">
         <section className="tc-fade-up w-full">
           <Tabs
@@ -733,7 +752,7 @@ function SearchPageContent() {
                 </span>
               ) : null}
             </Button>
-            <p className="text-sm text-ink-600">{totalResults.toLocaleString()} results</p>
+            <p className="text-sm text-ink-600">{resultsCountLabel}</p>
           </div>
           <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
             <DialogContent className="left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-[min(88vw,340px)] max-w-[340px] translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-r border-ink-200 p-0 shadow-xl">
@@ -1449,7 +1468,7 @@ function SearchPageContent() {
               </Card>
             )}
 
-        {submitted && resultsQuery.isLoading && (
+        {submitted && !resultsQuery.data && (resultsQuery.isPending || resultsQuery.isFetching) && (
           <Card className="tc-fade-up bg-white">
             <CardContent>
               <DealSearchLoader />

@@ -13,6 +13,7 @@ import { useAuth } from "@/components/auth-provider";
 import { TurnstileWidget } from "@/components/turnstile-widget";
 import { isTurnstileEnabled } from "@/lib/turnstile";
 import { verifyTurnstileToken } from "@/lib/verify-turnstile-client";
+import { cuVehicleSearchHref } from "@/lib/cu-portal-links";
 import { BadgeCheck } from "lucide-react";
 
 type Props = { params: { slug: string } };
@@ -235,19 +236,16 @@ export default function WhiteLabelCreditUnionPage({ params }: Props) {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button asChild>
-                      <Link
-                        href={`/search?vehicle_type=new&mode=price&cu=${encodeURIComponent(
-                          cu.slug
-                        )}&max_price=50000`}
-                      >
+                      <Link href={cuVehicleSearchHref(cu.slug, "new", { searchMode: "price", maxPrice: 50_000 })}>
                         Search new cars
                       </Link>
                     </Button>
                     <Button asChild variant="outline">
                       <Link
-                        href={`/search?vehicle_type=used&mode=price&cu=${encodeURIComponent(
-                          cu.slug
-                        )}&max_price=${approvalBudget?.maxPriceUsed ?? 50000}`}
+                        href={cuVehicleSearchHref(cu.slug, "used", {
+                          searchMode: "price",
+                          maxPrice: approvalBudget?.maxPriceUsed ?? 50_000
+                        })}
                       >
                         Search used cars
                       </Link>
@@ -310,9 +308,10 @@ export default function WhiteLabelCreditUnionPage({ params }: Props) {
                       </Button>
                       <Button asChild size="sm">
                         <Link
-                          href={`/search?vehicle_type=used&mode=price&cu=${encodeURIComponent(
-                            cu.slug
-                          )}&max_price=${approvalBudget.maxPriceUsed}`}
+                          href={cuVehicleSearchHref(cu.slug, "used", {
+                            searchMode: "price",
+                            maxPrice: approvalBudget.maxPriceUsed
+                          })}
                         >
                           Used cars in budget
                         </Link>

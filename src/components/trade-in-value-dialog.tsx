@@ -392,8 +392,7 @@ export default function TradeInValueDialog({
                   {step === "contact" && "How can we reach you?"}
                 </DialogTitle>
                 <p className="break-words pt-2 text-sm leading-relaxed text-ink-700 sm:text-[15px]">
-                  {step === "intro" &&
-                    "Answer a few quick questions — same flow as our previous form, now handled securely on our site. Reference images match the original Typeform where helpful."}
+                  {step === "intro" && "Answer a few quick questions to get an accurate trade-in estimate. Your details are handled securely on our site."}
                   {step === "vehicle" && "Year, make, and model are required so we can contextualize your trade (extra context beyond the legacy form)."}
                   {step === "facts" &&
                     "Same questions and order as before: VIN, mileage, and payoff. Each section uses the original form artwork as a visual guide."}
@@ -626,9 +625,7 @@ export default function TradeInValueDialog({
                   noValidate
                 >
                   <TypeformFieldImage src={TF_IMG_PHOTO_GUIDE} alt="" />
-                  <p className="text-sm text-ink-700">
-                    Please upload up to 4 photos of your vehicle (optional). Slot numbers match submission order (same as the legacy Typeform upload).
-                  </p>
+                  <p className="text-sm text-ink-700">Please upload up to 4 photos of your vehicle (optional).</p>
                   <div className="grid gap-4">
                     {[0, 1, 2, 3].map((slot) => (
                       <div key={slot} className="space-y-1.5">
