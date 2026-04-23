@@ -38,7 +38,7 @@ export const SEO_JSON_LD_STARTERS: SeoJsonLdStarter[] = [
     "addressLocality": "Oxnard",
     "addressRegion": "CA",
     "postalCode": "93036",
-    "streetAddress": "2671 Ventura Blvd Suite"
+    "streetAddress": "2671 Ventura Blvd"
   }
 }`,
   },

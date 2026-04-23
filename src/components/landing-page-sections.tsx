@@ -249,19 +249,17 @@ export default function LandingPageSections() {
       </section>
 
       <>
-        <HomeShopOptions initialFilters={filtersQuery.data} />
-
-        <HomeSeoIntroSection />
-
-          <section className="border-b border-ink-200/80 bg-white/80 py-8 sm:py-10">
-            <div className="container-wide">
-              <h2 className="font-display text-xl font-semibold text-ink-900 sm:text-2xl">{lease.title}</h2>
-              <p className="mt-1 text-sm text-ink-600">{lease.subtitle}</p>
-              <div className="mt-5">
-                {showSpecialsSkeleton ? <FeaturedOffersSkeleton /> : <LeaseSpecials initialSpecials={specialsQuery.data} />}
-              </div>
+        <section className="border-b border-ink-200/80 bg-white/80 py-8 sm:py-10">
+          <div className="container-wide">
+            <h2 className="font-display text-xl font-semibold text-ink-900 sm:text-2xl">{lease.title}</h2>
+            <p className="mt-1 text-sm text-ink-600">{lease.subtitle}</p>
+            <div className="mt-5">
+              {showSpecialsSkeleton ? <FeaturedOffersSkeleton /> : <LeaseSpecials initialSpecials={specialsQuery.data} />}
             </div>
-          </section>
+          </div>
+        </section>
+
+        <HomeShopOptions initialFilters={filtersQuery.data} />
 
           <HomeTestimonials initialTestimonials={testimonialsQuery.data} />
 
@@ -365,6 +363,8 @@ export default function LandingPageSections() {
               </div>
             </div>
           </section>
+
+        <HomeSeoIntroSection />
 
         <MarketingFaqSection
           id="homepage-faq"

@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpDown, CarFront, CircleDollarSign, Info, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowUpDown, CarFront, ChevronDown, CircleDollarSign, Info, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api, type Vehicle } from "@/lib/api";
 import { displayPrice, firstDisplayPrice } from "@/lib/vehicle-pricing";
@@ -23,8 +23,6 @@ import DealSearchLoader from "@/components/deal-search-loader";
 import LeadFormButton from "@/components/lead-form-button";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
-import { LeaseSpecialsSeoIntroSection } from "@/components/marketing-seo-sections";
-import { MarketingFaqSection } from "@/components/marketing-faq-section";
 import { LEASE_SPECIALS_FAQ_ITEMS } from "@/content/marketing-faq";
 
 const sortOptions = [
@@ -605,16 +603,6 @@ function LeaseSpecialsPageContent() {
           </div>
         </section>
 
-        <LeaseSpecialsSeoIntroSection />
-
-        <MarketingFaqSection
-          id="lease-specials-faq"
-          heading="Frequently asked questions"
-          kicker="California lease specials, comparing offers, regions we cover, and how monthly payments work."
-          items={LEASE_SPECIALS_FAQ_ITEMS}
-          variant="white"
-        />
-
         <section className="sm:hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1054,9 +1042,47 @@ function LeaseSpecialsPageContent() {
         )}
         </div>
         </div>
+
+        <LeaseSpecialsSeoFooter />
       </main>
       <SiteFooter />
     </div>
+  );
+}
+
+function LeaseSpecialsSeoFooter() {
+  return (
+    <section className="tc-fade-up border-t border-ink-200/80 pt-2">
+      <details className="overflow-hidden rounded-xl border border-ink-200 bg-white">
+        <summary className="group flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-600 sm:px-5">
+          Lease specials info and FAQs
+          <ChevronDown className="h-4 w-4 shrink-0 text-ink-400 transition-transform duration-200 group-open:rotate-180" aria-hidden />
+        </summary>
+        <div className="space-y-4 border-t border-ink-100 px-4 pb-4 pt-3 text-xs leading-relaxed text-ink-600 sm:px-5">
+          <p>
+            Browse <strong>new car lease specials</strong> with live payment estimates so you can compare offers by make, model,
+            monthly budget, and price in one place.
+          </p>
+          <p>
+            Filters help you quickly narrow deals across California, including Los Angeles, Orange County, Ventura, and Santa
+            Barbara, without bouncing between dealership sites.
+          </p>
+          <div className="overflow-hidden rounded-lg border border-ink-100 bg-ink-50/50">
+            {LEASE_SPECIALS_FAQ_ITEMS.map((faq, index) => (
+              <details key={index} className="group border-b border-ink-100 last:border-b-0">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-left text-xs font-semibold text-ink-800">
+                  <span className="min-w-0 flex-1">{faq.question}</span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-ink-400 transition-transform duration-200 group-open:rotate-180" aria-hidden />
+                </summary>
+                <div className="border-t border-ink-100 px-3 pb-3 pt-2 text-xs leading-relaxed text-ink-600">
+                  {faq.answer}
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
+      </details>
+    </section>
   );
 }
 

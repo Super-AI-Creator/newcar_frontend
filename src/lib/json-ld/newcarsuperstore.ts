@@ -37,7 +37,7 @@ export function localBusinessJsonLd(baseUrl: string) {
     telephone: "+1-818-705-9200",
     address: {
       "@type": "PostalAddress",
-      streetAddress: "2671 Ventura Blvd Suite Oxnard",
+      streetAddress: "2671 Ventura Blvd Oxnard",
       addressLocality: "Oxnard",
       addressRegion: "CA",
       postalCode: "93036",
