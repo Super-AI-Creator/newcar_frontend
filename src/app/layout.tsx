@@ -75,6 +75,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="preconnect" href="https://www.googletagmanager.com" />
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+        <link rel="preconnect" href="https://newcar-backend.vercel.app" />
+        <link rel="dns-prefetch" href="https://newcar-backend.vercel.app" />
+        <link rel="preconnect" href="https://res.cloudinary.com" />
+        <link rel="dns-prefetch" href="https://res.cloudinary.com" />
         <JsonLd data={organizationJsonLd(site)} />
         <JsonLd data={localBusinessJsonLd(site)} />
         <Script id="google-tag-manager" strategy="lazyOnload" dangerouslySetInnerHTML={{ __html: GTM_HEAD_SNIPPET }} />

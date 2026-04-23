@@ -6,6 +6,12 @@ import { homeFaqJsonLd } from "@/lib/json-ld/newcarsuperstore";
 import { resolveSeoMetadata } from "@/lib/seo";
 import { getCanonicalSiteOrigin } from "@/lib/site-url";
 import { SiteFooter } from "@/components/site-footer";
+import {
+  fetchInitialFilters,
+  fetchInitialHomepageSpecials,
+  fetchInitialLandingPage,
+  fetchInitialTestimonials,
+} from "@/lib/server-public-data";
 
 const HOME_SEO_KEYWORDS = [
   "new car deals Los Angeles",
@@ -41,14 +47,28 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default function HomePage() {
+export const revalidate = 600;
+
+export default async function HomePage() {
+  const [initialLandingData, initialFilters, initialSpecials, initialTestimonials] = await Promise.all([
+    fetchInitialLandingPage(),
+    fetchInitialFilters("new"),
+    fetchInitialHomepageSpecials(6),
+    fetchInitialTestimonials(),
+  ]);
+
   return (
     <div className="app-page min-h-screen text-ink-900">
       <JsonLd data={homeFaqJsonLd()} />
       <SiteHeader />
 
       <main>
-        <LandingPageSections />
+        <LandingPageSections
+          initialLandingData={initialLandingData}
+          initialFilters={initialFilters}
+          initialSpecials={initialSpecials}
+          initialTestimonials={initialTestimonials}
+        />
       </main>
       <SiteFooter />
     </div>
