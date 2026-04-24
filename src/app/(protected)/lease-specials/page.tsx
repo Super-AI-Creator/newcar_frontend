@@ -15,11 +15,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpDown, CarFront, ChevronDown, CircleDollarSign, Info, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api, type Vehicle } from "@/lib/api";
 import { displayPrice, firstDisplayPrice } from "@/lib/vehicle-pricing";
 import { DEFAULT_CAR_IMAGE, pickVehicleImage } from "@/lib/vehicle-image";
 import DealSearchLoader from "@/components/deal-search-loader";
+import MarketplaceLeaseFinanceTabs from "@/components/marketplace-lease-finance-tabs";
 import LeadFormButton from "@/components/lead-form-button";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
@@ -159,8 +159,6 @@ function LeaseSpecialsPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const viewMode = searchParams.get("view") === "all" ? "all" : "lease";
-
   const [make, setMake] = useState(searchParams.get("make") ?? "");
   const [model, setModel] = useState(searchParams.get("model") ?? "");
   const [sort, setSort] = useState(searchParams.get("sort") ?? sortOptions[0].value);
@@ -565,24 +563,6 @@ function LeaseSpecialsPageContent() {
     <div className="app-page min-h-screen">
       <SiteHeader />
       <main className="app-main space-y-4 sm:space-y-6">
-        <section className="tc-fade-up w-full">
-          <Tabs
-            value={viewMode}
-            onValueChange={(value) => {
-              if (value === "all") {
-                router.push("/search?vehicle_type=all");
-                return;
-              }
-              router.push("/lease-specials");
-            }}
-          >
-            <TabsList className="grid w-full grid-cols-2 bg-ink-100 p-1 sm:inline-flex sm:w-auto">
-              <TabsTrigger value="lease" className="w-full max-[420px]:px-2 max-[420px]:text-xs">Lease Specials</TabsTrigger>
-              <TabsTrigger value="all" className="w-full max-[420px]:px-2 max-[420px]:text-xs">All Vehicles</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </section>
-
         <section className="tc-fade-up relative w-full overflow-hidden rounded-3xl border border-ink-200 bg-white px-4 pb-4 pt-4 shadow-sm sm:px-7 sm:pb-6 sm:pt-5">
           <div className="relative">
             <img
@@ -990,8 +970,8 @@ function LeaseSpecialsPageContent() {
 
         {resultsQuery.data && (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 pb-3">
-              <p className="flex flex-wrap items-center gap-x-1 text-sm font-medium text-ink-700">
+            <div className="grid grid-cols-1 items-center gap-3 border-b border-ink-200 pb-3 sm:grid-cols-[minmax(0,auto)_1fr_minmax(0,auto)] sm:gap-x-4">
+              <p className="flex flex-wrap items-center justify-center gap-x-1 text-sm font-medium text-ink-700 sm:justify-start">
                 <CircleDollarSign className="h-4 w-4 shrink-0 text-brand-700" />
                 <span>{totalResults.toLocaleString()} matching cars</span>
                 {useModelGrouping && modelGroups && modelGroups.length > 0 ? (
@@ -1000,7 +980,10 @@ function LeaseSpecialsPageContent() {
                   </span>
                 ) : null}
               </p>
-              <div className="hidden max-w-xl text-right text-sm leading-snug text-ink-500 sm:block">
+              <div className="flex min-w-0 justify-center px-1">
+                <MarketplaceLeaseFinanceTabs active="lease" />
+              </div>
+              <div className="hidden max-w-xl text-right text-sm leading-snug text-ink-500 sm:block sm:justify-self-end">
                 Monthly lease payments are estimates and depend on multiple factors; not everyone will qualify. Please confirm details with your auto broker.
               </div>
             </div>
@@ -1131,8 +1114,6 @@ function LeaseSpecialCard({
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
-  const primaryPrice = firstDisplayPrice(vehicle.discounted, vehicle.msrp, vehicle.listed_price);
-  const msrpDisplay = displayPrice(vehicle.msrp);
   const monthlyDisplay = displayPrice(vehicle.monthly);
   const downDisplay = displayPrice(vehicle.down);
   const detailsHref = `/vehicles/${encodeURIComponent(vehicle.vin)}`;
@@ -1197,14 +1178,6 @@ function LeaseSpecialCard({
           </h3>
 
           <div className="border-t border-ink-300 pt-2">
-            <div className="flex items-end justify-between gap-3">
-              <p className="text-[22px] font-bold leading-none text-ink-900 max-[420px]:text-xl sm:text-xl">
-                {primaryPrice !== undefined ? `$${primaryPrice.toLocaleString()}` : "Call for price"}
-              </p>
-              {msrpDisplay !== undefined && (
-                <p className="hidden text-xs text-ink-700 sm:block">MSRP ${msrpDisplay.toLocaleString()}</p>
-              )}
-            </div>
             <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 sm:text-xs">
               {monthlyDisplay !== undefined ? `$${monthlyDisplay.toLocaleString()}/mo lease` : "Monthly offer coming soon"}
               <Info className="h-4 w-4 text-ink-500" />

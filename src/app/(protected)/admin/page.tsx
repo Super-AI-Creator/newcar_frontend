@@ -109,12 +109,6 @@ export default function AdminPage() {
   const isSuperAdmin = user?.role === "super_admin";
   const isBrokerWorkspace = !isSuperAdmin;
   const { toast } = useToast();
-  const [lenderName, setLenderName] = useState("Default Lender");
-  const [creditTier, setCreditTier] = useState("B");
-  const [vehicleType, setVehicleType] = useState("all");
-  const [apr, setApr] = useState("5.0");
-  const [maxTerm, setMaxTerm] = useState("72");
-
   const [assignBrokerEmails, setAssignBrokerEmails] = useState<Record<number, string>>({});
   const [scheduleDates, setScheduleDates] = useState<Record<number, string>>({});
   const [scheduleAddress, setScheduleAddress] = useState<Record<number, string>>({});
@@ -249,7 +243,6 @@ export default function AdminPage() {
   });
   const dealsQuery = useQuery({ queryKey: ["admin-deals-queue"], queryFn: api.brokerQueue, enabled: isBrokerWorkspace });
   const messagesQuery = useQuery({ queryKey: ["admin-messages"], queryFn: api.messages, enabled: isBrokerWorkspace });
-  const lenderRatesQuery = useQuery({ queryKey: ["admin-lender-rates"], queryFn: api.lenderRates, enabled: isBrokerWorkspace });
   const offerOverridesQuery = useQuery({
     queryKey: ["admin-offer-overrides", offerSourceFilter, offerSearch],
     queryFn: () =>
@@ -328,21 +321,6 @@ export default function AdminPage() {
     onError: (err: unknown) => toast({ variant: "error", title: "Save failed", description: errorMessage(err, "Could not save deal details.") })
   });
 
-  const createRateMutation = useMutation({
-    mutationFn: () =>
-      api.createLenderRate({
-        lender_name: lenderName.trim(),
-        credit_tier: creditTier.trim().toUpperCase(),
-        vehicle_type: vehicleType.trim().toLowerCase(),
-        apr: Number(apr),
-        max_term_months: Number(maxTerm)
-      }),
-    onSuccess: () => {
-      lenderRatesQuery.refetch();
-      toast({ variant: "success", title: "Rate added" });
-    },
-    onError: (err: unknown) => toast({ variant: "error", title: "Could not add rate", description: errorMessage(err, "Invalid rate payload.") })
-  });
   const upsertOfferOverrideMutation = useMutation({
     mutationFn: (payload: {
       vin: string;
@@ -1710,18 +1688,6 @@ export default function AdminPage() {
                 retryLeadDeliveryMutation={retryLeadDeliveryMutation}
                 statusQuery={statusQuery}
                 sourcesQuery={sourcesQuery}
-                lenderName={lenderName}
-                setLenderName={setLenderName}
-                creditTier={creditTier}
-                setCreditTier={setCreditTier}
-                vehicleType={vehicleType}
-                setVehicleType={setVehicleType}
-                apr={apr}
-                setApr={setApr}
-                maxTerm={maxTerm}
-                setMaxTerm={setMaxTerm}
-                createRateMutation={createRateMutation}
-                lenderRatesQuery={lenderRatesQuery}
                 confirmAction={confirmAction}
                 toast={toast}
               />

@@ -4,6 +4,7 @@ import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 import { Flag, Send } from "lucide-react";
 
 import type { LeadDeliveryRecord, OfferOverrideRecord } from "@/lib/api";
+import { AdminLenderRatesSection } from "@/components/admin/admin-lender-rates-section";
 import { formatDateTime, formatStatusLabel } from "@/components/admin/admin-broker-ops-shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,19 +61,6 @@ export type AdminBrokerAdminDataPanelProps = {
   statusQuery: UseQueryResult<any>;
   sourcesQuery: UseQueryResult<any>;
 
-  lenderName: string;
-  setLenderName: (v: string) => void;
-  creditTier: string;
-  setCreditTier: (v: string) => void;
-  vehicleType: string;
-  setVehicleType: (v: string) => void;
-  apr: string;
-  setApr: (v: string) => void;
-  maxTerm: string;
-  setMaxTerm: (v: string) => void;
-  createRateMutation: UseMutationResult<any, any, void, any>;
-  lenderRatesQuery: UseQueryResult<any>;
-
   confirmAction: (title: string, onConfirm: () => void, description?: string) => void;
   toast: (opts: any) => void;
 };
@@ -114,18 +102,6 @@ export function AdminBrokerAdminDataPanel({
   retryLeadDeliveryMutation,
   statusQuery,
   sourcesQuery,
-  lenderName,
-  setLenderName,
-  creditTier,
-  setCreditTier,
-  vehicleType,
-  setVehicleType,
-  apr,
-  setApr,
-  maxTerm,
-  setMaxTerm,
-  createRateMutation,
-  lenderRatesQuery,
   confirmAction,
   toast
 }: AdminBrokerAdminDataPanelProps) {
@@ -396,45 +372,7 @@ export function AdminBrokerAdminDataPanel({
         </CardContent>
       </Card>
 
-      <Card className="border-ink-200 bg-white">
-        <CardHeader>
-          <CardTitle>Lender Rate Sheet</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2 md:grid-cols-6">
-            <Input value={lenderName} onChange={(e) => setLenderName(e.target.value)} placeholder="Lender name" />
-            <Input value={creditTier} onChange={(e) => setCreditTier(e.target.value)} placeholder="Tier (A/B/C/D)" />
-            <Input value={vehicleType} onChange={(e) => setVehicleType(e.target.value)} placeholder="Vehicle type" />
-            <Input value={apr} onChange={(e) => setApr(e.target.value)} placeholder="APR" />
-            <Input value={maxTerm} onChange={(e) => setMaxTerm(e.target.value)} placeholder="Max term" />
-            <Button onClick={() => createRateMutation.mutate()} disabled={createRateMutation.isPending}>
-              Add rate
-            </Button>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Lender</TableHead>
-                <TableHead>Tier</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>APR</TableHead>
-                <TableHead>Max term</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(lenderRatesQuery.data?.items ?? []).map((rate: any) => (
-                <TableRow key={rate.id}>
-                  <TableCell>{rate.lender_name}</TableCell>
-                  <TableCell>{rate.credit_tier}</TableCell>
-                  <TableCell>{rate.vehicle_type}</TableCell>
-                  <TableCell>{rate.apr}</TableCell>
-                  <TableCell>{rate.max_term_months}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <AdminLenderRatesSection confirmAction={confirmAction} toast={toast} />
     </>
   );
 }

@@ -23,6 +23,7 @@ import Link from "next/link";
 import { CarFront, CreditCard, Info, MessageSquare, MoreVertical, RotateCcw, Search as SearchIcon, SlidersHorizontal, Tag } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import DealSearchLoader from "@/components/deal-search-loader";
+import MarketplaceLeaseFinanceTabs from "@/components/marketplace-lease-finance-tabs";
 
 const sortOptions = [
   { value: "best_deal", label: "Best match" },
@@ -317,7 +318,6 @@ function SearchPageContent() {
   const queryVehicleTypeForRedirect = searchParams.get("vehicle_type");
   const allowsGuestSearch =
     queryVehicleTypeForRedirect === "all" || queryVehicleTypeForRedirect === "used" || queryVehicleTypeForRedirect === "new";
-  const topTabValue = "all";
 
   useEffect(() => {
     const nextVehicleType = searchParams.get("vehicle_type") === "used" ? "used" : "new";
@@ -689,24 +689,6 @@ function SearchPageContent() {
     <div className="app-page min-h-screen">
       {searchShellHeader}
       <main className="app-main space-y-4 sm:space-y-8">
-        <section className="tc-fade-up w-full">
-          <Tabs
-            value={topTabValue}
-            onValueChange={(value) => {
-              if (value === "lease") {
-                router.push("/lease-specials");
-                return;
-              }
-              router.push("/search?vehicle_type=new");
-            }}
-          >
-            <TabsList className="grid w-full grid-cols-2 bg-ink-100 p-1 sm:inline-flex sm:w-auto">
-              <TabsTrigger value="lease" className="w-full max-[420px]:px-2 max-[420px]:text-xs">Lease Specials</TabsTrigger>
-              <TabsTrigger value="all" className="w-full max-[420px]:px-2 max-[420px]:text-xs">All Vehicles</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </section>
-
         <section className="tc-fade-up lux-overlay relative w-full overflow-hidden rounded-3xl border border-ink-200/80 bg-white/95 px-4 pb-4 pt-4 shadow-luxe-soft sm:px-7 sm:pb-6 sm:pt-5">
           <div className="pointer-events-none absolute inset-0 aurora-bg opacity-50" aria-hidden />
           <img
@@ -1491,12 +1473,15 @@ function SearchPageContent() {
 
         {submitted && resultsQuery.data && (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-ink-200 pb-4">
-              <p className="text-sm font-medium text-ink-700">
+            <div className="grid grid-cols-1 items-center gap-3 border-b border-ink-200 pb-4 sm:grid-cols-[minmax(0,auto)_1fr_minmax(0,auto)] sm:gap-x-4">
+              <p className="justify-self-center text-sm font-medium text-ink-700 sm:justify-self-start">
                 {totalResults.toLocaleString()} results
               </p>
+              <div className="flex min-w-0 justify-center px-1">
+                <MarketplaceLeaseFinanceTabs active="finance" />
+              </div>
               <nav
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 justify-self-center sm:justify-self-end"
                 aria-label="Pagination"
               >
                 <Button

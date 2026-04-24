@@ -5,6 +5,7 @@ import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 import { Flag, Upload } from "lucide-react";
 
 import type { AdminGeneralStatusDealerItem, ManualVehicleRecord, Vehicle } from "@/lib/api";
+import { AdminLenderRatesSection } from "@/components/admin/admin-lender-rates-section";
 import { SeoSettingsCard, type SeoSettingsCardProps } from "@/components/admin/seo-settings-card";
 import { formatCurrency, formatDateTime, vehicleTitle } from "@/components/admin/admin-broker-ops-shared";
 import { Badge } from "@/components/ui/badge";
@@ -222,6 +223,7 @@ export function AdminSuperAdminDataPanel({
 
   return (
     <>
+      <AdminLenderRatesSection confirmAction={confirmAction} toast={toast} />
       <Card className="border-ink-200 bg-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

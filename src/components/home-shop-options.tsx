@@ -115,11 +115,17 @@ export function HomeShopOptionsContent({
   }, [filtersQuery.isLoading, make, model, makes, models]);
 
   const goByPayment = () => {
+    if (paymentMode === "lease") {
+      const query = new URLSearchParams();
+      query.set("max_payment", String(maxPayment ?? PAYMENT_ANY_QUERY_VALUE));
+      router.push(`/lease-specials?${query.toString()}`);
+      return;
+    }
     const query = new URLSearchParams();
     query.set("vehicle_type", "new");
     query.set("mode", "payment");
     query.set("max_payment", String(maxPayment ?? PAYMENT_ANY_QUERY_VALUE));
-    if (paymentMode === "buy") query.set("estimate", "true");
+    query.set("estimate", "true");
     router.push(`/search?${query.toString()}`);
   };
 
