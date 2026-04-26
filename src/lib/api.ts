@@ -1325,6 +1325,22 @@ export const api = {
   getCreditUnionByToken: async (token: string) => {
     return apiFetch<CreditUnionRecord>(`/credit-unions/by-token?token=${encodeURIComponent(token)}`);
   },
+  listMyCreditUnionMembers: async (params?: { limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set("limit", String(params.limit));
+    const qs = query.toString();
+    const data = await apiFetch<{ items: User[] }>(`/credit-unions/mine/members${qs ? `?${qs}` : ""}`);
+    return data.items ?? [];
+  },
+  listMyCreditUnionMemberActivitySummary: async (params?: { limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set("limit", String(params.limit));
+    const qs = query.toString();
+    const data = await apiFetch<{ items: CuMemberActivitySummary[] }>(
+      `/credit-unions/mine/members/activity-summary${qs ? `?${qs}` : ""}`
+    );
+    return data.items ?? [];
+  },
 
   // Pre-approvals
   createApproval: async (cuId: number, payload: ApprovalCreatePayload) => {
@@ -1343,6 +1359,28 @@ export const api = {
       }
     );
     return data.item;
+  },
+  updateApproval: async (cuId: number, approvalId: number, payload: ApprovalUpdatePayload) => {
+    const data = await apiFetch<{ item: ApprovalRecord }>(
+      `/admin/credit-unions/${cuId}/approvals/${approvalId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    return data.item;
+  },
+  deleteApproval: async (cuId: number, approvalId: number) => {
+    return apiFetch<{ deleted: boolean; id: number }>(`/admin/credit-unions/${cuId}/approvals/${approvalId}`, {
+      method: "DELETE",
+    });
+  },
+  resendApprovalInvite: async (cuId: number, approvalId: number) => {
+    return apiFetch<{ ok: boolean; approval_id: number; email_sent: boolean; sms_sent: boolean; claim_url: string; join_url: string }>(
+      `/admin/credit-unions/${cuId}/approvals/${approvalId}/resend-invite`,
+      { method: "POST" }
+    );
   },
   listMyApprovals: async (params?: { member_user_id?: number } | unknown) => {
     const query = new URLSearchParams();
@@ -1648,6 +1686,15 @@ export type User = {
   is_email_verified: boolean;
 };
 
+export type CuMemberActivitySummary = {
+  user_id: number;
+  approvals: number;
+  favorites: number;
+  messages: number;
+  deals: number;
+  docs: number;
+};
+
 export type SeoPageSettingRecord = {
   page_key: string;
   title?: string | null;
@@ -1761,8 +1808,10 @@ export type ApprovalRecord = {
   user_id?: number | null;
   loan_amount: number;
   term_months: number;
+  interest_rate?: number | null;
   special_notes?: string | null;
   approval_code: string;
+  member_name?: string | null;
   member_phone?: string | null;
   member_email?: string | null;
   status: string;
@@ -1774,8 +1823,22 @@ export type ApprovalRecord = {
 export type ApprovalCreatePayload = {
   loan_amount: number;
   term_months: number;
+  interest_rate?: number | null;
+  member_name?: string | null;
   special_notes?: string | null;
   approval_code?: string | null;
+  member_phone?: string | null;
+  member_email?: string | null;
+};
+
+export type ApprovalUpdatePayload = {
+  status?: string;
+  approval_code?: string;
+  interest_rate?: number;
+  loan_amount?: number;
+  term_months?: number;
+  special_notes?: string | null;
+  member_name?: string | null;
   member_phone?: string | null;
   member_email?: string | null;
 };

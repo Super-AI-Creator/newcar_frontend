@@ -1120,6 +1120,7 @@ function LeaseSpecialCard({
   const detailsActionHref = detailsHref;
   const fullName = `${vehicle.year ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""} ${vehicle.trim ?? ""}`.trim();
   const imageUrl = pickVehicleImage(vehicle);
+  const msrpDisplay = displayPrice(vehicle.msrp);
   const checkAvailabilityHref = `/credit-application?vin=${encodeURIComponent(vehicle.vin)}&make=${encodeURIComponent(vehicle.make ?? "")}&model=${encodeURIComponent(vehicle.model ?? "")}&trim=${encodeURIComponent(vehicle.trim ?? "")}`;
   const leaseMeta: string[] = [];
   if (vehicle.term_months && vehicle.term_months > 0) leaseMeta.push(`${vehicle.term_months} mo`);
@@ -1178,6 +1179,11 @@ function LeaseSpecialCard({
           </h3>
 
           <div className="border-t border-ink-300 pt-2">
+            {msrpDisplay !== undefined && (
+              <p className="text-2xl font-semibold tracking-tight text-ink-900">
+                ${msrpDisplay.toLocaleString()} <span className="text-sm font-medium text-ink-600">MSRP</span>
+              </p>
+            )}
             <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 sm:text-xs">
               {monthlyDisplay !== undefined ? `$${monthlyDisplay.toLocaleString()}/mo lease` : "Monthly offer coming soon"}
               <Info className="h-4 w-4 text-ink-500" />

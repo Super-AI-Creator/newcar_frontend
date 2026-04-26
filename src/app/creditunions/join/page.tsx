@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import { navigateAfterSignIn } from "@/lib/post-auth-navigation";
 import { z } from "zod";
@@ -52,15 +51,43 @@ function CreditUnionJoinContent() {
   const cu = cuQuery.data;
   const isLoadingCu = cuQuery.isLoading;
   const invalidToken = !token.trim() || (!isLoadingCu && !cu);
+  const approvalQuery = useQuery({
+    queryKey: ["approval-by-code", approvalCode],
+    queryFn: () => api.getApprovalByCode(approvalCode),
+    enabled: !!approvalCode.trim(),
+  });
+  const approval = approvalQuery.data;
+  const hasInvitePrefill = Boolean(
+    approvalCode.trim() &&
+      approval &&
+      (approval.member_email ?? "").trim() &&
+      (approval.member_name ?? "").trim()
+  );
+
+  const prefillName = (approval?.member_name ?? "").trim();
+  const prefillEmail = (approval?.member_email ?? "").trim();
+  const prefillPhone = (approval?.member_phone ?? "").trim();
+  const effectiveName = hasInvitePrefill ? prefillName : name.trim();
+  const effectiveEmail = hasInvitePrefill ? prefillEmail : email.trim();
+  const effectivePhone = hasInvitePrefill ? prefillPhone : phone.trim();
 
   const canRequestOtp = useMemo(() => {
-    const validEmail = emailSchema.safeParse(email).success;
-    const validName = name.trim().length > 0;
+    const validEmail = emailSchema.safeParse(effectiveEmail).success;
+    const validName = effectiveName.length > 0;
     const validPassword = password.length >= 8;
     const passwordsMatch = password === confirmPassword;
-    const validPhone = channel === "email" || phone.trim().length > 0;
+    const validPhone = channel === "email" || effectivePhone.length > 0;
     return validEmail && validName && validPassword && passwordsMatch && validPhone;
-  }, [email, name, password, confirmPassword, channel, phone]);
+  }, [effectiveEmail, effectiveName, password, confirmPassword, channel, effectivePhone]);
+
+  const canCreateInviteAccount = useMemo(() => {
+    if (!hasInvitePrefill) return false;
+    const validEmail = emailSchema.safeParse(effectiveEmail).success;
+    const validName = effectiveName.length > 0;
+    const validPassword = password.length >= 8;
+    const passwordsMatch = password === confirmPassword;
+    return validEmail && validName && validPassword && passwordsMatch;
+  }, [hasInvitePrefill, effectiveEmail, effectiveName, password, confirmPassword]);
 
   const requestOtp = async () => {
     setMessage(null);
@@ -68,10 +95,10 @@ function CreditUnionJoinContent() {
     setStatus("loading");
     try {
       await api.requestOtp({
-        email,
-        name,
+        email: effectiveEmail,
+        name: effectiveName,
         password,
-        phone: phone.trim() || undefined,
+        phone: effectivePhone || undefined,
         channel,
         cu_signup_token: token,
       });
@@ -80,6 +107,43 @@ function CreditUnionJoinContent() {
     } catch (error: unknown) {
       setMessage((error as { message?: string })?.message ?? "Could not send code.");
     } finally {
+      setStatus("idle");
+    }
+  };
+
+  const createFromInvite = async () => {
+    setMessage(null);
+    if (!canCreateInviteAccount || !token.trim()) return;
+    setStatus("loading");
+    try {
+      const data = await api.register({
+        email: effectiveEmail,
+        name: effectiveName,
+        password,
+        phone: effectivePhone || undefined,
+        cu_signup_token: token,
+      });
+      const authToken = data.token ?? data.access_token;
+      if (!authToken) {
+        setMessage("Account created, but sign-in failed. Please use Sign in.");
+        setStatus("idle");
+        const returnUrl = cu?.slug ? `/cu/${cu.slug}` : "/dashboard/customer";
+        const loginUrl =
+          approvalCode
+            ? `/login?returnUrl=${encodeURIComponent(returnUrl)}&approval=${encodeURIComponent(approvalCode)}`
+            : `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+        router.replace(loginUrl);
+        return;
+      }
+      loginWithToken(authToken, null);
+      await refresh();
+      const userData = await api.me();
+      setStatus("redirecting");
+      setMessage(null);
+      const returnUrl = cu?.slug ? `/cu/${cu.slug}` : "/dashboard/customer";
+      navigateAfterSignIn(router, { role: userData?.role, returnUrl, approvalCode });
+    } catch (error: unknown) {
+      setMessage((error as { message?: string })?.message ?? "Could not create your account.");
       setStatus("idle");
     }
   };
@@ -159,15 +223,30 @@ function CreditUnionJoinContent() {
               )}
               <div className="space-y-2">
                 <Label>Full name</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
+                <Input
+                  value={hasInvitePrefill ? prefillName : name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your name"
+                  readOnly={hasInvitePrefill}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Email</Label>
-                <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" />
+                <Input
+                  value={hasInvitePrefill ? prefillEmail : email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@email.com"
+                  readOnly={hasInvitePrefill}
+                />
               </div>
               <div className="space-y-2">
-                <Label>Phone (required for SMS)</Label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 555 123 4567" />
+                <Label>Phone</Label>
+                <Input
+                  value={hasInvitePrefill ? prefillPhone : phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+1 555 123 4567"
+                  readOnly={hasInvitePrefill}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Password</Label>
@@ -187,36 +266,47 @@ function CreditUnionJoinContent() {
                   placeholder="Repeat password"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Verification</Label>
-                <Select value={channel} onValueChange={(v) => setChannel(v as "email" | "sms")}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="email">Email</SelectItem>
-                    <SelectItem value="sms">SMS</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-wrap gap-3 items-center">
-                <Button variant="outline" onClick={requestOtp} disabled={!canRequestOtp || status === "loading"}>
-                  Send code
-                </Button>
-                {otpSent && (
-                  <>
-                    <Input
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value)}
-                      placeholder="Enter code"
-                      className="max-w-[180px]"
-                    />
-                    <Button onClick={verifyOtp} disabled={!otp.trim() || status === "loading" || status === "redirecting"}>
-                      {status === "redirecting" ? "Redirecting..." : "Verify & create account"}
+              {!hasInvitePrefill ? (
+                <>
+                  <div className="space-y-2">
+                    <Label>Verification</Label>
+                    <div className="inline-flex rounded border border-ink-200 bg-white px-2 py-1 text-xs text-ink-700">
+                      {channel.toUpperCase()}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-3 items-center">
+                    <Button variant="outline" onClick={requestOtp} disabled={!canRequestOtp || status === "loading"}>
+                      Send code
                     </Button>
-                  </>
-                )}
-              </div>
+                    {otpSent && (
+                      <>
+                        <Input
+                          value={otp}
+                          onChange={(e) => setOtp(e.target.value)}
+                          placeholder="Enter code"
+                          className="max-w-[180px]"
+                        />
+                        <Button onClick={verifyOtp} disabled={!otp.trim() || status === "loading" || status === "redirecting"}>
+                          {status === "redirecting" ? "Redirecting..." : "Verify & create account"}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-3 rounded-xl border border-ink-200 bg-ink-50 px-4 py-3">
+                  <p className="text-sm text-ink-700">
+                    This is a custom invite from your credit union. Your member details are pre-filled and no extra verification is required.
+                  </p>
+                  <Button onClick={createFromInvite} disabled={!canCreateInviteAccount || status === "loading" || status === "redirecting"}>
+                    {status === "redirecting"
+                      ? "Redirecting..."
+                      : status === "loading"
+                        ? "Creating account..."
+                        : "Create account"}
+                  </Button>
+                </div>
+              )}
               <p className="text-sm text-ink-500">
                 Already have an account?{" "}
                 <Link href="/login" className="font-medium text-brand-600 hover:underline">
