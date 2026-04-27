@@ -130,11 +130,9 @@ export default function SearchPage() {
 function SearchPageFallback() {
   return (
     <div className="app-page min-h-screen">
-      <SiteHeader />
       <main className="app-main">
         <DealSearchLoader />
       </main>
-      <SiteFooter />
     </div>
   );
 }
@@ -216,19 +214,24 @@ function SearchPageContent() {
     retryDelay: 400
   });
 
-  const makes = sanitizeOptions(filtersQuery.data?.makes);
   const modelsByMake = filtersQuery.data?.models_by_make ?? {};
+  const makes = useMemo(() => {
+    const rawMakes = sanitizeOptions(filtersQuery.data?.makes);
+    const keyedMakes = sanitizeOptions(Object.keys(modelsByMake));
+    // Prefer canonical keys from models_by_make when available because some feeds
+    // occasionally leak model values into the top-level makes array.
+    return (keyedMakes.length > 0 ? keyedMakes : rawMakes).sort((a, b) => a.localeCompare(b));
+  }, [filtersQuery.data?.makes, modelsByMake]);
   const trimsByMakeModel = filtersQuery.data?.trims_by_make_model ?? {};
   const models = useMemo(() => {
     if (!make) return [];
     const candidateModels = sanitizeOptions(modelsByMake[make]);
     if (candidateModels.length === 0) return candidateModels;
     const makeNames = new Set(makes.map((item) => item.trim().toLowerCase()));
-    const selectedMake = make.trim().toLowerCase();
     // Defensive cleanup: some feeds leak make names into model lists.
     return candidateModels.filter((item) => {
       const normalized = item.trim().toLowerCase();
-      return normalized === selectedMake || !makeNames.has(normalized);
+      return !makeNames.has(normalized);
     });
   }, [make, makes, modelsByMake]);
   const trims = useMemo(() => {
@@ -294,6 +297,12 @@ function SearchPageContent() {
   const totalResults = (() => {
     if (!resultsQuery.data) return 0;
     if (backendTotal == null) return sortedResultItems.length;
+    const hasNarrowFilters = Boolean((make || "").trim() || (model || "").trim() || (trim || "").trim());
+    // Some upstream responses occasionally return an unfiltered/stale total even when filtered
+    // rows are correct. Prefer the concrete filtered rows on first page in that case.
+    if (page === 1 && hasNarrowFilters && sortedResultItems.length > 0 && backendTotal > sortedResultItems.length) {
+      return sortedResultItems.length;
+    }
     // If we're on the first page, have fewer items than the page size,
     // and the backend total is larger than the items we actually received,
     // treat the real total as the items we have (avoid mismatched big counts like 3,497 vs 2 cards).

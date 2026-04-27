@@ -129,8 +129,8 @@ export default function VehicleDetailPage() {
   const [adminDiscountedPrice, setAdminDiscountedPrice] = useState("");
   const maskedVin = useMemo(() => {
     const clean = (vin ?? "").trim();
-    if (!clean) return "*****";
-    return `${clean.slice(0, 5)}****`;
+    if (!clean) return "Hidden";
+    return `${clean.slice(0, 3)}*************`;
   }, [vin]);
 
   const vehicleQuery = useQuery({
@@ -519,7 +519,9 @@ export default function VehicleDetailPage() {
       "msrp",
       "monthly",
       "down",
-      "discounted"
+      "discounted",
+      "dealerphone",
+      "dealername"
     ]);
 
     const fallback: SpecItem[] = [];
@@ -547,7 +549,9 @@ export default function VehicleDetailPage() {
     };
 
     add("MSRP", formatMoney(vehicleQuery.data?.msrp));
-    add("Listed price", formatMoney(vehicleQuery.data?.listed_price));
+    if (isUsed) {
+      add("Listed price", formatMoney(vehicleQuery.data?.listed_price));
+    }
     add("Down payment", formatMoney(vehicleQuery.data?.down));
     add(
       "Term",
@@ -796,7 +800,9 @@ export default function VehicleDetailPage() {
                 <h1 className="text-3xl font-display font-semibold">
                   {vehicleQuery.data?.year} {vehicleQuery.data?.make} {vehicleQuery.data?.model} {vehicleQuery.data?.trim}
                 </h1>
-                <p className="text-sm text-ink-500">VIN {user ? vin : maskedVin}</p>
+                <p className="text-sm text-ink-500">
+                  VIN {user ? vin : `${maskedVin} (sign in to view full VIN)`}
+                </p>
               </div>
               <Badge className="w-fit">{badgeLabel}</Badge>
               <div className="overflow-hidden rounded-2xl border border-ink-200 bg-white">
@@ -1027,10 +1033,10 @@ export default function VehicleDetailPage() {
                               <dd className="font-semibold text-ink-900">{vehicleQuery.data.miles_per_year.toLocaleString()}</dd>
                             </div>
                           )}
-                          {displayPrice(vehicleQuery.data?.discounted) !== undefined && (
+                          {displayPrice(vehicleQuery.data?.msrp) !== undefined && (
                             <div className="flex items-center justify-between rounded-md bg-white px-3 py-2">
                               <dt className="text-ink-600">MSRP</dt>
-                              <dd className="font-semibold text-ink-900">${displayPrice(vehicleQuery.data?.discounted)!.toLocaleString()}</dd>
+                              <dd className="font-semibold text-ink-900">${displayPrice(vehicleQuery.data?.msrp)!.toLocaleString()}</dd>
                             </div>
                           )}
                         </dl>
