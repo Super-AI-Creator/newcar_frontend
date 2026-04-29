@@ -1,4 +1,4 @@
-import { env } from "@/lib/env";
+import { AUTH_REALM_NEWCAR_SUPERSTORE, env } from "@/lib/env";
 import { authStore } from "@/lib/auth-store";
 
 export type ApiError = {
@@ -172,7 +172,10 @@ export const api = {
       user?: { id: string; name?: string; email?: string; role?: string };
     }>("/auth/google", {
       method: "POST",
-      body: JSON.stringify({ id_token: idToken })
+      body: JSON.stringify({
+        id_token: idToken,
+        auth_realm: (env.authRealm || AUTH_REALM_NEWCAR_SUPERSTORE).trim()
+      })
     });
     return {
       ...data,
@@ -189,7 +192,8 @@ export const api = {
         password: payload.password,
         phone: payload.phone,
         channel: "email",
-        cu_signup_token: payload.cu_signup_token
+        cu_signup_token: payload.cu_signup_token,
+        auth_realm: (env.authRealm || AUTH_REALM_NEWCAR_SUPERSTORE).trim()
       })
     });
     return { ...data, token: data.access_token };
@@ -207,22 +211,31 @@ export const api = {
     });
   },
   requestOtp: async (payload: { email: string; name: string; password: string; phone?: string; channel?: "email" | "sms"; cu_signup_token?: string }) => {
+    const body = {
+      ...payload,
+      auth_realm: (env.authRealm || AUTH_REALM_NEWCAR_SUPERSTORE).trim()
+    };
     try {
       return await apiFetch<{ sent: boolean; delivery?: string; dev_code?: string }>("/auth/otp/request", {
         method: "POST",
-        body: JSON.stringify(payload)
+        body: JSON.stringify(body)
       });
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError?.status !== 404) throw error;
       return apiFetch<{ sent: boolean; delivery?: string; dev_code?: string }>("/auth/request-otp", {
         method: "POST",
-        body: JSON.stringify(payload)
+        body: JSON.stringify(body)
       });
     }
   },
   verifyOtp: async (email: string, code: string, channel: "email" | "sms" = "email", cu_signup_token?: string) => {
-    const body = { email, code, channel } as Record<string, unknown>;
+    const body = {
+      email,
+      code,
+      channel,
+      auth_realm: (env.authRealm || AUTH_REALM_NEWCAR_SUPERSTORE).trim()
+    } as Record<string, unknown>;
     if (cu_signup_token) body.cu_signup_token = cu_signup_token;
     try {
       const data = await apiFetch<{ access_token: string; refresh_token?: string; token_type?: string }>("/auth/otp/verify", {
@@ -244,7 +257,11 @@ export const api = {
     try {
       const data = await apiFetch<{ access_token?: string; refresh_token?: string; token_type?: string }>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({
+          email,
+          password,
+          auth_realm: (env.authRealm || AUTH_REALM_NEWCAR_SUPERSTORE).trim()
+        })
       });
       return {
         ...data,
@@ -255,7 +272,11 @@ export const api = {
       if (apiError?.status !== 404) throw error;
       const data = await apiFetch<{ access_token?: string; refresh_token?: string; token_type?: string }>("/auth/signin", {
         method: "POST",
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({
+          email,
+          password,
+          auth_realm: (env.authRealm || AUTH_REALM_NEWCAR_SUPERSTORE).trim()
+        })
       });
       return {
         ...data,

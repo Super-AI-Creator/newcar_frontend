@@ -2,6 +2,9 @@ function trimTrailingSlash(raw: string) {
   return raw.replace(/\/$/, "");
 }
 
+/** Sent on auth calls so the shared API rejects carscu.com credentials on this site. */
+export const AUTH_REALM_NEWCAR_SUPERSTORE = "newcar_superstore" as const;
+
 export const env = {
   apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_BASE_URL ?? "",
   googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID ?? "",
@@ -29,4 +32,6 @@ export const env = {
   ),
   /** Shown on /contact-us; defaults in `marketing-contact.ts` if unset. */
   contactEmail: (process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "").trim(),
+  /** Override only for unusual deployments; default isolates NewCarSuperstore accounts from carscu.com. */
+  authRealm: (process.env.NEXT_PUBLIC_AUTH_REALM ?? AUTH_REALM_NEWCAR_SUPERSTORE).trim(),
 };

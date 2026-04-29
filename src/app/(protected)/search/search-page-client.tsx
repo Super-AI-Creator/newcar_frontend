@@ -1579,6 +1579,8 @@ function VehicleCard({ vehicle, paymentMode }: { vehicle: Vehicle; paymentMode: 
   const monthlyPrice = paymentMode
     ? firstDisplayPrice(vehicle.estimated_monthly, vehicle.monthly)
     : firstDisplayPrice(vehicle.monthly, vehicle.estimated_monthly);
+  const downPrice = displayPrice(vehicle.down);
+  const downForBadge = downPrice ?? 0;
   const fullName = `${vehicle.year ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""}`.trim();
   const subtitle = `${vehicle.trim ?? "Trim unavailable"} | ${isUsed ? "Used car" : "New car"}`;
   const imageUrl = pickVehicleImage(vehicle);
@@ -1586,7 +1588,8 @@ function VehicleCard({ vehicle, paymentMode }: { vehicle: Vehicle; paymentMode: 
   const detailsActionHref = detailsHref;
   const showMsrpSecondary =
     !isUsed && msrpPrice !== undefined && primaryPrice !== undefined && primaryPrice !== msrpPrice;
-  const imageBadgeLeaseLabel = monthlyPrice !== undefined ? `$${monthlyPrice.toLocaleString()}/mo ${paymentMode ? "est" : "lease"}` : null;
+  const imageBadgeLeaseLabel =
+    monthlyPrice !== undefined ? `$${downForBadge.toLocaleString()} down, $${monthlyPrice.toLocaleString()}/mo ${paymentMode ? "est" : "lease"}` : null;
   return (
     <Card className="search-card group overflow-hidden rounded-xl border border-ink-300 bg-[#f6f7f9] shadow-sm transition-[transform,box-shadow,border-color] duration-150 motion-safe:hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg">
       <CardContent className="p-0">
@@ -1605,7 +1608,7 @@ function VehicleCard({ vehicle, paymentMode }: { vehicle: Vehicle; paymentMode: 
             />
           </Link>
           {imageBadgeLeaseLabel && (
-            <div className="absolute bottom-3 right-3 hidden rounded-lg bg-white/95 px-2 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm sm:block">
+            <div className="absolute bottom-2 left-2 hidden rounded-full bg-emerald-600/95 px-2.5 py-1 text-[11px] font-semibold text-white shadow sm:bottom-3 sm:left-3 sm:text-xs">
               {imageBadgeLeaseLabel}
             </div>
           )}
@@ -1644,7 +1647,7 @@ function VehicleCard({ vehicle, paymentMode }: { vehicle: Vehicle; paymentMode: 
             </div>
             <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 sm:text-sm">
               {monthlyPrice !== undefined
-                ? `$${monthlyPrice.toLocaleString()}/mo est.`
+                ? `$${downForBadge.toLocaleString()} down, $${monthlyPrice.toLocaleString()}/mo est.`
                 : "Payment details on vehicle page"}
               <Info className="h-4 w-4 text-ink-500" />
             </p>

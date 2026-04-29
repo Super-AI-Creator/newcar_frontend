@@ -970,7 +970,7 @@ function LeaseSpecialsPageContent() {
 
         {resultsQuery.data && (
           <>
-            <div className="grid grid-cols-1 items-center gap-3 border-b border-ink-200 pb-3 sm:grid-cols-[minmax(0,auto)_1fr_minmax(0,auto)] sm:gap-x-4">
+            <div className="flex flex-col gap-2 border-b border-ink-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="flex flex-wrap items-center justify-center gap-x-1 text-sm font-medium text-ink-700 sm:justify-start">
                 <CircleDollarSign className="h-4 w-4 shrink-0 text-brand-700" />
                 <span>{totalResults.toLocaleString()} matching cars</span>
@@ -980,11 +980,8 @@ function LeaseSpecialsPageContent() {
                   </span>
                 ) : null}
               </p>
-              <div className="flex min-w-0 justify-center px-1">
+              <div className="flex justify-center sm:justify-end">
                 <MarketplaceLeaseFinanceTabs active="lease" />
-              </div>
-              <div className="hidden max-w-xl text-right text-sm leading-snug text-ink-500 sm:block sm:justify-self-end">
-                Monthly lease payments are estimates and depend on multiple factors; not everyone will qualify. Please confirm details with your auto broker.
               </div>
             </div>
 
@@ -1116,6 +1113,7 @@ function LeaseSpecialCard({
   const { toast } = useToast();
   const monthlyDisplay = displayPrice(vehicle.monthly);
   const downDisplay = displayPrice(vehicle.down);
+  const downForBadge = downDisplay ?? 0;
   const detailsHref = `/vehicles/${encodeURIComponent(vehicle.vin)}`;
   const detailsActionHref = detailsHref;
   const fullName = `${vehicle.year ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""} ${vehicle.trim ?? ""}`.trim();
@@ -1166,7 +1164,7 @@ function LeaseSpecialCard({
           </Link>
           {monthlyDisplay !== undefined && (
             <div className="absolute bottom-2 left-2 rounded-full bg-emerald-600/95 px-2.5 py-1 text-[11px] font-semibold text-white shadow sm:bottom-3 sm:left-3 sm:text-xs">
-              ${monthlyDisplay.toLocaleString()}/mo
+              ${downForBadge.toLocaleString()} down, ${monthlyDisplay.toLocaleString()}/mo
             </div>
           )}
         </div>
@@ -1185,7 +1183,7 @@ function LeaseSpecialCard({
               </p>
             )}
             <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 sm:text-xs">
-              {monthlyDisplay !== undefined ? `$${monthlyDisplay.toLocaleString()}/mo lease` : "Monthly offer coming soon"}
+              {monthlyDisplay !== undefined ? `$${downForBadge.toLocaleString()} down, $${monthlyDisplay.toLocaleString()}/mo lease` : "Monthly offer coming soon"}
               <Info className="h-4 w-4 text-ink-500" />
             </p>
             {leasePaymentDisclosure && <p className="mt-1 text-[11px] leading-snug text-ink-600">{leasePaymentDisclosure}</p>}
