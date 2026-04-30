@@ -141,13 +141,12 @@ function CreditApplicationDetailPanel({
 
   return (
     <>
-      {/* Stack copy + viewer vertically so narrow grid cards never squeeze the details panel to a few px wide */}
-      <div className="mt-2 flex w-full min-w-0 flex-col items-stretch gap-2">
+      <div className="mt-2 flex flex-col items-stretch gap-2 sm:flex-row sm:items-start">
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="h-8 w-full shrink-0 gap-1.5 text-xs sm:w-auto sm:self-start"
+          className="h-8 gap-1.5 text-xs sm:shrink-0"
           disabled={!canCopyFormatted}
           onClick={() => {
             void copyFormattedToClipboard();
@@ -156,10 +155,10 @@ function CreditApplicationDetailPanel({
           <Copy className="h-3.5 w-3.5" />
           {copyState === "copied" ? "Copied" : "Copy formatted for email"}
         </Button>
-        <details className="w-full min-w-0 rounded border border-ink-200 bg-white p-2">
+        <details className="min-w-0 flex-1 rounded border border-ink-200 bg-white p-2">
           <summary className="cursor-pointer text-xs font-medium text-ink-700">View application</summary>
-          <Tabs defaultValue="readable" className="mt-3 w-full min-w-0" key={`credit-app-tabs-${applicationId}`}>
-            <TabsList className="h-8 w-full min-w-0 flex-wrap justify-start sm:inline-flex sm:w-auto">
+          <Tabs defaultValue="readable" className="mt-3" key={`credit-app-tabs-${applicationId}`}>
+            <TabsList className="h-8">
               <TabsTrigger value="readable" className="px-3 text-xs">
                 Readable
               </TabsTrigger>
@@ -167,23 +166,23 @@ function CreditApplicationDetailPanel({
                 Raw JSON
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="readable" className="mt-2 w-full min-w-0">
+            <TabsContent value="readable" className="mt-2">
               {!html && !plain && (
                 <p className="text-xs text-ink-500">No formatted snapshot (older submission). Use Raw JSON for field data.</p>
               )}
               {html ? (
                 <div
-                  className="credit-app-formatted-html max-h-[min(480px,70vh)] w-full min-w-0 overflow-x-auto overflow-y-auto rounded border border-ink-100 bg-white p-3 text-sm [&_table]:w-full [&_table]:max-w-full [&_table]:table-fixed [&_table]:text-sm"
+                  className="credit-app-formatted-html max-h-[min(480px,70vh)] overflow-auto rounded border border-ink-100 bg-white p-3 text-sm [&_table]:max-w-full [&_table]:text-sm"
                   dangerouslySetInnerHTML={{ __html: html }}
                 />
               ) : plain ? (
-                <pre className="max-h-[min(480px,70vh)] w-full min-w-0 overflow-auto whitespace-pre-wrap break-words rounded border border-ink-100 bg-ink-50 p-3 font-mono text-xs text-ink-800">
+                <pre className="max-h-[min(480px,70vh)] overflow-auto whitespace-pre-wrap rounded border border-ink-100 bg-ink-50 p-3 font-mono text-xs text-ink-800">
                   {plain}
                 </pre>
               ) : null}
             </TabsContent>
-            <TabsContent value="raw" className="mt-2 w-full min-w-0">
-              <pre className="max-h-64 w-full min-w-0 overflow-auto whitespace-pre-wrap break-words text-xs text-ink-700">
+            <TabsContent value="raw" className="mt-2">
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap text-xs text-ink-700">
                 {prettyJson(creditPayloadRawForDisplay(payload))}
               </pre>
             </TabsContent>
@@ -293,17 +292,11 @@ export function AdminCreditAndDocsPanel({
             ))}
           </div>
         </div>
-        <div
-          className={
-            isSuperAdmin
-              ? "grid gap-3 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-2"
-              : "grid gap-3 md:grid-cols-2"
-          }
-        >
+        <div className={isSuperAdmin ? "grid gap-3 sm:grid-cols-2 xl:grid-cols-4" : "grid gap-3 md:grid-cols-2"}>
           {creditApplications.map((item) => (
             <div
               key={item.id}
-              className={`min-w-0 rounded-2xl border border-ink-200/90 p-4 shadow-luxe-soft ${creditStatusCardGradientClass(item.status)}`}
+              className={`rounded-2xl border border-ink-200/90 p-4 shadow-luxe-soft ${creditStatusCardGradientClass(item.status)}`}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-ink-900">
@@ -516,17 +509,11 @@ export function AdminCreditAndDocsPanel({
             ))}
           </div>
         </div>
-        <div
-          className={
-            isSuperAdmin
-              ? "grid gap-3 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-2"
-              : "grid gap-3 md:grid-cols-2 xl:grid-cols-3"
-          }
-        >
+        <div className={isSuperAdmin ? "grid gap-3 sm:grid-cols-2 xl:grid-cols-4" : "grid gap-3 md:grid-cols-2 xl:grid-cols-3"}>
           {docSubmissions.map((item) => (
             <div
               key={item.id}
-              className={`min-w-0 rounded-2xl border border-ink-200/90 p-4 shadow-luxe-soft ${docStatusCardGradientClass(item.status)}`}
+              className={`rounded-2xl border border-ink-200/90 p-4 shadow-luxe-soft ${docStatusCardGradientClass(item.status)}`}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-ink-900">

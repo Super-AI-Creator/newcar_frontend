@@ -3,10 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import SiteHeader from "@/components/site-header";
 import { ArticleBody } from "@/components/article-body";
-import { fetchPublicArticleSummaries } from "@/lib/articles-api";
-import { getArticleBySlug, getArticleSlugs } from "@/lib/articles";
+import { getArticleBySlug } from "@/lib/articles";
 import { env } from "@/lib/env";
-import { getCanonicalSiteOrigin } from "@/lib/site-url";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -33,48 +31,17 @@ async function getArticleFromApi(slug: string): Promise<ArticleData | null> {
   }
 }
 
-export async function generateStaticParams() {
-  const api = await fetchPublicArticleSummaries();
-  const slugs = new Set<string>([...getArticleSlugs(), ...api.map((a) => a.slug)]);
-  return Array.from(slugs).map((slug) => ({ slug }));
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const article = (await getArticleFromApi(slug)) ?? getArticleBySlug(slug);
+  const article = await getArticleFromApi(slug) ?? getArticleBySlug(slug);
   if (!article) return { title: "Article | NewCarSuperstore" };
-  const site = getCanonicalSiteOrigin();
-  const canonical = `${site}/articles/${encodeURIComponent(article.slug)}`;
-  const description = article.description?.trim() || undefined;
   return {
     title: `${article.title} | NewCarSuperstore`,
-    description,
-    alternates: { canonical },
-    openGraph: {
-      type: "article",
-      url: canonical,
-      siteName: "NewCarSuperstore",
-      title: article.title,
-      description,
-      publishedTime: article.date,
-    },
-    twitter: {
-      card: "summary",
-      title: article.title,
-      description,
-    },
-    robots: { index: true, follow: true },
-  };
-}
-
-function articleJsonLd(article: ArticleData, pageUrl: string) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: article.title,
     description: article.description || undefined,
-    datePublished: article.date,
-    mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl }
+    openGraph: {
+      title: article.title,
+      description: article.description || undefined,
+    },
   };
 }
 
@@ -82,11 +49,9 @@ export default async function ArticlePage({ params }: Props) {
   const { slug } = await params;
   const article = (await getArticleFromApi(slug)) ?? getArticleBySlug(slug);
   if (!article) notFound();
-  const pageUrl = `${getCanonicalSiteOrigin()}/articles/${encodeURIComponent(article.slug)}`;
 
   return (
     <div className="min-h-screen bg-white text-ink-900">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd(article, pageUrl)) }} />
       <SiteHeader />
       <main className="container-wide py-10 sm:py-14">
         <Link href="/articles" className="text-sm font-medium text-brand-700 hover:underline">

@@ -43,7 +43,7 @@ const DEFAULT_FOOTER = {
   google_plus_url: "https://plus.google.com/101810114903929491113",
   instagram_url: "https://www.instagram.com/newcarsuperstore/",
   youtube_url: "https://www.youtube.com/channel/UCfnPH7n_x1cHc5WXDb0zMJQ",
-  address_line: "2671 Ventura Blvd Oxnard CA 93036",
+  address_line: "2671 Ventura Blvd Suite Oxnard CA 93036",
   phone_line: "818.705.9200, 818.705.9202",
   footer_disclosure: FOOTER_DISCLOSURE_DEFAULT,
   copyright_line: "",

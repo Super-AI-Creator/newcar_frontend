@@ -1,4 +1,0 @@
-/** Single JSON-LD script block (Schema.org). */
-export function JsonLd({ data }: { data: Record<string, unknown> }) {
-  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />;
-}

@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import SiteHeader from "@/components/site-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
-import { resolveSearchCardPrimaryPrice } from "@/lib/vehicle-pricing";
 import { DEFAULT_CAR_IMAGE, pickVehicleImage } from "@/lib/vehicle-image";
 import LeadFormButton from "@/components/lead-form-button";
 import Link from "next/link";
@@ -69,7 +68,9 @@ export default function FavoritesPage() {
                   ? "used"
                   : "new";
               const isUsed = inferredType === "used";
-              const primaryPrice = resolveSearchCardPrimaryPrice(vehicle, isUsed) ?? null;
+              const primaryPrice = isUsed
+                ? vehicle.listed_price ?? vehicle.discounted ?? vehicle.msrp ?? null
+                : vehicle.discounted ?? vehicle.msrp ?? vehicle.listed_price ?? null;
               return (
                 <Card key={vehicle.vin} className="group overflow-hidden rounded-2xl border border-ink-300 bg-[#f6f7f9] shadow-sm transition duration-200 hover:-translate-y-1 hover:border-brand-300 hover:shadow-lg">
                   <CardContent className="p-0">
@@ -100,7 +101,7 @@ export default function FavoritesPage() {
                       </p>
                       <div className="border-t border-ink-300 pt-3">
                         <p className="text-2xl font-bold text-ink-900">
-                          {primaryPrice != null
+                          {primaryPrice
                             ? `$${primaryPrice.toLocaleString()}`
                             : "Call for price"}
                         </p>

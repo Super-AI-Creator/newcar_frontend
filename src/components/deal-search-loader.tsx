@@ -1,18 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { CarFront, Sparkles } from "lucide-react";
 
 export default function DealSearchLoader() {
-  const [showSlowHint, setShowSlowHint] = useState(false);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setShowSlowHint(true);
-    }, 4500);
-    return () => window.clearTimeout(timer);
-  }, []);
-
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-10" aria-live="polite" aria-busy="true">
       <div className="relative">
@@ -26,11 +16,6 @@ export default function DealSearchLoader() {
       <div className="h-1.5 w-56 overflow-hidden rounded-full bg-ink-100">
         <div className="h-full w-1/3 motion-safe:animate-[loader-slide_1.5s_linear_infinite] rounded-full bg-brand-600" />
       </div>
-      {showSlowHint && (
-        <p className="max-w-xs text-center text-xs text-ink-500">
-          Still loading inventory. We are pulling fresh listings from live dealer feeds.
-        </p>
-      )}
       <style jsx>{`
         @keyframes loader-slide {
           0% {

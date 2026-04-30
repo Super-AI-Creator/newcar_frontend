@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { env } from "@/lib/env";
-import { getCanonicalSiteOrigin } from "@/lib/site-url";
 
 type SeoPayload = {
   page_key: string;
@@ -22,26 +21,6 @@ function parseKeywords(raw?: string | null): string[] | undefined {
     .map((item) => item.trim())
     .filter(Boolean);
   return items.length > 0 ? items : undefined;
-}
-
-/** Force CMS canonicals onto apex host (no `www`) to match SEO sheet. */
-function normalizeSeoCanonicalUrl(url: string): string {
-  const trimmed = url.trim();
-  if (!trimmed) return trimmed;
-  try {
-    const u = new URL(trimmed);
-    const apex = new URL(`${getCanonicalSiteOrigin()}/`);
-    const host = u.hostname.toLowerCase();
-    const apexHost = apex.hostname.toLowerCase();
-    if (host === `www.${apexHost}`) {
-      u.protocol = apex.protocol;
-      u.hostname = apexHost;
-      if (apex.port) u.port = apex.port;
-    }
-    return `${u.origin}${u.pathname}${u.search}${u.hash}`;
-  } catch {
-    return trimmed;
-  }
 }
 
 function parseRobots(raw?: string | null): Metadata["robots"] | undefined {
@@ -99,7 +78,7 @@ export async function resolveSeoMetadata(pageKey: string, fallback: Metadata): P
   if (canonical) {
     merged.alternates = {
       ...(fallback.alternates ?? {}),
-      canonical: normalizeSeoCanonicalUrl(canonical)
+      canonical
     };
   }
 

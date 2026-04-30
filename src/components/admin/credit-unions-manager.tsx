@@ -180,8 +180,6 @@ function CreditUnionEditForm({
   const [bannerUrl, setBannerUrl] = React.useState(cu.banner_url ?? "");
   const [heroTitle, setHeroTitle] = React.useState(cu.hero_title ?? "");
   const [heroSubtitle, setHeroSubtitle] = React.useState(cu.hero_subtitle ?? "");
-  const [testimonialImageUrl, setTestimonialImageUrl] = React.useState(cu.testimonial_image_url ?? "");
-  const [testimonialText, setTestimonialText] = React.useState(cu.testimonial_text ?? "");
   const [phone, setPhone] = React.useState(cu.phone ?? "");
   const [address, setAddress] = React.useState(cu.address ?? "");
   const [contactName, setContactName] = React.useState(cu.contact_name ?? "");
@@ -212,8 +210,6 @@ function CreditUnionEditForm({
       banner_url: bannerUrl || null,
       hero_title: heroTitle || null,
       hero_subtitle: heroSubtitle || null,
-      testimonial_image_url: testimonialImageUrl || null,
-      testimonial_text: testimonialText || null,
       phone: phone || null,
       address: address || null,
       contact_name: contactName || null,
@@ -233,18 +229,6 @@ function CreditUnionEditForm({
         <div className="sm:col-span-2"><Label>Banner image URL</Label><Input value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)} placeholder="https://… (generic banner for their site)" /></div>
         <div className="sm:col-span-2"><Label>Hero title (main headline)</Label><Input value={heroTitle} onChange={(e) => setHeroTitle(e.target.value)} placeholder="e.g. Member Auto Program" /></div>
         <div className="sm:col-span-2"><Label>Hero subtitle (editable text under headline)</Label><Textarea value={heroSubtitle} onChange={(e) => setHeroSubtitle(e.target.value)} placeholder="e.g. Vehicle shopping with your credit union's financing." className="min-h-[80px]" /></div>
-        <div className="sm:col-span-2 border-t border-ink-200 pt-4">
-          <p className="mb-2 text-sm font-semibold text-ink-900">Member testimonial (CU landing page)</p>
-          <p className="mb-3 text-xs text-ink-500">
-            Optional image fills the left panel of the testimonial block; quote appears on the right. Leave blank to use the default layout and copy.
-          </p>
-          <div className="space-y-2">
-            <Label>Testimonial image URL</Label>
-            <Input value={testimonialImageUrl} onChange={(e) => setTestimonialImageUrl(e.target.value)} placeholder="https://… (photo or graphic for the testimonial panel)" />
-            <Label>Testimonial quote</Label>
-            <Textarea value={testimonialText} onChange={(e) => setTestimonialText(e.target.value)} placeholder="Short quote shown beside the image." className="min-h-[100px]" />
-          </div>
-        </div>
         <div><Label>Phone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
         <div><Label>Address</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
         <div><Label>Contact name</Label><Input value={contactName} onChange={(e) => setContactName(e.target.value)} /></div>
@@ -281,8 +265,6 @@ function CreateCreditUnionForm({
   const [bannerUrl, setBannerUrl] = React.useState("");
   const [heroTitle, setHeroTitle] = React.useState("");
   const [heroSubtitle, setHeroSubtitle] = React.useState("");
-  const [testimonialImageUrl, setTestimonialImageUrl] = React.useState("");
-  const [testimonialText, setTestimonialText] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [address, setAddress] = React.useState("");
   const [contactName, setContactName] = React.useState("");
@@ -297,7 +279,6 @@ function CreateCreditUnionForm({
     onSuccess: () => {
       toast.toast({ title: "Credit union created", variant: "success" });
       setName(""); setSlug(""); setLogoUrl(""); setBannerUrl(""); setHeroTitle(""); setHeroSubtitle("");
-      setTestimonialImageUrl(""); setTestimonialText("");
       setPhone(""); setAddress(""); setContactName(""); setContactPhone(""); setContactEmail("");
       setLoanPrograms([{ interest_rate: 0, max_term_months: 60, vehicle_type: "new" }]);
       setDisclosures([{ sort_order: 0, text: "" }]);
@@ -319,8 +300,6 @@ function CreateCreditUnionForm({
       banner_url: bannerUrl.trim() || undefined,
       hero_title: heroTitle.trim() || undefined,
       hero_subtitle: heroSubtitle.trim() || undefined,
-      testimonial_image_url: testimonialImageUrl.trim() || undefined,
-      testimonial_text: testimonialText.trim() || undefined,
       phone: phone.trim() || undefined,
       address: address.trim() || undefined,
       contact_name: contactName.trim() || undefined,
@@ -340,16 +319,6 @@ function CreateCreditUnionForm({
         <div className="sm:col-span-2"><Label>Banner image URL</Label><Input value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)} placeholder="https://…" /></div>
         <div className="sm:col-span-2"><Label>Hero title (main headline)</Label><Input value={heroTitle} onChange={(e) => setHeroTitle(e.target.value)} placeholder="e.g. Member Auto Program" /></div>
         <div className="sm:col-span-2"><Label>Hero subtitle</Label><Textarea value={heroSubtitle} onChange={(e) => setHeroSubtitle(e.target.value)} placeholder="e.g. Vehicle shopping with your credit union's financing." className="min-h-[80px]" /></div>
-        <div className="sm:col-span-2 border-t border-ink-200 pt-4">
-          <p className="mb-2 text-sm font-semibold text-ink-900">Member testimonial (CU landing page)</p>
-          <p className="mb-3 text-xs text-ink-500">Optional. Leave blank for default layout and quote text.</p>
-          <div className="space-y-2">
-            <Label>Testimonial image URL</Label>
-            <Input value={testimonialImageUrl} onChange={(e) => setTestimonialImageUrl(e.target.value)} placeholder="https://…" />
-            <Label>Testimonial quote</Label>
-            <Textarea value={testimonialText} onChange={(e) => setTestimonialText(e.target.value)} placeholder="Quote for the landing testimonial section." className="min-h-[100px]" />
-          </div>
-        </div>
         <div><Label>Phone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
         <div><Label>Address</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
         <div><Label>Contact name</Label><Input value={contactName} onChange={(e) => setContactName(e.target.value)} /></div>

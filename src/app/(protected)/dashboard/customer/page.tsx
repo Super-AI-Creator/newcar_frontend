@@ -28,8 +28,6 @@ import {
   WalletCards,
   XCircle
 } from "lucide-react";
-import { DealCuBadge } from "@/components/deal-cu-badge";
-import TradeInValueDialog from "@/components/trade-in-value-dialog";
 import { api, type Vehicle } from "@/lib/api";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
@@ -271,19 +269,12 @@ export default function CustomerDashboard() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
-  const memberUserId = (() => {
-    const raw = searchParams.get("memberUserId");
-    if (!raw) return undefined;
-    const n = Number(raw);
-    return Number.isInteger(n) && n > 0 ? n : undefined;
-  })();
-  const isCuViewingMember = user?.role === "credit_union" && !!memberUserId;
 
   useEffect(() => {
-    if (user?.role === "credit_union" && !memberUserId) {
+    if (user?.role === "credit_union") {
       router.replace("/dashboard/credit-union");
     }
-  }, [user?.role, memberUserId, router]);
+  }, [user?.role, router]);
   const [selectedThreadKey, setSelectedThreadKey] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
   const [docsDialogOpen, setDocsDialogOpen] = useState(false);
@@ -291,57 +282,35 @@ export default function CustomerDashboard() {
   const [driversLicenseFile, setDriversLicenseFile] = useState<File | null>(null);
   const [insuranceFile, setInsuranceFile] = useState<File | null>(null);
   const [otherFile, setOtherFile] = useState<File | null>(null);
-  const [tradeInDialogOpen, setTradeInDialogOpen] = useState(false);
-  const [tradeInVin, setTradeInVin] = useState("");
-  const [tradeInMiles, setTradeInMiles] = useState("");
-  const [tradeInPayoff, setTradeInPayoff] = useState("");
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const favoritesQuery = useQuery({
-    queryKey: ["favorites", memberUserId ?? "self"],
-    queryFn: () => api.favorites(memberUserId ? { member_user_id: memberUserId } : undefined)
+    queryKey: ["favorites"],
+    queryFn: api.favorites
   });
   const messagesQuery = useQuery({
-    queryKey: ["messages", memberUserId ?? "self"],
-    queryFn: () => api.messages(memberUserId ? { member_user_id: memberUserId } : undefined)
+    queryKey: ["messages"],
+    queryFn: api.messages
   });
   const dealsQuery = useQuery({
-    queryKey: ["deals-mine", memberUserId ?? "self"],
-    queryFn: () => api.myDeals(memberUserId ? { member_user_id: memberUserId } : undefined)
+    queryKey: ["deals-mine"],
+    queryFn: api.myDeals
   });
   const docsQuery = useQuery({
-    queryKey: ["docs-mine", memberUserId ?? "self"],
-    queryFn: () => api.myDocSubmissions({ page_size: 100, ...(memberUserId ? { member_user_id: memberUserId } : {}) }),
+    queryKey: ["docs-mine"],
+    queryFn: () => api.myDocSubmissions({ page_size: 100 }),
     refetchOnMount: "always"
   });
   const creditAppsQuery = useQuery({
-    queryKey: ["credit-apps-mine", memberUserId ?? "self"],
-    queryFn: () => api.myCreditApplications({ page_size: 100, ...(memberUserId ? { member_user_id: memberUserId } : {}) }),
+    queryKey: ["credit-apps-mine"],
+    queryFn: () => api.myCreditApplications({ page_size: 100 }),
     refetchOnMount: "always"
   });
   const approvalsQuery = useQuery({
-    queryKey: ["approvals-mine", memberUserId ?? "self"],
-    queryFn: () => api.listMyApprovals(memberUserId ? { member_user_id: memberUserId } : undefined),
+    queryKey: ["approvals-mine"],
+    queryFn: () => api.listMyApprovals(),
   });
-
-  const primaryApproval = approvalsQuery.data?.[0];
-  const [downPayment, setDownPayment] = useState<string>("");
-  const [maxPayment, setMaxPayment] = useState<string>("");
-
-  const budget = useMemo(() => {
-    if (!primaryApproval?.loan_amount) return null;
-    const loan = primaryApproval.loan_amount;
-    const down = Number(downPayment) > 0 ? Number(downPayment) : 0;
-    const baseBudget = 0.9 * (loan + down);
-    const payment = Number(maxPayment) > 0 ? Number(maxPayment) : null;
-    return {
-      loan,
-      down,
-      maxPriceUsed: Math.round(baseBudget),
-      maxPayment: payment,
-    };
-  }, [primaryApproval?.loan_amount, downPayment, maxPayment]);
 
   const claimCode = searchParams.get("claim");
   const claimedCodeRef = useRef<string | null>(null);
@@ -363,8 +332,7 @@ export default function CustomerDashboard() {
   }, [claimCode, pathname, router, searchParams, toast]);
 
   const sendMessageMutation = useMutation({
-    mutationFn: (payload: { vin?: string; message: string }) =>
-      api.sendMessage(memberUserId ? { ...payload, member_user_id: memberUserId } : payload),
+    mutationFn: (payload: { vin?: string; message: string }) => api.sendMessage(payload),
     onSuccess: () => {
       setMessageDraft("");
       messagesQuery.refetch();
@@ -412,12 +380,7 @@ export default function CustomerDashboard() {
   }, [messagesQuery.data?.items]);
 
   const dealRoomRows = useMemo(() => {
-    type Row = (typeof threads)[number] & {
-      dealId?: number;
-      credit_union_id?: number | null;
-      credit_union_name?: string | null;
-      approval_amount?: number | null;
-    };
+    type Row = (typeof threads)[number] & { dealId?: number };
     const deals = dealsQuery.data?.items ?? [];
     const rows: Row[] = [];
     const seen = new Set<string>();
@@ -435,10 +398,7 @@ export default function CustomerDashboard() {
         brokerEmail: deal.assigned_broker_email ?? msgThread?.brokerEmail ?? null,
         items: msgThread?.items ?? [],
         lastAt,
-        dealId: deal.id,
-        credit_union_id: deal.credit_union_id,
-        credit_union_name: deal.credit_union_name,
-        approval_amount: deal.approval_amount
+        dealId: deal.id
       });
     }
 
@@ -564,7 +524,7 @@ export default function CustomerDashboard() {
       if (payload.other) {
         formData.set("other", payload.other);
       }
-      return api.forwardDocs(formData, memberUserId ? { member_user_id: memberUserId } : undefined);
+      return api.forwardDocs(formData);
     },
     onSuccess: () => {
       docsQuery.refetch();
@@ -579,45 +539,6 @@ export default function CustomerDashboard() {
       });
     }
   });
-
-  const submitTradeIn = () => {
-    if (!activeThread?.vin) {
-      toast({
-        variant: "error",
-        title: "Pick a vehicle",
-        description: "Select a deal or vehicle thread before sending trade-in details.",
-      });
-      return;
-    }
-    const vin = tradeInVin.trim();
-    const miles = tradeInMiles.trim();
-    const payoff = tradeInPayoff.trim();
-    if (!vin && !miles && !payoff) {
-      toast({
-        variant: "error",
-        title: "Add trade-in info",
-        description: "Enter at least VIN, miles, or payoff amount.",
-      });
-      return;
-    }
-    const lines = [
-      "Trade-in details:",
-      vin ? `• VIN: ${vin}` : null,
-      miles ? `• Miles: ${miles}` : null,
-      payoff ? `• Payoff amount: ${payoff}` : null,
-      "",
-      "Dealer: please review and provide a trade-in offer (member cannot edit the offer field).",
-    ].filter(Boolean);
-
-    sendMessageMutation.mutate({
-      vin: activeThread.vin!,
-      message: lines.join("\n"),
-    });
-    setTradeInDialogOpen(false);
-    setTradeInVin("");
-    setTradeInMiles("");
-    setTradeInPayoff("");
-  };
 
   const submitDocsUpload = () => {
     const hasAtLeastOneFile = !!driversLicenseFile || !!insuranceFile || !!otherFile;
@@ -641,29 +562,18 @@ export default function CustomerDashboard() {
     <div className="app-page min-h-screen">
       <SiteHeader />
       <main className="app-main space-y-4 sm:space-y-8">
-        {isCuViewingMember && (
-          <section className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-            CU staff member view is active. You are managing this member workspace.
-            <Link href="/dashboard/credit-union" className="ml-2 font-semibold underline">
-              Back to CU dashboard
-            </Link>
-          </section>
-        )}
         <section className="tc-fade-up relative w-full overflow-hidden rounded-2xl border border-ink-200 bg-white px-4 py-4 shadow-sm sm:rounded-3xl sm:px-6 sm:py-6">
           <div className="pointer-events-none absolute inset-0 aurora-bg opacity-35" aria-hidden />
           <img
             src="/images/ribon.png"
-            alt="A vibrant red satin ribbon bow tied diagonally across."
+            alt=""
+            aria-hidden
             className="pointer-events-none absolute m-0 p-0 right-0 top-0 w-64 max-w-none translate-x-[16%] -translate-y-[14%] opacity-95 sm:w-80 sm:translate-x-[18%] sm:-translate-y-[16%]"
           />
           <div className="relative">
-            <p className="market-kicker text-[10px] sm:text-xs">
-              {isCuViewingMember ? "Member Workspace (CU)" : primaryApproval ? "Credit Union Member" : "Deal Room"}
-            </p>
+            <p className="market-kicker text-[10px] sm:text-xs">Deal Room</p>
             <div className="mt-0.5 flex items-start justify-between gap-3">
-              <h1 className="market-heading min-w-0 text-xl leading-tight sm:text-3xl md:text-4xl">
-                {isCuViewingMember ? "Member approval & deals" : primaryApproval ? "Your approval & deals" : "Your deals & messages"}
-              </h1>
+              <h1 className="market-heading min-w-0 text-xl leading-tight sm:text-3xl md:text-4xl">Your deals & messages</h1>
               <Badge className="shrink-0 border border-ink-200 bg-ink-100 px-2 py-0.5 text-[10px] font-medium text-ink-700 sm:text-xs">
                 {(favoritesQuery.data?.items.length ?? 0) === 1
                   ? "1 favorite"
@@ -715,103 +625,31 @@ export default function CustomerDashboard() {
           </ol>
         </section>
 
-        {(approvalsQuery.data?.length ?? 0) > 0 && primaryApproval && (
+        {(approvalsQuery.data?.length ?? 0) > 0 && (
           <Card className="bg-white shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BadgeCheck className="h-5 w-5 text-emerald-600" />
-                Approval from your credit union
+                Pre-Approved
               </CardTitle>
-              <p className="text-sm text-ink-600">
-                This is your current buying power. Adjust your down payment or preferred monthly payment, then use the
-                shortcuts to search cars that fit.
-              </p>
+              <p className="text-sm text-ink-600">Your credit union pre-approvals. Use your coupon when shopping.</p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-ink-500">Approved amount</p>
-                  <p className="mt-1 text-xl font-semibold text-ink-900">
-                    {formatCurrency(primaryApproval.loan_amount)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-ink-500">Term</p>
-                  <p className="mt-1 text-xl font-semibold text-ink-900">
-                    {primaryApproval.term_months} months
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-ink-500">Approval code</p>
-                  <p className="mt-1 text-sm font-mono text-ink-900">{primaryApproval.approval_code}</p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="down-payment">Down payment</Label>
-                  <Input
-                    id="down-payment"
-                    type="number"
-                    min={0}
-                    placeholder="e.g. 2000"
-                    value={downPayment}
-                    onChange={(e) => setDownPayment(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="max-payment">Max monthly payment</Label>
-                  <Input
-                    id="max-payment"
-                    type="number"
-                    min={0}
-                    placeholder="e.g. 350"
-                    value={maxPayment}
-                    onChange={(e) => setMaxPayment(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Estimated used car budget</Label>
-                  <p className="mt-1 text-sm font-semibold text-ink-900">
-                    {budget ? formatCurrency(budget.maxPriceUsed) : "—"}
-                  </p>
-                  <p className="text-[11px] text-ink-500">
-                    Uses 90% × (approval + down) for used cars.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  asChild
-                  disabled={!budget}
+            <CardContent className="space-y-3">
+              {approvalsQuery.data?.map((a) => (
+                <Link
+                  key={a.id}
+                  href={`/approvals/${encodeURIComponent(a.approval_code)}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-200 bg-ink-50 px-4 py-3 text-sm transition hover:border-brand-300 hover:bg-white"
                 >
-                  <Link
-                    href={`/search?vehicle_type=used&mode=price&max_price=${budget?.maxPriceUsed ?? ""}`}
-                  >
-                    Search used within budget
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  disabled={!budget?.maxPayment}
-                >
-                  <Link
-                    href={`/search?vehicle_type=used&mode=payment&max_payment=${budget?.maxPayment ?? ""}`}
-                  >
-                    Search by payment
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                >
-                  <Link href={`/approvals/${encodeURIComponent(primaryApproval.approval_code)}`}>
-                    View printable approval letter
-                  </Link>
-                </Button>
-              </div>
+                  <span className="font-medium text-ink-900">
+                    {formatCurrency(a.loan_amount)} · {a.term_months} mo
+                    {a.credit_union_name ? ` · ${a.credit_union_name}` : ""}
+                  </span>
+                  <span className="rounded-full border border-ink-200 bg-white px-2 py-0.5 text-xs text-ink-600">
+                    {a.approval_code}
+                  </span>
+                </Link>
+              ))}
             </CardContent>
           </Card>
         )}
@@ -884,14 +722,6 @@ export default function CustomerDashboard() {
                             }`}
                           >
                             <p className="text-xs font-semibold text-ink-900">{thread.vin ? `VIN ${thread.vin}` : "General"}</p>
-                            <DealCuBadge
-                              deal={{
-                                credit_union_id: thread.credit_union_id,
-                                credit_union_name: thread.credit_union_name,
-                                approval_amount: thread.approval_amount
-                              }}
-                              className="mt-1"
-                            />
                             <p className="truncate text-xs text-ink-600">{thread.brokerEmail ?? "Broker assignment pending"}</p>
                             <div className="mt-0.5 flex items-center justify-between">
                               <p className="text-[11px] text-ink-500">{formatDateTime(thread.lastAt)}</p>
@@ -912,7 +742,6 @@ export default function CustomerDashboard() {
                               </div>
                               {activeThread.vin && (
                                 <div className="flex flex-wrap items-center justify-end gap-1.5">
-                                  <DealCuBadge deal={activeDeal} />
                                   <HeaderStatusChip kind="timeline" value={activeDeal?.status ?? "inquiry"} />
                                   <HeaderStatusChip kind="docs" value={latestDocByVin[activeThread.vin]?.status ?? "not_submitted"} />
                                   <HeaderStatusChip kind="credit" value={latestCreditByVin[activeThread.vin]?.status ?? "not_submitted"} />
@@ -962,27 +791,6 @@ export default function CustomerDashboard() {
                                   }
                                 >
                                   <Link href={`/vehicles/${encodeURIComponent(activeThread.vin!)}`}>Open Vehicle details</Link>
-                                </Button>
-                                <TradeInValueDialog
-                                  triggerLabel="Trade in value"
-                                  triggerTone="neutral"
-                                  variant="outline"
-                                  size="sm"
-                                  leadSource="trade_in_deal_room"
-                                  prefillVin={activeThread.vin}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setTradeInDialogOpen(true);
-                                    setTradeInVin("");
-                                    setTradeInMiles("");
-                                    setTradeInPayoff("");
-                                  }}
-                                >
-                                  Trade-in details
                                 </Button>
                                 <Button asChild variant="outline" size="sm">
                                   <Link href={`/credit-application?vin=${encodeURIComponent(activeThread.vin!)}`}>
@@ -1092,7 +900,7 @@ export default function CustomerDashboard() {
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Upload purchase order or documents</DialogTitle>
+              <DialogTitle>Upload required docs</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-xs text-ink-700">
@@ -1125,10 +933,7 @@ export default function CustomerDashboard() {
                   onChange={(event) => setOtherFile(event.target.files?.[0] ?? null)}
                 />
               </div>
-              <p className="text-xs text-ink-500">
-                Upload a purchase order from the dealer, or supporting documents like ID and insurance. Accepted files:
-                PDF, JPG, PNG, WEBP. Max 8MB each.
-              </p>
+              <p className="text-xs text-ink-500">Accepted files: PDF, JPG, PNG, WEBP. Max 8MB each.</p>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={closeDocsDialog} disabled={uploadDocsMutation.isPending}>
                   Cancel
@@ -1138,68 +943,6 @@ export default function CustomerDashboard() {
                   disabled={!docsUploadVin || (!driversLicenseFile && !insuranceFile && !otherFile) || uploadDocsMutation.isPending}
                 >
                   {uploadDocsMutation.isPending ? "Uploading..." : "Upload docs"}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog
-          open={tradeInDialogOpen}
-          onOpenChange={(open) => {
-            setTradeInDialogOpen(open);
-          }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Trade-in details</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <p className="text-sm text-ink-600">
-                Share basic information about your trade-in. Your dealer will review this and enter an offer amount on
-                their side.
-              </p>
-              <div className="space-y-2">
-                <Label htmlFor="tradein-vin">Trade-in VIN</Label>
-                <Input
-                  id="tradein-vin"
-                  value={tradeInVin}
-                  onChange={(event) => setTradeInVin(event.target.value)}
-                  placeholder="VIN of the vehicle you are trading in"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tradein-miles">Miles</Label>
-                <Input
-                  id="tradein-miles"
-                  type="number"
-                  min={0}
-                  value={tradeInMiles}
-                  onChange={(event) => setTradeInMiles(event.target.value)}
-                  placeholder="e.g. 45000"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tradein-payoff">Payoff amount</Label>
-                <Input
-                  id="tradein-payoff"
-                  type="number"
-                  min={0}
-                  value={tradeInPayoff}
-                  onChange={(event) => setTradeInPayoff(event.target.value)}
-                  placeholder="e.g. 12000"
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => setTradeInDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="button" onClick={submitTradeIn} disabled={sendMessageMutation.isPending}>
-                  Send to dealer
                 </Button>
               </div>
             </div>

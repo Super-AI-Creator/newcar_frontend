@@ -1,30 +1,42 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
 import { getArticles } from "@/lib/articles";
-import { fetchPublicArticleSummaries, mergeArticleSummaries } from "@/lib/articles-api";
-import { getCanonicalSiteOrigin } from "@/lib/site-url";
+import { env } from "@/lib/env";
 
-const site = getCanonicalSiteOrigin();
+type ArticleMeta = { title: string; description?: string; slug: string; date: string };
+
+const API_FETCH_TIMEOUT_MS = 5000;
+
+async function getArticlesFromApi(): Promise<ArticleMeta[]> {
+  const base = (env.apiBaseUrl || "").trim();
+  if (!base) return [];
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${base.replace(/\/$/, "")}/articles`, {
+      signal: controller.signal,
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data?.items) ? data.items : [];
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 export const metadata: Metadata = {
   title: "Articles | NewCarSuperstore",
   description: "Guides and articles about leasing and buying new cars in California — without the dealership runaround.",
-  alternates: { canonical: `${site}/articles` },
-  openGraph: {
-    title: "Articles | NewCarSuperstore",
-    description: "Guides and articles about leasing and buying new cars in California — without the dealership runaround.",
-    url: `${site}/articles`,
-    siteName: "NewCarSuperstore",
-    type: "website",
-  },
-  robots: { index: true, follow: true },
 };
 
 export default async function ArticlesIndexPage() {
-  const apiArticles = await fetchPublicArticleSummaries();
-  const articles = mergeArticleSummaries(getArticles(), apiArticles);
+  const apiArticles = await getArticlesFromApi();
+  const fileArticles = getArticles();
+  const articles = apiArticles.length > 0 ? apiArticles : fileArticles;
 
   return (
     <div className="min-h-screen bg-white text-ink-900">
@@ -53,7 +65,6 @@ export default async function ArticlesIndexPage() {
           )}
         </ul>
       </main>
-      <SiteFooter />
     </div>
   );
 }

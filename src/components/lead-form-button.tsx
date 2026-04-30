@@ -7,9 +7,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { validateLeadEmail, validateLeadName, validateLeadPhone } from "@/lib/contact-field-validation";
-import { isTurnstileEnabled } from "@/lib/turnstile";
-import { verifyTurnstileToken } from "@/lib/verify-turnstile-client";
-import { TurnstileWidget } from "@/components/turnstile-widget";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,8 +69,6 @@ export default function LeadFormButton({
   const [submittedDealId, setSubmittedDealId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const [turnstileRemount, setTurnstileRemount] = useState(0);
   const vehicleLabel = useMemo(
     () => [year, make, model, trim].filter(Boolean).join(" "),
     [year, make, model, trim]
@@ -90,8 +85,6 @@ export default function LeadFormButton({
     setSubmittedLeadId(null);
     setSubmittedDealId(null);
     setSubmitAttempted(false);
-    setTurnstileToken(null);
-    setTurnstileRemount((k) => k + 1);
   }, [open, user?.name, user?.email]);
 
   const nameError = useMemo(() => validateLeadName(name), [name]);
@@ -105,8 +98,7 @@ export default function LeadFormButton({
   const showEmailError = (submitAttempted || touched.email) && !!emailError;
   const showPhoneError = (submitAttempted || touched.phone) && !!phoneError;
   const showVehicleError = (submitAttempted || touched.vehicle) && !!customVehicleError;
-  const turnstileOk = !isTurnstileEnabled() || Boolean(turnstileToken);
-  const isFormValid = !nameError && !emailError && !phoneError && !customVehicleError && turnstileOk;
+  const isFormValid = !nameError && !emailError && !phoneError && !customVehicleError;
 
   async function handleContinue() {
     setSubmitAttempted(true);
@@ -121,28 +113,6 @@ export default function LeadFormButton({
       });
       return;
     }
-    if (isTurnstileEnabled()) {
-      if (!turnstileToken) {
-        toast({
-          variant: "error",
-          title: "Security check",
-          description: "Complete the verification below the form."
-        });
-        return;
-      }
-      const check = await verifyTurnstileToken(turnstileToken);
-      if (!check.ok) {
-        setTurnstileToken(null);
-        setTurnstileRemount((k) => k + 1);
-        toast({
-          variant: "error",
-          title: "Security check failed",
-          description: "Please try the verification again."
-        });
-        return;
-      }
-    }
-
     setSubmitting(true);
 
     try {
@@ -409,12 +379,6 @@ export default function LeadFormButton({
                 <Lock className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" />
                 <span className="min-w-0 break-words">100% private by default. No spam. No pressure.</span>
               </div>
-              <TurnstileWidget
-                action="lead"
-                remountKey={turnstileRemount}
-                onToken={setTurnstileToken}
-                className="flex justify-center"
-              />
               <div className="flex justify-center pt-1 sm:pt-2">
                 <Button
                   type="submit"

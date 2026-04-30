@@ -1,10 +1,3 @@
-function trimTrailingSlash(raw: string) {
-  return raw.replace(/\/$/, "");
-}
-
-/** Sent on auth calls so the shared API rejects carscu.com credentials on this site. */
-export const AUTH_REALM_NEWCAR_SUPERSTORE = "newcar_superstore" as const;
-
 export const env = {
   apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_BASE_URL ?? "",
   googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID ?? "",
@@ -19,19 +12,4 @@ export const env = {
   /** Optional: external auto loan calculator link. */
   loanCalculatorUrl:
     process.env.NEXT_PUBLIC_LOAN_CALCULATOR_URL ?? "https://www.bankrate.com/calculators/auto/auto-loan-calculator.aspx",
-  /** Sticky navy header on /search when `?cu=` credit-union referral is present. */
-  marketplaceBrandTitle: process.env.NEXT_PUBLIC_MARKETPLACE_BRAND_TITLE ?? "Power Auto Buying",
-  marketplaceBrandTagline:
-    process.env.NEXT_PUBLIC_MARKETPLACE_BRAND_TAGLINE ?? "Credit Union Marketplace",
-  /**
-   * Standalone credit union member site (same Next app as `/cu/[slug]` on the portal host).
-   * When set, marketing-site `/cu/[slug]` “Search cars” links open here so members never leave the CU web app.
-   */
-  cuPortalBaseUrl: trimTrailingSlash(
-    (process.env.NEXT_PUBLIC_CU_PORTAL_BASE_URL ?? "").trim().replace(/^\/+/, "")
-  ),
-  /** Shown on /contact-us; defaults in `marketing-contact.ts` if unset. */
-  contactEmail: (process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "").trim(),
-  /** Override only for unusual deployments; default isolates NewCarSuperstore accounts from carscu.com. */
-  authRealm: (process.env.NEXT_PUBLIC_AUTH_REALM ?? AUTH_REALM_NEWCAR_SUPERSTORE).trim(),
 };

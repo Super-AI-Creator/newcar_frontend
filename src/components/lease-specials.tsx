@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { displayPrice } from "@/lib/vehicle-pricing";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { pickVehicleImage, DEFAULT_CAR_IMAGE } from "@/lib/vehicle-image";
@@ -42,8 +41,6 @@ export default function LeaseSpecials({
     queryKey: ["homepage-lease-specials"],
     queryFn: () => api.homepageSpecials({ limit: HOMEPAGE_SPECIAL_LIMIT }),
     initialData: initialSpecials,
-    staleTime: 0,
-    refetchOnWindowFocus: true
   });
 
   const vehicles = (specialsQuery.data?.results ?? []).slice(0, HOMEPAGE_SPECIAL_LIMIT);
@@ -57,12 +54,7 @@ export default function LeaseSpecials({
     <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {isLoading
         ? Array.from({ length: HOMEPAGE_SPECIAL_LIMIT }, (_, i) => <SkeletonCard key={i} />)
-        : vehicles.map((vehicle) => {
-            const discounted = displayPrice(vehicle.discounted);
-            const down = displayPrice(vehicle.down);
-            const monthly = displayPrice(vehicle.monthly);
-            const downForBadge = down ?? 0;
-            return (
+        : vehicles.map((vehicle) => (
           <Card key={vehicle.vin} className="search-card group overflow-hidden border-ink-200 bg-white transition-[transform,box-shadow,border-color] duration-150 motion-safe:hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg">
             <CardContent className="p-0">
               <div className="relative aspect-[16/10] w-full overflow-hidden bg-ink-100">
@@ -79,9 +71,9 @@ export default function LeaseSpecials({
                     }}
                   />
                 </Link>
-                {monthly !== undefined && (
+                {vehicle.monthly !== undefined && vehicle.monthly !== null && (
                   <div className="absolute bottom-3 left-3 rounded-full bg-emerald-600/95 px-3 py-1 text-xs font-semibold text-white shadow">
-                    ${downForBadge.toLocaleString()} down, ${monthly.toLocaleString()}/mo
+                    ${vehicle.monthly.toLocaleString()}/mo
                   </div>
                 )}
               </div>
@@ -92,10 +84,18 @@ export default function LeaseSpecials({
                   </Link>
                 </h3>
                 <div className="text-sm text-ink-700">
-                  {discounted !== undefined && <p>Discounted Price: ${discounted.toLocaleString()}</p>}
-                  {down !== undefined && <p>Down Payment: ${down.toLocaleString()}</p>}
-                  {monthly !== undefined && <p>Monthly Payment: ${downForBadge.toLocaleString()} down, ${monthly.toLocaleString()}/mo</p>}
-                  {down === undefined && monthly === undefined && discounted === undefined && (
+                  {vehicle.discounted !== undefined && vehicle.discounted !== null && (
+                    <p>Discounted Price: ${vehicle.discounted.toLocaleString()}</p>
+                  )}
+                  {vehicle.down !== undefined && vehicle.down !== null && (
+                    <p>Down Payment: ${vehicle.down.toLocaleString()}</p>
+                  )}
+                  {vehicle.monthly !== undefined && vehicle.monthly !== null && (
+                    <p>Monthly Payment: ${vehicle.monthly.toLocaleString()}/mo</p>
+                  )}
+                  {(vehicle.down === undefined || vehicle.down === null) &&
+                    (vehicle.monthly === undefined || vehicle.monthly === null) &&
+                    (vehicle.discounted === undefined || vehicle.discounted === null) && (
                       <p>Call for custom lease special.</p>
                     )}
                 </div>
@@ -120,8 +120,7 @@ export default function LeaseSpecials({
               </div>
             </CardContent>
           </Card>
-            );
-          })}
+        ))}
     </div>
   );
 }

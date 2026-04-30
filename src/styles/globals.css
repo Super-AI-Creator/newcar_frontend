@@ -21,12 +21,6 @@
   border-color: theme(colors.ink.200);
 }
 
-html {
-  overflow-x: clip;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
-
 body {
   @apply text-ink-900 font-body;
   background:

@@ -85,9 +85,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       currentPath.startsWith("/cu/") ||
       currentPath === "/reviews" ||
       currentPath === "/privacy" ||
-      currentPath === "/contact-us" ||
-      currentPath === "/why-us" ||
-      currentPath === "/about-us" ||
       currentPath === "/credit-application" ||
       currentPath === "/testimonials" ||
       currentPath === "/most-reviewed-auto-broker-los-angeles";

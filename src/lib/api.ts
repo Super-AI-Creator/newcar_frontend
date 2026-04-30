@@ -1,4 +1,4 @@
-import { AUTH_REALM_NEWCAR_SUPERSTORE, env } from "@/lib/env";
+import { env } from "@/lib/env";
 import { authStore } from "@/lib/auth-store";
 
 export type ApiError = {
@@ -107,8 +107,7 @@ function normalizeVehicle(raw: any): Vehicle {
       null,
     history_url: raw?.history_url ?? raw?.historyUrl ?? raw?.carfax_url ?? details?.carfax_url ?? null,
     listing_url: raw?.listing_url ?? raw?.listingUrl ?? undefined,
-    dealer: raw?.dealer ?? undefined,
-    carfax_url: raw?.carfax_url ?? raw?.carfaxUrl ?? null
+    dealer: raw?.dealer ?? undefined
   };
 }
 
@@ -172,10 +171,7 @@ export const api = {
       user?: { id: string; name?: string; email?: string; role?: string };
     }>("/auth/google", {
       method: "POST",
-      body: JSON.stringify({
-        id_token: idToken,
-        auth_realm: (env.authRealm || AUTH_REALM_NEWCAR_SUPERSTORE).trim()
-      })
+      body: JSON.stringify({ id_token: idToken })
     });
     return {
       ...data,
@@ -192,8 +188,7 @@ export const api = {
         password: payload.password,
         phone: payload.phone,
         channel: "email",
-        cu_signup_token: payload.cu_signup_token,
-        auth_realm: (env.authRealm || AUTH_REALM_NEWCAR_SUPERSTORE).trim()
+        cu_signup_token: payload.cu_signup_token
       })
     });
     return { ...data, token: data.access_token };
@@ -211,31 +206,22 @@ export const api = {
     });
   },
   requestOtp: async (payload: { email: string; name: string; password: string; phone?: string; channel?: "email" | "sms"; cu_signup_token?: string }) => {
-    const body = {
-      ...payload,
-      auth_realm: (env.authRealm || AUTH_REALM_NEWCAR_SUPERSTORE).trim()
-    };
     try {
       return await apiFetch<{ sent: boolean; delivery?: string; dev_code?: string }>("/auth/otp/request", {
         method: "POST",
-        body: JSON.stringify(body)
+        body: JSON.stringify(payload)
       });
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError?.status !== 404) throw error;
       return apiFetch<{ sent: boolean; delivery?: string; dev_code?: string }>("/auth/request-otp", {
         method: "POST",
-        body: JSON.stringify(body)
+        body: JSON.stringify(payload)
       });
     }
   },
   verifyOtp: async (email: string, code: string, channel: "email" | "sms" = "email", cu_signup_token?: string) => {
-    const body = {
-      email,
-      code,
-      channel,
-      auth_realm: (env.authRealm || AUTH_REALM_NEWCAR_SUPERSTORE).trim()
-    } as Record<string, unknown>;
+    const body = { email, code, channel } as Record<string, unknown>;
     if (cu_signup_token) body.cu_signup_token = cu_signup_token;
     try {
       const data = await apiFetch<{ access_token: string; refresh_token?: string; token_type?: string }>("/auth/otp/verify", {
@@ -257,11 +243,7 @@ export const api = {
     try {
       const data = await apiFetch<{ access_token?: string; refresh_token?: string; token_type?: string }>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({
-          email,
-          password,
-          auth_realm: (env.authRealm || AUTH_REALM_NEWCAR_SUPERSTORE).trim()
-        })
+        body: JSON.stringify({ email, password })
       });
       return {
         ...data,
@@ -272,11 +254,7 @@ export const api = {
       if (apiError?.status !== 404) throw error;
       const data = await apiFetch<{ access_token?: string; refresh_token?: string; token_type?: string }>("/auth/signin", {
         method: "POST",
-        body: JSON.stringify({
-          email,
-          password,
-          auth_realm: (env.authRealm || AUTH_REALM_NEWCAR_SUPERSTORE).trim()
-        })
+        body: JSON.stringify({ email, password })
       });
       return {
         ...data,
@@ -510,15 +488,8 @@ export const api = {
       total: toNumber(data.total ?? data.vehicle_price)
     };
   },
-  favorites: async (params?: { member_user_id?: number } | unknown) => {
-    const query = new URLSearchParams();
-    const memberUserId =
-      params && typeof params === "object" && "member_user_id" in params
-        ? Number((params as { member_user_id?: number }).member_user_id)
-        : undefined;
-    if (memberUserId) query.set("member_user_id", String(memberUserId));
-    const qs = query.toString();
-    const rows = await apiFetch<Array<{ vin: string }>>(`/favorites${qs ? `?${qs}` : ""}`);
+  favorites: async () => {
+    const rows = await apiFetch<Array<{ vin: string }>>("/favorites");
     const vehicles = await Promise.all(
       (rows ?? []).map(async (item) => {
         try {
@@ -530,11 +501,8 @@ export const api = {
     );
     return { items: vehicles };
   },
-  toggleFavorite: async (vin: string, params?: { member_user_id?: number }) => {
-    const query = new URLSearchParams();
-    if (params?.member_user_id) query.set("member_user_id", String(params.member_user_id));
-    const qs = query.toString();
-    const data = await apiFetch<{ status?: string }>(`/favorites/${vin}${qs ? `?${qs}` : ""}`, { method: "POST" });
+  toggleFavorite: async (vin: string) => {
+    const data = await apiFetch<{ status?: string }>(`/favorites/${vin}`, { method: "POST" });
     return { saved: data.status === "added" || data.status === "exists" };
   },
   getRecommendations: async (params: {
@@ -579,21 +547,9 @@ export const api = {
       })
     };
   },
-  messages: (params?: { member_user_id?: number } | unknown) => {
-    const query = new URLSearchParams();
-    const memberUserId =
-      params && typeof params === "object" && "member_user_id" in params
-        ? Number((params as { member_user_id?: number }).member_user_id)
-        : undefined;
-    if (memberUserId) query.set("member_user_id", String(memberUserId));
-    const qs = query.toString();
-    return apiFetch<{ items: Message[] }>(`/messages${qs ? `?${qs}` : ""}`);
-  },
-  sendMessage: async (payload: { vin?: string; message: string; member_user_id?: number }) => {
-    const query = new URLSearchParams();
-    if (payload.member_user_id) query.set("member_user_id", String(payload.member_user_id));
-    const qs = query.toString();
-    const data = await apiFetch<{ status?: string }>(`/broker/message${qs ? `?${qs}` : ""}`, {
+  messages: () => apiFetch<{ items: Message[] }>("/messages"),
+  sendMessage: async (payload: { vin?: string; message: string }) => {
+    const data = await apiFetch<{ status?: string }>("/broker/message", {
       method: "POST",
       body: JSON.stringify({
         vin: payload.vin,
@@ -631,39 +587,14 @@ export const api = {
       body: JSON.stringify(payload)
     });
   },
-  uploadTradeInPhoto: async (file: File) => {
-    const form = new FormData();
-    form.append("file", file);
-    const data = await apiFetch<{ url?: string; filename?: string; content_type?: string; size_bytes?: number }>(
-      "/leads/upload-photo",
-      {
-        method: "POST",
-        body: form
-      }
-    );
-    return {
-      ...data,
-      url: normalizeImageUrl(data.url) ?? data.url ?? ""
-    };
-  },
-  createDeal: async (payload: { vin: string; customer_note?: string; member_user_id?: number }) => {
-    const query = new URLSearchParams();
-    if (payload.member_user_id) query.set("member_user_id", String(payload.member_user_id));
-    const qs = query.toString();
-    return apiFetch<Deal>(`/deals${qs ? `?${qs}` : ""}`, {
+  createDeal: async (payload: { vin: string; customer_note?: string }) => {
+    return apiFetch<Deal>("/deals", {
       method: "POST",
-      body: JSON.stringify({ vin: payload.vin, customer_note: payload.customer_note })
+      body: JSON.stringify(payload)
     });
   },
-  myDeals: async (params?: { member_user_id?: number } | unknown) => {
-    const query = new URLSearchParams();
-    const memberUserId =
-      params && typeof params === "object" && "member_user_id" in params
-        ? Number((params as { member_user_id?: number }).member_user_id)
-        : undefined;
-    if (memberUserId) query.set("member_user_id", String(memberUserId));
-    const qs = query.toString();
-    const data = await apiFetch<{ items?: Deal[] }>(`/deals/mine${qs ? `?${qs}` : ""}`);
+  myDeals: async () => {
+    const data = await apiFetch<{ items?: Deal[] }>("/deals/mine");
     return { items: data.items ?? [] };
   },
   allDeals: async () => {
@@ -1042,15 +973,6 @@ export const api = {
       method: "DELETE"
     });
   },
-  deleteAdminManualVehiclesBulk: async (vins: string[]) => {
-    return apiFetch<{ requested_count: number; deleted_count: number; deleted_vins: string[]; not_found_vins: string[] }>(
-      "/admin/manual-vehicles/bulk-delete",
-      {
-        method: "POST",
-        body: JSON.stringify({ vins })
-      }
-    );
-  },
   adminSeoSettings: async (params?: { q?: string; include_inactive?: boolean; limit?: number }) => {
     const query = new URLSearchParams();
     if (params?.q) query.set("q", params.q);
@@ -1211,11 +1133,8 @@ export const api = {
     return apiFetch<{ deleted: boolean; id: number }>(`/admin/articles/${encodeURIComponent(String(id))}`, { method: "DELETE" });
   },
 
-  forwardDocs: async (formData: FormData, params?: { member_user_id?: number }) => {
-    const query = new URLSearchParams();
-    if (params?.member_user_id) query.set("member_user_id", String(params.member_user_id));
-    const qs = query.toString();
-    const data = await apiFetch<{ status?: string; id?: number }>(`/docs/forward${qs ? `?${qs}` : ""}`, {
+  forwardDocs: async (formData: FormData) => {
+    const data = await apiFetch<{ status?: string; id?: number }>("/docs/forward", {
       method: "POST",
       body: formData
     });
@@ -1257,24 +1176,22 @@ export const api = {
       body: JSON.stringify(payload)
     });
   },
-  myDocSubmissions: async (params?: { vin?: string; page?: number; page_size?: number; member_user_id?: number }) => {
+  myDocSubmissions: async (params?: { vin?: string; page?: number; page_size?: number }) => {
     const query = new URLSearchParams();
     if (params?.vin) query.set("vin", params.vin);
     if (params?.page) query.set("page", String(params.page));
     if (params?.page_size) query.set("page_size", String(params.page_size));
-    if (params?.member_user_id) query.set("member_user_id", String(params.member_user_id));
     const qs = query.toString();
     const data = await apiFetch<{ items?: DocumentSubmissionRecord[]; total?: number }>(
       `/docs/mine${qs ? `?${qs}` : ""}`
     );
     return { items: data.items ?? [], total: data.total ?? (data.items ?? []).length };
   },
-  myCreditApplications: async (params?: { vin?: string; page?: number; page_size?: number; member_user_id?: number }) => {
+  myCreditApplications: async (params?: { vin?: string; page?: number; page_size?: number }) => {
     const query = new URLSearchParams();
     if (params?.vin) query.set("vin", params.vin);
     if (params?.page) query.set("page", String(params.page));
     if (params?.page_size) query.set("page_size", String(params.page_size));
-    if (params?.member_user_id) query.set("member_user_id", String(params.member_user_id));
     const qs = query.toString();
     const data = await apiFetch<{ items?: CreditApplicationRecord[]; total?: number }>(
       `/credit/mine${qs ? `?${qs}` : ""}`
@@ -1346,22 +1263,6 @@ export const api = {
   getCreditUnionByToken: async (token: string) => {
     return apiFetch<CreditUnionRecord>(`/credit-unions/by-token?token=${encodeURIComponent(token)}`);
   },
-  listMyCreditUnionMembers: async (params?: { limit?: number }) => {
-    const query = new URLSearchParams();
-    if (params?.limit) query.set("limit", String(params.limit));
-    const qs = query.toString();
-    const data = await apiFetch<{ items: User[] }>(`/credit-unions/mine/members${qs ? `?${qs}` : ""}`);
-    return data.items ?? [];
-  },
-  listMyCreditUnionMemberActivitySummary: async (params?: { limit?: number }) => {
-    const query = new URLSearchParams();
-    if (params?.limit) query.set("limit", String(params.limit));
-    const qs = query.toString();
-    const data = await apiFetch<{ items: CuMemberActivitySummary[] }>(
-      `/credit-unions/mine/members/activity-summary${qs ? `?${qs}` : ""}`
-    );
-    return data.items ?? [];
-  },
 
   // Pre-approvals
   createApproval: async (cuId: number, payload: ApprovalCreatePayload) => {
@@ -1371,63 +1272,12 @@ export const api = {
     );
     return data;
   },
-  updateApprovalStatus: async (cuId: number, approvalId: number, status: string) => {
-    const data = await apiFetch<{ item: ApprovalRecord }>(
-      `/admin/credit-unions/${cuId}/approvals/${approvalId}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      }
-    );
-    return data.item;
-  },
-  updateApproval: async (cuId: number, approvalId: number, payload: ApprovalUpdatePayload) => {
-    const data = await apiFetch<{ item: ApprovalRecord }>(
-      `/admin/credit-unions/${cuId}/approvals/${approvalId}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-    return data.item;
-  },
-  deleteApproval: async (cuId: number, approvalId: number) => {
-    return apiFetch<{ deleted: boolean; id: number }>(`/admin/credit-unions/${cuId}/approvals/${approvalId}`, {
-      method: "DELETE",
-    });
-  },
-  resendApprovalInvite: async (cuId: number, approvalId: number) => {
-    return apiFetch<{ ok: boolean; approval_id: number; email_sent: boolean; sms_sent: boolean; claim_url: string; join_url: string }>(
-      `/admin/credit-unions/${cuId}/approvals/${approvalId}/resend-invite`,
-      { method: "POST" }
-    );
-  },
-  listMyApprovals: async (params?: { member_user_id?: number } | unknown) => {
-    const query = new URLSearchParams();
-    const memberUserId =
-      params && typeof params === "object" && "member_user_id" in params
-        ? Number((params as { member_user_id?: number }).member_user_id)
-        : undefined;
-    if (memberUserId) query.set("member_user_id", String(memberUserId));
-    const qs = query.toString();
-    const data = await apiFetch<{ items: ApprovalRecord[] }>(`/approvals/mine${qs ? `?${qs}` : ""}`);
+  listMyApprovals: async () => {
+    const data = await apiFetch<{ items: ApprovalRecord[] }>("/approvals/mine");
     return data.items ?? [];
   },
   getApprovalByCode: async (code: string) => {
-    return apiFetch<
-      ApprovalRecord & {
-        credit_union_name?: string | null;
-        credit_union_slug?: string | null;
-        credit_union_logo_url?: string | null;
-        credit_union_address?: string | null;
-        credit_union_phone?: string | null;
-        credit_union_portal_url?: string | null;
-        contact_name?: string | null;
-        contact_phone?: string | null;
-        contact_email?: string | null;
-      }
-    >(`/approvals/by-code/${encodeURIComponent(code)}`);
+    return apiFetch<ApprovalRecord & { credit_union_name?: string; credit_union_slug?: string }>(`/approvals/by-code/${encodeURIComponent(code)}`);
   },
   claimApproval: async (code: string) => {
     return apiFetch<{ item: ApprovalRecord; claimed?: boolean; already_claimed?: boolean }>(`/approvals/claim/${encodeURIComponent(code)}`, {
@@ -1482,7 +1332,6 @@ export type Vehicle = {
   updatedAt?: string;
   listing_url?: string | null;
   dealer?: string;
-  carfax_url?: string | null;
 };
 
 export type Message = {
@@ -1522,9 +1371,6 @@ export type Deal = {
   customer_name?: string | null;
   customer_email?: string | null;
   customer_phone?: string | null;
-  credit_union_id?: number | null;
-  credit_union_name?: string | null;
-  approval_amount?: number | null;
 };
 
 export type DealEvent = {
@@ -1671,23 +1517,11 @@ export type LeadDeliveryRecord = {
   webhook_delivered_at?: string | null;
 };
 
-export type AdminGeneralStatusDealerItem = {
-  id?: number | string | null;
-  name?: string | null;
-  brand?: string | null;
-  vehicle_type?: string | null;
-  scrape_method?: string | null;
-  last_scrape_status?: string | null;
-  website_url?: string | null;
-  updated_at?: string | null;
-};
-
 export type AdminGeneralStatus = {
   generated_at?: string | null;
   dealers: {
     active_count: number;
     names: string[];
-    items?: AdminGeneralStatusDealerItem[];
   };
   vehicles: {
     active_new_count: number;
@@ -1705,15 +1539,6 @@ export type User = {
   credit_union_id?: number | null;
   is_phone_verified: boolean;
   is_email_verified: boolean;
-};
-
-export type CuMemberActivitySummary = {
-  user_id: number;
-  approvals: number;
-  favorites: number;
-  messages: number;
-  deals: number;
-  docs: number;
 };
 
 export type SeoPageSettingRecord = {
@@ -1751,8 +1576,6 @@ export type CreditUnionRecord = {
   slug: string;
   logo_url?: string | null;
   banner_url?: string | null;
-  testimonial_image_url?: string | null;
-  testimonial_text?: string | null;
   hero_title?: string | null;
   hero_subtitle?: string | null;
   phone?: string | null;
@@ -1774,8 +1597,6 @@ export type CreditUnionCreatePayload = {
   slug?: string | null;
   logo_url?: string | null;
   banner_url?: string | null;
-  testimonial_image_url?: string | null;
-  testimonial_text?: string | null;
   hero_title?: string | null;
   hero_subtitle?: string | null;
   phone?: string | null;
@@ -1792,8 +1613,6 @@ export type CreditUnionUpdatePayload = {
   slug?: string | null;
   logo_url?: string | null;
   banner_url?: string | null;
-  testimonial_image_url?: string | null;
-  testimonial_text?: string | null;
   hero_title?: string | null;
   hero_subtitle?: string | null;
   phone?: string | null;
@@ -1829,10 +1648,8 @@ export type ApprovalRecord = {
   user_id?: number | null;
   loan_amount: number;
   term_months: number;
-  interest_rate?: number | null;
   special_notes?: string | null;
   approval_code: string;
-  member_name?: string | null;
   member_phone?: string | null;
   member_email?: string | null;
   status: string;
@@ -1844,22 +1661,8 @@ export type ApprovalRecord = {
 export type ApprovalCreatePayload = {
   loan_amount: number;
   term_months: number;
-  interest_rate?: number | null;
-  member_name?: string | null;
   special_notes?: string | null;
   approval_code?: string | null;
-  member_phone?: string | null;
-  member_email?: string | null;
-};
-
-export type ApprovalUpdatePayload = {
-  status?: string;
-  approval_code?: string;
-  interest_rate?: number;
-  loan_amount?: number;
-  term_months?: number;
-  special_notes?: string | null;
-  member_name?: string | null;
   member_phone?: string | null;
   member_email?: string | null;
 };

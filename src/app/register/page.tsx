@@ -9,11 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/components/auth-provider";
-import { TurnstileWidget } from "@/components/turnstile-widget";
 import { api } from "@/lib/api";
 import { navigateAfterSignIn } from "@/lib/post-auth-navigation";
-import { isTurnstileEnabled } from "@/lib/turnstile";
-import { verifyTurnstileToken } from "@/lib/verify-turnstile-client";
 import { z } from "zod";
 import { ShieldCheck } from "lucide-react";
 
@@ -39,8 +36,6 @@ function RegisterForm() {
   const [captcha, setCaptcha] = useState<ReturnType<typeof randomCaptcha> | null>(null);
   const [captchaInput, setCaptchaInput] = useState("");
   const [captchaError, setCaptchaError] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const [turnstileRemount, setTurnstileRemount] = useState(0);
 
   // Pre-fill from URL (e.g. after Get Price lead submit).
   useEffect(() => {
@@ -76,40 +71,22 @@ function RegisterForm() {
     return { label: "Weak — mix upper, lower, numbers, or symbols", cls: "text-red-700" };
   }, [password]);
 
-  const humanCheckOk = isTurnstileEnabled() ? Boolean(turnstileToken) : captchaValid;
-
   const canSubmit = useMemo(() => {
     const validEmail = emailSchema.safeParse(email).success;
     const validName = name.trim().length > 0;
     const validPassword = password.length >= 8;
     const passwordsMatch = password === confirmPassword;
-    return validEmail && validName && validPassword && passwordsMatch && humanCheckOk && status === "idle";
-  }, [email, name, password, confirmPassword, humanCheckOk, status]);
+    return validEmail && validName && validPassword && passwordsMatch && captchaValid && status === "idle";
+  }, [email, name, password, confirmPassword, captchaValid, status]);
 
   const handleRegister = async () => {
     setMessage(null);
     if (!canSubmit) {
-      setMessage(
-        isTurnstileEnabled()
-          ? "Fill all required fields, ensure passwords match, and complete the security check."
-          : "Fill all required fields, ensure passwords match, and solve the security question."
-      );
+      setMessage("Fill all required fields, ensure passwords match, and solve the security question.");
       return;
     }
 
-    if (isTurnstileEnabled()) {
-      if (!turnstileToken) {
-        setMessage("Complete the security check below.");
-        return;
-      }
-      const check = await verifyTurnstileToken(turnstileToken);
-      if (!check.ok) {
-        setMessage("Security check failed. Please try again.");
-        setTurnstileToken(null);
-        setTurnstileRemount((k) => k + 1);
-        return;
-      }
-    } else if (!captchaValid) {
+    if (!captchaValid) {
       setCaptchaError(true);
       setMessage("Please solve the security question correctly.");
       return;
@@ -192,67 +169,47 @@ function RegisterForm() {
                 <Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Repeat password" />
               </div>
 
-              {isTurnstileEnabled() ? (
-                <div className="rounded-xl border border-ink-200 bg-ink-50/50 p-4 sm:p-5">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
-                      <ShieldCheck className="h-5 w-5" aria-hidden />
+              <div className="rounded-xl border border-ink-200 bg-ink-50/50 p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
+                    <ShieldCheck className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-ink-900">Quick human check</h3>
+                      <p className="mt-0.5 text-sm text-ink-600">
+                        A simple math question helps block automated signups. It is not a full captcha service.
+                      </p>
                     </div>
-                    <div className="min-w-0 flex-1 space-y-3">
-                      <h3 className="text-sm font-semibold text-ink-900">Security check</h3>
-                      <p className="text-sm text-ink-600">Confirm you are human before creating your account.</p>
-                      <TurnstileWidget
-                        action="register"
-                        remountKey={turnstileRemount}
-                        onToken={setTurnstileToken}
-                        className="flex justify-center sm:justify-start"
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span
+                        className="inline-flex items-center justify-center rounded-lg border border-ink-200 bg-white px-4 py-2 font-mono text-lg font-semibold tabular-nums text-ink-900"
+                        aria-hidden
+                      >
+                        {captcha ? `${captcha.a} + ${captcha.b} = ?` : "Loading..."}
+                      </span>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        placeholder="Your answer"
+                        value={captchaInput}
+                        onChange={(e) => {
+                          setCaptchaInput(e.target.value);
+                          setCaptchaError(false);
+                        }}
+                        className={`w-28 font-mono tabular-nums ${captchaError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                        aria-label="Answer to the security question"
+                        aria-invalid={captchaError}
                       />
                     </div>
+                    {captchaError && (
+                      <p className="text-sm font-medium text-red-600" role="alert">
+                        Incorrect. Please try again.
+                      </p>
+                    )}
                   </div>
                 </div>
-              ) : (
-                <div className="rounded-xl border border-ink-200 bg-ink-50/50 p-4 sm:p-5">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
-                      <ShieldCheck className="h-5 w-5" aria-hidden />
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-3">
-                      <div>
-                        <h3 className="text-sm font-semibold text-ink-900">Quick human check</h3>
-                        <p className="mt-0.5 text-sm text-ink-600">
-                          A simple math question helps block automated signups. It is not a full captcha service.
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span
-                          className="inline-flex items-center justify-center rounded-lg border border-ink-200 bg-white px-4 py-2 font-mono text-lg font-semibold tabular-nums text-ink-900"
-                          aria-hidden
-                        >
-                          {captcha ? `${captcha.a} + ${captcha.b} = ?` : "Loading..."}
-                        </span>
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          placeholder="Your answer"
-                          value={captchaInput}
-                          onChange={(e) => {
-                            setCaptchaInput(e.target.value);
-                            setCaptchaError(false);
-                          }}
-                          className={`w-28 font-mono tabular-nums ${captchaError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-                          aria-label="Answer to the security question"
-                          aria-invalid={captchaError}
-                        />
-                      </div>
-                      {captchaError && (
-                        <p className="text-sm font-medium text-red-600" role="alert">
-                          Incorrect. Please try again.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+              </div>
 
               <div className="flex flex-wrap gap-3">
                 <Button onClick={handleRegister} disabled={!canSubmit || status !== "idle"}>

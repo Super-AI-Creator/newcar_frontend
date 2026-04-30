@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
-import { getCanonicalSiteOrigin } from "@/lib/site-url";
 
-const origin = getCanonicalSiteOrigin();
+const SOURCE_POLICY_URL = "https://www.newcarsuperstore.com/privacy-policy";
 
 export const metadata: Metadata = {
   title: "Privacy policy & terms of use | NewCarSuperstore",
   description:
     "Single page: privacy policy and terms of use for New Car Superstore — auto brokerage in Oxnard, California.",
-  alternates: { canonical: `${origin}/privacy` }
 };
 
 /** One document: privacy first, then terms — all on /privacy */
@@ -42,14 +39,16 @@ export default function PrivacyAndTermsPage() {
               Privacy policy &amp; terms of use
             </h1>
             <p className="relative mt-3 max-w-xl text-sm leading-relaxed text-white/85">
-              Everything below is on this single page: how we handle personal information, plus broker fees, disclosures, and copyright.
-              Bookmark:{" "}
-              <Link
-                href="/privacy"
+              Everything below is on this single page: how we handle personal information, plus broker fees, disclosures, and copyright. The
+              same notices appear at{" "}
+              <a
+                href={SOURCE_POLICY_URL}
                 className="font-medium text-white underline decoration-white/40 underline-offset-2 transition-colors hover:decoration-white"
+                target="_blank"
+                rel="noreferrer noopener"
               >
-                {origin.replace(/^https:\/\//i, "")}/privacy
-              </Link>
+                newcarsuperstore.com/privacy-policy
+              </a>
               .
             </p>
           </header>
@@ -171,7 +170,6 @@ export default function PrivacyAndTermsPage() {
           </div>
         </div>
       </main>
-      <SiteFooter />
     </div>
   );
 }
