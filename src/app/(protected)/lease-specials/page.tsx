@@ -101,11 +101,18 @@ function getBackendSort(sort: string) {
   return clientOnlySorts.has(sort) ? undefined : sort;
 }
 
+function normKeyPart(s: string | undefined | null): string {
+  return (s ?? "").trim().toLowerCase();
+}
+
+/** One card per year + make + model; trims stack under the same card so the group footer can show counts. */
 function modelGroupKey(vehicle: Vehicle): string {
-  const mk = (vehicle.make ?? "").trim().toLowerCase();
-  const md = (vehicle.model ?? "").trim().toLowerCase();
-  if (!mk && !md) return `vin:${(vehicle.vin ?? "").toUpperCase()}`;
-  return `${mk}::${md}`;
+  const yr =
+    typeof vehicle.year === "number" && Number.isFinite(vehicle.year) ? String(Math.trunc(vehicle.year)) : "";
+  const mk = normKeyPart(vehicle.make);
+  const md = normKeyPart(vehicle.model);
+  if (!mk && !md && !yr) return `vin:${(vehicle.vin ?? "").toUpperCase()}`;
+  return `${yr}||${mk}||${md}`;
 }
 
 type LeaseModelGroup = {
@@ -114,7 +121,7 @@ type LeaseModelGroup = {
   vehicles: Vehicle[];
 };
 
-/** Preserve sort order: first row per make+model is the “featured” listing. */
+/** Preserve sort order: first row per group is the featured listing for that lineup. */
 function buildLeaseModelGroups(sorted: Vehicle[]): LeaseModelGroup[] {
   const map = new Map<string, Vehicle[]>();
   const order: string[] = [];
@@ -129,7 +136,15 @@ function buildLeaseModelGroups(sorted: Vehicle[]): LeaseModelGroup[] {
   return order.map((key) => {
     const vehicles = map.get(key)!;
     const v0 = vehicles[0];
-    const groupLabel = [v0.make, v0.model].filter(Boolean).join(" ").trim() || "Vehicle";
+    const groupLabel =
+      [
+        typeof v0.year === "number" && Number.isFinite(v0.year) ? String(Math.trunc(v0.year)) : "",
+        (v0.make ?? "").trim(),
+        (v0.model ?? "").trim()
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || "Vehicle";
     return { key, groupLabel, vehicles };
   });
 }
@@ -153,12 +168,20 @@ function LeaseSpecialsPageFallback() {
   );
 }
 
+function parseYearParam(value: string | null): string {
+  if (value == null || !value.trim()) return "";
+  const n = parseInt(value.trim(), 10);
+  return Number.isFinite(n) && n > 1900 && n < 2100 ? String(n) : "";
+}
+
 function LeaseSpecialsPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [make, setMake] = useState(searchParams.get("make") ?? "");
   const [model, setModel] = useState(searchParams.get("model") ?? "");
+  const [trim, setTrim] = useState(searchParams.get("trim") ?? "");
+  const [yearFilter, setYearFilter] = useState(() => parseYearParam(searchParams.get("year")));
   const [sort, setSort] = useState(searchParams.get("sort") ?? sortOptions[0].value);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
@@ -191,25 +214,28 @@ function LeaseSpecialsPageContent() {
     });
   }, [make, makes, modelsByMake]);
 
-  const params = useMemo(
+  /** Always pull a large batch; lineup grouping and sort run client-side. */
+  const fetchParams = useMemo(
     () => ({
       vehicle_type: "new",
       offers_only: true,
       make,
       model,
+      trim: trim.trim() || undefined,
+      year: yearFilter ? Number(yearFilter) : undefined,
       max_payment: maxPayment,
       max_price: maxPrice,
       sort: getBackendSort(sort),
-      page: clientOnlySorts.has(sort) ? 1 : page,
-      page_size: clientOnlySorts.has(sort) ? 500 : pageSize
+      page: 1,
+      page_size: 4000
     }),
-    [make, model, maxPayment, maxPrice, sort, page]
+    [make, model, trim, yearFilter, maxPayment, maxPrice, sort]
   );
-  const [appliedParams, setAppliedParams] = useState(params);
+  const [appliedFetchParams, setAppliedFetchParams] = useState(fetchParams);
 
   const resultsQuery = useQuery({
-    queryKey: ["lease-specials", appliedParams],
-    queryFn: () => api.search(appliedParams),
+    queryKey: ["lease-specials", appliedFetchParams],
+    queryFn: () => api.search(appliedFetchParams),
     staleTime: 0,
     refetchOnWindowFocus: true
   });
@@ -346,45 +372,27 @@ function LeaseSpecialsPageContent() {
     return items;
   }, [resultItems, sort]);
 
-  const useModelGrouping = clientOnlySorts.has(sort) && !model.trim();
+  const modelGroups = useMemo(() => buildLeaseModelGroups(sortedResultItems), [sortedResultItems]);
 
-  const modelGroups = useMemo(() => {
-    if (!useModelGrouping) return null;
-    return buildLeaseModelGroups(sortedResultItems);
-  }, [useModelGrouping, sortedResultItems]);
-
-  const totalResults = clientOnlySorts.has(sort)
-    ? sortedResultItems.length
-    : resultsQuery.data?.total ?? sortedResultItems.length;
+  const totalResults = resultsQuery.data?.total ?? sortedResultItems.length;
 
   const totalPages = useMemo(() => {
-    if (useModelGrouping && modelGroups) {
-      return Math.max(1, Math.ceil(modelGroups.length / pageSize));
-    }
-    return Math.max(1, Math.ceil(totalResults / pageSize));
-  }, [useModelGrouping, modelGroups, totalResults]);
+    return Math.max(1, Math.ceil(modelGroups.length / pageSize));
+  }, [modelGroups.length]);
 
   const currentPage = Math.min(page, totalPages);
 
   const pageModelGroups = useMemo((): LeaseModelGroup[] => {
-    if (useModelGrouping && modelGroups) {
-      const start = (currentPage - 1) * pageSize;
-      return modelGroups.slice(start, start + pageSize);
-    }
-    const slice = clientOnlySorts.has(sort)
-      ? sortedResultItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-      : sortedResultItems;
-    return slice.map((v) => ({
-      key: v.vin ?? `idx-${v.make}-${v.model}`,
-      groupLabel: "",
-      vehicles: [v]
-    }));
-  }, [useModelGrouping, modelGroups, sortedResultItems, sort, currentPage]);
+    const start = (currentPage - 1) * pageSize;
+    return modelGroups.slice(start, start + pageSize);
+  }, [modelGroups, currentPage]);
 
   const activeFilters = useMemo(() => {
     const chips: Array<{ key: string; label: string }> = [];
     if (make) chips.push({ key: "make", label: `Make: ${make}` });
     if (model) chips.push({ key: "model", label: `Model: ${model}` });
+    if (trim.trim()) chips.push({ key: "trim", label: `Trim: ${trim.trim()}` });
+    if (yearFilter) chips.push({ key: "year", label: `Year: ${yearFilter}` });
     if (maxPayment !== defaultMaxPayment) chips.push({ key: "maxPayment", label: `Payment up to $${maxPayment}/mo` });
     if (maxPrice !== defaultMaxPrice) chips.push({ key: "maxPrice", label: `Price up to $${maxPrice.toLocaleString()}` });
     if (sort !== sortOptions[0].value) {
@@ -394,12 +402,12 @@ function LeaseSpecialsPageContent() {
     return chips;
   }, [make, model, maxPayment, maxPrice, sort]);
   const emptyStateMessage = useMemo(() => {
-    const selection = [make, model].filter(Boolean).join(" ");
+    const selection = [make, model, trim.trim() || undefined, yearFilter || undefined].filter(Boolean).join(" ");
     if (selection) {
-      return `No lease offers found for ${selection}. Try another model or clear make/model filters.`;
+      return `No lease offers found for ${selection}. Try widening filters or clearing trim/year.`;
     }
     return "No matches yet. Try raising your payment target or clearing make/model.";
-  }, [make, model]);
+  }, [make, model, trim, yearFilter]);
   const searchReturnUrl = useMemo(() => {
     const query = searchParams.toString();
     return query ? `${pathname}?${query}` : pathname;
@@ -408,6 +416,8 @@ function LeaseSpecialsPageContent() {
   useEffect(() => {
     const nextMake = searchParams.get("make") ?? "";
     const nextModel = searchParams.get("model") ?? "";
+    const nextTrim = searchParams.get("trim") ?? "";
+    const nextYear = parseYearParam(searchParams.get("year"));
     const nextSort = searchParams.get("sort") ?? sortOptions[0].value;
     const nextMaxPayment = parsePositiveNumber(searchParams.get("max_payment"), defaultMaxPayment);
     const nextMaxPrice = parsePositiveNumber(searchParams.get("max_price"), defaultMaxPrice);
@@ -415,20 +425,24 @@ function LeaseSpecialsPageContent() {
 
     setMake(nextMake);
     setModel(nextModel);
+    setTrim(nextTrim);
+    setYearFilter(nextYear);
     setSort(nextSort);
     setMaxPayment(nextMaxPayment);
     setMaxPrice(nextMaxPrice);
     setPage(nextPage);
-    setAppliedParams({
+    setAppliedFetchParams({
       vehicle_type: "new",
       offers_only: true,
       make: nextMake,
       model: nextModel,
+      trim: nextTrim.trim() || undefined,
+      year: nextYear ? Number(nextYear) : undefined,
       max_payment: nextMaxPayment,
       max_price: nextMaxPrice,
       sort: getBackendSort(nextSort),
-      page: clientOnlySorts.has(nextSort) ? 1 : nextPage,
-      page_size: clientOnlySorts.has(nextSort) ? 500 : pageSize
+      page: 1,
+      page_size: 4000
     });
   }, [searchParams]);
 
@@ -437,6 +451,8 @@ function LeaseSpecialsPageContent() {
     overrides?: Partial<{
       make: string;
       model: string;
+      trim: string;
+      year: string;
       sort: string;
       maxPayment: number;
       maxPrice: number;
@@ -444,44 +460,54 @@ function LeaseSpecialsPageContent() {
   ) {
     const nextMake = overrides?.make ?? make;
     const nextModel = overrides?.model ?? model;
+    const nextTrim = overrides?.trim !== undefined ? overrides.trim : trim;
+    const nextYearFilter = overrides?.year !== undefined ? overrides.year : yearFilter;
     const nextSort = overrides?.sort ?? sort;
     const nextMaxPayment = overrides?.maxPayment ?? maxPayment;
     const nextMaxPrice = overrides?.maxPrice ?? maxPrice;
     const query = new URLSearchParams();
     if (nextMake) query.set("make", nextMake);
     if (nextModel) query.set("model", nextModel);
+    if (nextTrim.trim()) query.set("trim", nextTrim.trim());
+    if (nextYearFilter) query.set("year", nextYearFilter);
     if (nextSort !== sortOptions[0].value) query.set("sort", nextSort);
     query.set("max_payment", String(nextMaxPayment));
     query.set("max_price", String(nextMaxPrice));
     query.set("page", String(nextPage));
     router.replace(`${pathname}?${query.toString()}`);
     setPage(nextPage);
-    setAppliedParams({
+    setMake(nextMake);
+    setModel(nextModel);
+    setTrim(nextTrim);
+    setYearFilter(nextYearFilter);
+    setSort(nextSort);
+    setMaxPayment(nextMaxPayment);
+    setMaxPrice(nextMaxPrice);
+    setAppliedFetchParams({
       vehicle_type: "new",
       offers_only: true,
       make: nextMake,
       model: nextModel,
+      trim: nextTrim.trim() || undefined,
+      year: nextYearFilter ? Number(nextYearFilter) : undefined,
       max_payment: nextMaxPayment,
       max_price: nextMaxPrice,
       sort: getBackendSort(nextSort),
-      page: clientOnlySorts.has(nextSort) ? 1 : nextPage,
-      page_size: clientOnlySorts.has(nextSort) ? 500 : pageSize
+      page: 1,
+      page_size: 4000
     });
   }
 
   function handleMakeChange(nextMakeValue: string) {
     const nextMake = nextMakeValue === ANY_MAKE ? "" : nextMakeValue;
     if (nextMake === make) return;
-    setMake(nextMake);
-    setModel("");
-    runSearch(1, { make: nextMake, model: "" });
+    runSearch(1, { make: nextMake, model: "", trim: "", year: "" });
   }
 
   function handleModelChange(nextModelValue: string) {
     const nextModel = nextModelValue === ANY_MODEL ? "" : nextModelValue;
     if (nextModel === model) return;
-    setModel(nextModel);
-    runSearch(1, { model: nextModel });
+    runSearch(1, { model: nextModel, trim: "", year: "" });
   }
 
   useEffect(() => {
@@ -498,9 +524,7 @@ function LeaseSpecialsPageContent() {
     }
 
     if (normalizedMake === make && normalizedModel === model) return;
-    setMake(normalizedMake);
-    setModel(normalizedModel);
-    runSearch(1, { make: normalizedMake, model: normalizedModel });
+    runSearch(1, { make: normalizedMake, model: normalizedModel, trim: "", year: "" });
   }, [filtersQuery.isLoading, makes, models, make, model]);
 
   useEffect(() => {
@@ -510,14 +534,19 @@ function LeaseSpecialsPageContent() {
 
   function clearSingleFilter(key: string) {
     if (key === "make") {
-      setMake("");
-      setModel("");
-      runSearch(1, { make: "", model: "" });
+      runSearch(1, { make: "", model: "", trim: "", year: "" });
       return;
     }
     if (key === "model") {
-      setModel("");
-      runSearch(1, { model: "" });
+      runSearch(1, { model: "", trim: "", year: "" });
+      return;
+    }
+    if (key === "trim") {
+      runSearch(1, { trim: "" });
+      return;
+    }
+    if (key === "year") {
+      runSearch(1, { year: "" });
       return;
     }
     if (key === "maxPayment") {
@@ -538,12 +567,6 @@ function LeaseSpecialsPageContent() {
   }
 
   function clearFilters() {
-    setMake("");
-    setModel("");
-    setSort(sortOptions[0].value);
-    setMaxPayment(defaultMaxPayment);
-    setMaxPrice(defaultMaxPrice);
-    setPage(1);
     router.replace(pathname);
   }
 
@@ -551,10 +574,10 @@ function LeaseSpecialsPageContent() {
     const first = group.vehicles[0];
     const nextMake = (first.make ?? "").trim();
     const nextModel = (first.model ?? "").trim();
+    const nextYear =
+      typeof first.year === "number" && Number.isFinite(first.year) ? String(Math.trunc(first.year)) : "";
     if (!nextMake || !nextModel) return;
-    setMake(nextMake);
-    setModel(nextModel);
-    runSearch(1, { make: nextMake, model: nextModel });
+    runSearch(1, { make: nextMake, model: nextModel, trim: "", year: nextYear });
   }
 
   return (
@@ -972,7 +995,7 @@ function LeaseSpecialsPageContent() {
               <p className="flex flex-wrap items-center justify-center gap-x-1 text-sm font-medium text-ink-700 sm:justify-start">
                 <CircleDollarSign className="h-4 w-4 shrink-0 text-brand-700" />
                 <span>{totalResults.toLocaleString()} matching cars</span>
-                {useModelGrouping && modelGroups && modelGroups.length > 0 ? (
+                {modelGroups.length > 0 ? (
                   <span className="font-normal text-ink-500">
                     · {modelGroups.length.toLocaleString()} model{modelGroups.length === 1 ? "" : "s"} (grouped)
                   </span>
@@ -993,7 +1016,6 @@ function LeaseSpecialsPageContent() {
                 <LeaseSpecialModelGroup
                   key={group.key}
                   group={group}
-                  grouped={useModelGrouping && group.vehicles.length > 1}
                   onSeeAll={() => narrowDownToGroup(group)}
                   returnUrl={searchReturnUrl}
                 />
@@ -1003,7 +1025,7 @@ function LeaseSpecialsPageContent() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-200 pt-5">
               <p className="text-sm text-ink-500">
                 Page {currentPage} of {totalPages}
-                {useModelGrouping && modelGroups && pageModelGroups.length > 0 ? (
+                {pageModelGroups.length > 0 ? (
                   <span className="text-ink-400"> · {pageModelGroups.length} model lineups on this page</span>
                 ) : null}
               </p>
@@ -1066,30 +1088,27 @@ function LeaseSpecialsSeoFooter() {
 
 function LeaseSpecialModelGroup({
   group,
-  grouped,
   onSeeAll,
   returnUrl
 }: {
   group: LeaseModelGroup;
-  grouped: boolean;
   onSeeAll: () => void;
   returnUrl?: string;
 }) {
   const primary = group.vehicles[0];
-  if (!grouped || group.vehicles.length <= 1) {
-    return <LeaseSpecialCard vehicle={primary} returnUrl={returnUrl} />;
-  }
   const totalInGroup = group.vehicles.length;
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <LeaseSpecialCard vehicle={primary} returnUrl={returnUrl} />
-      <div className="flex items-center justify-between gap-2 rounded-lg border border-ink-200 bg-white/95 px-3 py-1.5">
-        <p className="text-xs font-medium text-ink-700">{totalInGroup.toLocaleString()} cars</p>
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-ink-200 bg-white px-4 py-2.5">
+        <p className="text-sm font-medium text-ink-900">
+          {totalInGroup.toLocaleString()} {totalInGroup === 1 ? "car" : "cars"}
+        </p>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="h-7 shrink-0 rounded-full px-3 text-xs"
+          className="h-8 shrink-0 rounded-full border-ink-200 bg-white px-4 text-sm font-medium text-ink-900 hover:bg-ink-50"
           onClick={onSeeAll}
         >
           See All

@@ -154,7 +154,16 @@ function RegisterForm() {
     <div className="app-page min-h-screen">
       <SiteHeader />
       <main className="w-full overflow-x-hidden py-8 pb-[max(2rem,env(safe-area-inset-bottom,0px))] sm:py-12 sm:pb-12">
-        <div className="container-wide flex justify-center">
+        <div className="container-wide flex flex-col items-center gap-6">
+          <div className="w-full max-w-xl space-y-4 px-1 sm:px-0">
+            <p className="text-sm leading-relaxed text-ink-800 sm:text-base">
+              Register for a free account and enjoy a more personalized car shopping experience. Save your favorite vehicles,
+              compare options, shop by monthly payment, browse by category, and pick up where you left off anytime.
+            </p>
+            <p className="text-sm leading-relaxed text-ink-700 sm:text-base">
+              Your account makes it easier to find the right car, the right deal, and the right payment—all in one place.
+            </p>
+          </div>
           <Card className="market-panel lux-overlay w-full max-w-xl bg-white/95">
             <CardHeader>
               <CardTitle>{fromLead ? "Create account to track your request" : "Create Account"}</CardTitle>
