@@ -600,6 +600,7 @@ export default function VehicleDetailPage() {
     }
     return "Lease payment is based on vehicle MSRP, 1st payment, tax and license fees extra, not everyone will qualify.";
   }, [vehicleQuery.data?.monthly, vehicleQuery.data?.discounted, vehicleQuery.data?.msrp]);
+  const leaseDownDisplay = displayPrice(vehicleQuery.data?.down) ?? 0;
 
   const parseOptionalNumber = (value: string) => {
     const cleaned = value.trim();
@@ -817,7 +818,7 @@ export default function VehicleDetailPage() {
                     <div className="text-right">
                       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-brand-700">Lease payment</p>
                       <p className="text-2xl font-display font-semibold text-ink-900">
-                        ${displayPrice(vehicleQuery.data?.monthly)!.toLocaleString()}
+                        ${leaseDownDisplay.toLocaleString()} down, ${displayPrice(vehicleQuery.data?.monthly)!.toLocaleString()}
                         <span className="ml-1 text-sm font-medium text-ink-600">/mo</span>
                       </p>
                       {leasePaymentDisclosure && <p className="mt-1 max-w-[20rem] text-[11px] leading-snug text-ink-500">{leasePaymentDisclosure}</p>}
@@ -1009,7 +1010,7 @@ export default function VehicleDetailPage() {
                           <div className="mb-3 rounded-lg border border-brand-200 bg-white px-3 py-2.5">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-700">Lease payment</p>
                             <p className="text-xl font-display font-semibold text-ink-900">
-                              ${displayPrice(vehicleQuery.data?.monthly)!.toLocaleString()} /mo
+                              ${leaseDownDisplay.toLocaleString()} down, ${displayPrice(vehicleQuery.data?.monthly)!.toLocaleString()} /mo
                             </p>
                             {leasePaymentDisclosure && <p className="mt-1 text-[11px] leading-snug text-ink-500">{leasePaymentDisclosure}</p>}
                           </div>

@@ -1523,7 +1523,12 @@ function SearchPageContent() {
                 </Card>
               )}
               {sortedResultItems.map((vehicle) => (
-                <VehicleCard key={vehicle.vin} vehicle={vehicle} paymentMode={vehicleType === "new" && mode === "payment"} />
+                <VehicleCard
+                  key={vehicle.vin}
+                  vehicle={vehicle}
+                  paymentMode={vehicleType === "new" && mode === "payment"}
+                  selectedDownPayment={downPayment}
+                />
               ))}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-4 border-t border-ink-200 pt-6">
@@ -1562,7 +1567,15 @@ function SearchPageContent() {
   );
 }
 
-function VehicleCard({ vehicle, paymentMode }: { vehicle: Vehicle; paymentMode: boolean }) {
+function VehicleCard({
+  vehicle,
+  paymentMode,
+  selectedDownPayment
+}: {
+  vehicle: Vehicle;
+  paymentMode: boolean;
+  selectedDownPayment?: number;
+}) {
   const normalizedType = (vehicle.vehicle_type ?? "new").toString().toLowerCase();
   const normalizedCondition = (vehicle.condition ?? "").toString().toLowerCase();
   const inferredType =
@@ -1580,7 +1593,11 @@ function VehicleCard({ vehicle, paymentMode }: { vehicle: Vehicle; paymentMode: 
     ? firstDisplayPrice(vehicle.estimated_monthly, vehicle.monthly)
     : firstDisplayPrice(vehicle.monthly, vehicle.estimated_monthly);
   const downPrice = displayPrice(vehicle.down);
-  const downForBadge = downPrice ?? 0;
+  const downForBadge = paymentMode
+    ? typeof selectedDownPayment === "number" && Number.isFinite(selectedDownPayment)
+      ? Math.max(0, Math.round(selectedDownPayment))
+      : 0
+    : downPrice ?? 0;
   const fullName = `${vehicle.year ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""}`.trim();
   const subtitle = `${vehicle.trim ?? "Trim unavailable"} | ${isUsed ? "Used car" : "New car"}`;
   const imageUrl = pickVehicleImage(vehicle);
@@ -1608,7 +1625,7 @@ function VehicleCard({ vehicle, paymentMode }: { vehicle: Vehicle; paymentMode: 
             />
           </Link>
           {imageBadgeLeaseLabel && (
-            <div className="absolute bottom-2 left-2 hidden rounded-full bg-emerald-600/95 px-2.5 py-1 text-[11px] font-semibold text-white shadow sm:bottom-3 sm:left-3 sm:text-xs">
+            <div className="absolute bottom-3 left-3 rounded-md bg-emerald-600/95 px-3 py-1.5 text-xs font-semibold text-white shadow-md sm:text-sm">
               {imageBadgeLeaseLabel}
             </div>
           )}

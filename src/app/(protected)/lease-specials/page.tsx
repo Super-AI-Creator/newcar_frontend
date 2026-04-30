@@ -348,7 +348,8 @@ function LeaseSpecialsPageContent() {
     return items;
   }, [resultItems, sort]);
 
-  const useModelGrouping = clientOnlySorts.has(sort) && !model.trim();
+  const useModelGrouping =
+    searchParams.get("grouped") === "true" && clientOnlySorts.has(sort) && !model.trim();
 
   const modelGroups = useMemo(() => {
     if (!useModelGrouping) return null;
@@ -1186,7 +1187,6 @@ function LeaseSpecialCard({
               {monthlyDisplay !== undefined ? `$${downForBadge.toLocaleString()} down, $${monthlyDisplay.toLocaleString()}/mo lease` : "Monthly offer coming soon"}
               <Info className="h-4 w-4 text-ink-500" />
             </p>
-            {leasePaymentDisclosure && <p className="mt-1 text-[11px] leading-snug text-ink-600">{leasePaymentDisclosure}</p>}
             {downDisplay !== undefined && <p className="mt-1 text-xs text-ink-700">Down ${downDisplay.toLocaleString()}</p>}
             {leaseMeta.length > 0 && <p className="mt-1 text-xs text-ink-700">{leaseMeta.join(" | ")}</p>}
           </div>

@@ -61,6 +61,7 @@ export default function LeaseSpecials({
             const discounted = displayPrice(vehicle.discounted);
             const down = displayPrice(vehicle.down);
             const monthly = displayPrice(vehicle.monthly);
+            const downForBadge = down ?? 0;
             return (
           <Card key={vehicle.vin} className="search-card group overflow-hidden border-ink-200 bg-white transition-[transform,box-shadow,border-color] duration-150 motion-safe:hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg">
             <CardContent className="p-0">
@@ -80,7 +81,7 @@ export default function LeaseSpecials({
                 </Link>
                 {monthly !== undefined && (
                   <div className="absolute bottom-3 left-3 rounded-full bg-emerald-600/95 px-3 py-1 text-xs font-semibold text-white shadow">
-                    ${monthly.toLocaleString()}/mo
+                    ${downForBadge.toLocaleString()} down, ${monthly.toLocaleString()}/mo
                   </div>
                 )}
               </div>
@@ -93,7 +94,7 @@ export default function LeaseSpecials({
                 <div className="text-sm text-ink-700">
                   {discounted !== undefined && <p>Discounted Price: ${discounted.toLocaleString()}</p>}
                   {down !== undefined && <p>Down Payment: ${down.toLocaleString()}</p>}
-                  {monthly !== undefined && <p>Monthly Payment: ${monthly.toLocaleString()}/mo</p>}
+                  {monthly !== undefined && <p>Monthly Payment: ${downForBadge.toLocaleString()} down, ${monthly.toLocaleString()}/mo</p>}
                   {down === undefined && monthly === undefined && discounted === undefined && (
                       <p>Call for custom lease special.</p>
                     )}
