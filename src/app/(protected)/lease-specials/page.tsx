@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import SiteHeader from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,14 +14,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpDown, CarFront, CircleDollarSign, Info, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowUpDown, CarFront, ChevronDown, CircleDollarSign, Info, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import { api, type Vehicle } from "@/lib/api";
+import { displayPrice, firstDisplayPrice } from "@/lib/vehicle-pricing";
 import { DEFAULT_CAR_IMAGE, pickVehicleImage } from "@/lib/vehicle-image";
 import DealSearchLoader from "@/components/deal-search-loader";
+import MarketplaceLeaseFinanceTabs from "@/components/marketplace-lease-finance-tabs";
 import LeadFormButton from "@/components/lead-form-button";
-import { useAuth } from "@/components/auth-provider";
-import { useToast } from "@/components/toast-provider";
+import { LEASE_SPECIALS_FAQ_ITEMS } from "@/content/marketing-faq";
 
 const sortOptions = [
   { value: "payment_low_high", label: "Lowest payment first" },
@@ -100,6 +101,39 @@ function getBackendSort(sort: string) {
   return clientOnlySorts.has(sort) ? undefined : sort;
 }
 
+function modelGroupKey(vehicle: Vehicle): string {
+  const mk = (vehicle.make ?? "").trim().toLowerCase();
+  const md = (vehicle.model ?? "").trim().toLowerCase();
+  if (!mk && !md) return `vin:${(vehicle.vin ?? "").toUpperCase()}`;
+  return `${mk}::${md}`;
+}
+
+type LeaseModelGroup = {
+  key: string;
+  groupLabel: string;
+  vehicles: Vehicle[];
+};
+
+/** Preserve sort order: first row per make+model is the “featured” listing. */
+function buildLeaseModelGroups(sorted: Vehicle[]): LeaseModelGroup[] {
+  const map = new Map<string, Vehicle[]>();
+  const order: string[] = [];
+  for (const v of sorted) {
+    const k = modelGroupKey(v);
+    if (!map.has(k)) {
+      map.set(k, []);
+      order.push(k);
+    }
+    map.get(k)!.push(v);
+  }
+  return order.map((key) => {
+    const vehicles = map.get(key)!;
+    const v0 = vehicles[0];
+    const groupLabel = [v0.make, v0.model].filter(Boolean).join(" ").trim() || "Vehicle";
+    return { key, groupLabel, vehicles };
+  });
+}
+
 export default function LeaseSpecialsPage() {
   return (
     <Suspense fallback={<LeaseSpecialsPageFallback />}>
@@ -123,8 +157,6 @@ function LeaseSpecialsPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const viewMode = searchParams.get("view") === "all" ? "all" : "lease";
-
   const [make, setMake] = useState(searchParams.get("make") ?? "");
   const [model, setModel] = useState(searchParams.get("model") ?? "");
   const [sort, setSort] = useState(searchParams.get("sort") ?? sortOptions[0].value);
@@ -137,8 +169,8 @@ function LeaseSpecialsPageContent() {
   const filtersQuery = useQuery({
     queryKey: ["filters", "lease-specials"],
     queryFn: () => api.getFilters({ vehicle_type: "new", offers_only: true }),
-    staleTime: 60_000,
-    refetchOnWindowFocus: false
+    staleTime: 0,
+    refetchOnWindowFocus: true
   });
 
   const sanitizeOptions = (items: string[] | undefined) =>
@@ -148,8 +180,16 @@ function LeaseSpecialsPageContent() {
   const modelsByMake = filtersQuery.data?.models_by_make ?? {};
   const models = useMemo(() => {
     if (!make) return [];
-    return sanitizeOptions(modelsByMake[make]);
-  }, [make, modelsByMake]);
+    const candidateModels = sanitizeOptions(modelsByMake[make]);
+    if (candidateModels.length === 0) return candidateModels;
+    const makeNames = new Set(makes.map((item) => item.trim().toLowerCase()));
+    const selectedMake = make.trim().toLowerCase();
+    // Defensive cleanup: some feeds leak make names into model lists.
+    return candidateModels.filter((item) => {
+      const normalized = item.trim().toLowerCase();
+      return normalized === selectedMake || !makeNames.has(normalized);
+    });
+  }, [make, makes, modelsByMake]);
 
   const params = useMemo(
     () => ({
@@ -170,15 +210,15 @@ function LeaseSpecialsPageContent() {
   const resultsQuery = useQuery({
     queryKey: ["lease-specials", appliedParams],
     queryFn: () => api.search(appliedParams),
-    staleTime: 20_000,
-    refetchOnWindowFocus: false
+    staleTime: 0,
+    refetchOnWindowFocus: true
   });
 
   const resultItems = resultsQuery.data?.results ?? [];
   const sortedResultItems = useMemo(() => {
     const items = [...resultItems];
     const vehiclePrice = (item: Vehicle, fallback: number) =>
-      item.discounted ?? item.msrp ?? item.listed_price ?? fallback;
+      firstDisplayPrice(item.discounted, item.msrp, item.listed_price) ?? fallback;
     const byTextAsc = (a: string | undefined, b: string | undefined) => {
       const left = (a ?? "").trim();
       const right = (b ?? "").trim();
@@ -189,11 +229,11 @@ function LeaseSpecialsPageContent() {
 
     if (sort === "payment_low_high") {
       items.sort((a, b) => {
-        const aHasMonthly = typeof a.monthly === "number";
-        const bHasMonthly = typeof b.monthly === "number";
+        const aMonthly = displayPrice(a.monthly);
+        const bMonthly = displayPrice(b.monthly);
+        const aHasMonthly = aMonthly !== undefined;
+        const bHasMonthly = bMonthly !== undefined;
         if (aHasMonthly && bHasMonthly) {
-          const aMonthly = a.monthly as number;
-          const bMonthly = b.monthly as number;
           if (aMonthly !== bMonthly) return aMonthly - bMonthly;
         } else if (aHasMonthly !== bHasMonthly) {
           return aHasMonthly ? -1 : 1;
@@ -205,11 +245,11 @@ function LeaseSpecialsPageContent() {
       });
     } else if (sort === "payment_high_low") {
       items.sort((a, b) => {
-        const aHasMonthly = typeof a.monthly === "number";
-        const bHasMonthly = typeof b.monthly === "number";
+        const aMonthly = displayPrice(a.monthly);
+        const bMonthly = displayPrice(b.monthly);
+        const aHasMonthly = aMonthly !== undefined;
+        const bHasMonthly = bMonthly !== undefined;
         if (aHasMonthly && bHasMonthly) {
-          const aMonthly = a.monthly as number;
-          const bMonthly = b.monthly as number;
           if (aMonthly !== bMonthly) return bMonthly - aMonthly;
         } else if (aHasMonthly !== bHasMonthly) {
           return aHasMonthly ? -1 : 1;
@@ -305,10 +345,42 @@ function LeaseSpecialsPageContent() {
     }
     return items;
   }, [resultItems, sort]);
+
+  const useModelGrouping = clientOnlySorts.has(sort) && !model.trim();
+
+  const modelGroups = useMemo(() => {
+    if (!useModelGrouping) return null;
+    return buildLeaseModelGroups(sortedResultItems);
+  }, [useModelGrouping, sortedResultItems]);
+
   const totalResults = clientOnlySorts.has(sort)
     ? sortedResultItems.length
     : resultsQuery.data?.total ?? sortedResultItems.length;
-  const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
+
+  const totalPages = useMemo(() => {
+    if (useModelGrouping && modelGroups) {
+      return Math.max(1, Math.ceil(modelGroups.length / pageSize));
+    }
+    return Math.max(1, Math.ceil(totalResults / pageSize));
+  }, [useModelGrouping, modelGroups, totalResults]);
+
+  const currentPage = Math.min(page, totalPages);
+
+  const pageModelGroups = useMemo((): LeaseModelGroup[] => {
+    if (useModelGrouping && modelGroups) {
+      const start = (currentPage - 1) * pageSize;
+      return modelGroups.slice(start, start + pageSize);
+    }
+    const slice = clientOnlySorts.has(sort)
+      ? sortedResultItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+      : sortedResultItems;
+    return slice.map((v) => ({
+      key: v.vin ?? `idx-${v.make}-${v.model}`,
+      groupLabel: "",
+      vehicles: [v]
+    }));
+  }, [useModelGrouping, modelGroups, sortedResultItems, sort, currentPage]);
+
   const activeFilters = useMemo(() => {
     const chips: Array<{ key: string; label: string }> = [];
     if (make) chips.push({ key: "make", label: `Make: ${make}` });
@@ -431,6 +503,11 @@ function LeaseSpecialsPageContent() {
     runSearch(1, { make: normalizedMake, model: normalizedModel });
   }, [filtersQuery.isLoading, makes, models, make, model]);
 
+  useEffect(() => {
+    if (page <= totalPages) return;
+    runSearch(totalPages);
+  }, [page, totalPages]);
+
   function clearSingleFilter(key: string) {
     if (key === "make") {
       setMake("");
@@ -470,34 +547,25 @@ function LeaseSpecialsPageContent() {
     router.replace(pathname);
   }
 
+  function narrowDownToGroup(group: LeaseModelGroup) {
+    const first = group.vehicles[0];
+    const nextMake = (first.make ?? "").trim();
+    const nextModel = (first.model ?? "").trim();
+    if (!nextMake || !nextModel) return;
+    setMake(nextMake);
+    setModel(nextModel);
+    runSearch(1, { make: nextMake, model: nextModel });
+  }
+
   return (
     <div className="app-page min-h-screen">
       <SiteHeader />
       <main className="app-main space-y-4 sm:space-y-6">
-        <section className="tc-fade-up w-full">
-          <Tabs
-            value={viewMode}
-            onValueChange={(value) => {
-              if (value === "all") {
-                router.push("/search?vehicle_type=all");
-                return;
-              }
-              router.push("/lease-specials");
-            }}
-          >
-            <TabsList className="grid w-full grid-cols-2 bg-ink-100 p-1 sm:inline-flex sm:w-auto">
-              <TabsTrigger value="lease" className="w-full max-[420px]:px-2 max-[420px]:text-xs">Lease Specials</TabsTrigger>
-              <TabsTrigger value="all" className="w-full max-[420px]:px-2 max-[420px]:text-xs">All Vehicles</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </section>
-
         <section className="tc-fade-up relative w-full overflow-hidden rounded-3xl border border-ink-200 bg-white px-4 pb-4 pt-4 shadow-sm sm:px-7 sm:pb-6 sm:pt-5">
           <div className="relative">
             <img
               src="/images/ribon.png"
-              alt=""
-              aria-hidden
+              alt="A vibrant red satin ribbon bow tied diagonally across."
               className="pointer-events-none absolute m-0 p-0 right-0 top-0 w-64 max-w-none translate-x-[38%] -translate-y-[38%] opacity-95 sm:w-80 sm:translate-x-[42%] sm:-translate-y-[42%]"
             />
             <p className="market-kicker">Lease Offers</p>
@@ -505,8 +573,10 @@ function LeaseSpecialsPageContent() {
               <CarFront className="h-7 w-7 text-brand-700" />
               Lease Specials
             </h1>
-            <p className="mt-2 hidden max-w-2xl text-sm text-ink-600 sm:block">
-              Live inventory with active lease offers. Use the narrow down menu to find your best deal fast.
+            <p className="mt-2 max-w-2xl text-sm text-ink-600 sm:max-w-3xl">
+              Live <strong>online lease specials in California</strong> with real payments. Use filters to{" "}
+              <strong>compare car lease offers in California</strong> by monthly payment, price, make, and model — including{" "}
+              <strong>new car lease specials</strong> when available.
             </p>
           </div>
         </section>
@@ -885,49 +955,63 @@ function LeaseSpecialsPageContent() {
           </Card>
         )}
 
+        {resultsQuery.isError && (
+          <Card className="bg-white">
+            <CardContent className="flex flex-col items-start gap-3 py-6">
+              <p className="text-sm text-red-700">We could not load lease specials right now. Please try again.</p>
+              <Button size="sm" onClick={() => resultsQuery.refetch()}>
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {resultsQuery.data && (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 pb-3">
-              <p className="flex items-center gap-1 text-sm font-medium text-ink-700">
-                <CircleDollarSign className="h-4 w-4 text-brand-700" />
-              {totalResults.toLocaleString()} matching cars
+            <div className="flex flex-col gap-2 border-b border-ink-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="flex flex-wrap items-center justify-center gap-x-1 text-sm font-medium text-ink-700 sm:justify-start">
+                <CircleDollarSign className="h-4 w-4 shrink-0 text-brand-700" />
+                <span>{totalResults.toLocaleString()} matching cars</span>
+                {useModelGrouping && modelGroups && modelGroups.length > 0 ? (
+                  <span className="font-normal text-ink-500">
+                    · {modelGroups.length.toLocaleString()} model{modelGroups.length === 1 ? "" : "s"} (grouped)
+                  </span>
+                ) : null}
               </p>
-              <div className="hidden max-w-xl text-right text-sm leading-snug text-ink-500 sm:block">
-                Monthly lease payments are estimates and depend on multiple factors; not everyone will qualify. Please confirm details with your auto broker.
+              <div className="flex justify-center sm:justify-end">
+                <MarketplaceLeaseFinanceTabs active="lease" />
               </div>
             </div>
 
-            {(() => {
-              const pageItems = clientOnlySorts.has(sort)
-                ? sortedResultItems.slice((page - 1) * pageSize, page * pageSize)
-                : sortedResultItems;
-              return (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {pageItems.length === 0 && (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {pageModelGroups.length === 0 && (
                 <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
-                  <CardContent className="py-10 text-center text-ink-500">
-                    {emptyStateMessage}
-                  </CardContent>
+                  <CardContent className="py-10 text-center text-ink-500">{emptyStateMessage}</CardContent>
                 </Card>
               )}
-              {pageItems.map((vehicle) => (
-                <LeaseSpecialCard
-                  key={vehicle.vin}
-                  vehicle={vehicle}
+              {pageModelGroups.map((group) => (
+                <LeaseSpecialModelGroup
+                  key={group.key}
+                  group={group}
+                  grouped={useModelGrouping && group.vehicles.length > 1}
+                  onSeeAll={() => narrowDownToGroup(group)}
                   returnUrl={searchReturnUrl}
                 />
               ))}
-                </div>
-              );
-            })()}
+            </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-200 pt-5">
-              <p className="text-sm text-ink-500">Page {page} of {totalPages}</p>
+              <p className="text-sm text-ink-500">
+                Page {currentPage} of {totalPages}
+                {useModelGrouping && modelGroups && pageModelGroups.length > 0 ? (
+                  <span className="text-ink-400"> · {pageModelGroups.length} model lineups on this page</span>
+                ) : null}
+              </p>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => runSearch(page - 1)}>
+                <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => runSearch(currentPage - 1)}>
                   Previous
                 </Button>
-                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => runSearch(page + 1)}>
+                <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => runSearch(currentPage + 1)}>
                   Next
                 </Button>
               </div>
@@ -936,49 +1020,107 @@ function LeaseSpecialsPageContent() {
         )}
         </div>
         </div>
+
+        <LeaseSpecialsSeoFooter />
       </main>
+      <SiteFooter />
+    </div>
+  );
+}
+
+function LeaseSpecialsSeoFooter() {
+  return (
+    <section className="tc-fade-up border-t border-ink-200/80 pt-2">
+      <details className="overflow-hidden rounded-xl border border-ink-200 bg-white">
+        <summary className="group flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-600 sm:px-5">
+          Lease specials info and FAQs
+          <ChevronDown className="h-4 w-4 shrink-0 text-ink-400 transition-transform duration-200 group-open:rotate-180" aria-hidden />
+        </summary>
+        <div className="space-y-4 border-t border-ink-100 px-4 pb-4 pt-3 text-xs leading-relaxed text-ink-600 sm:px-5">
+          <p>
+            Browse <strong>new car lease specials</strong> with live payment estimates so you can compare offers by make, model,
+            monthly budget, and price in one place.
+          </p>
+          <p>
+            Filters help you quickly narrow deals across California, including Los Angeles, Orange County, Ventura, and Santa
+            Barbara, without bouncing between dealership sites.
+          </p>
+          <div className="overflow-hidden rounded-lg border border-ink-100 bg-ink-50/50">
+            {LEASE_SPECIALS_FAQ_ITEMS.map((faq, index) => (
+              <details key={index} className="group border-b border-ink-100 last:border-b-0">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-left text-xs font-semibold text-ink-800">
+                  <span className="min-w-0 flex-1">{faq.question}</span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-ink-400 transition-transform duration-200 group-open:rotate-180" aria-hidden />
+                </summary>
+                <div className="border-t border-ink-100 px-3 pb-3 pt-2 text-xs leading-relaxed text-ink-600">
+                  {faq.answer}
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
+      </details>
+    </section>
+  );
+}
+
+function LeaseSpecialModelGroup({
+  group,
+  grouped,
+  onSeeAll,
+  returnUrl
+}: {
+  group: LeaseModelGroup;
+  grouped: boolean;
+  onSeeAll: () => void;
+  returnUrl?: string;
+}) {
+  const primary = group.vehicles[0];
+  if (!grouped || group.vehicles.length <= 1) {
+    return <LeaseSpecialCard vehicle={primary} returnUrl={returnUrl} />;
+  }
+  const totalInGroup = group.vehicles.length;
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <LeaseSpecialCard vehicle={primary} returnUrl={returnUrl} />
+      <div className="flex items-center justify-between gap-2 rounded-lg border border-ink-200 bg-white/95 px-3 py-1.5">
+        <p className="text-xs font-medium text-ink-700">{totalInGroup.toLocaleString()} cars</p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 shrink-0 rounded-full px-3 text-xs"
+          onClick={onSeeAll}
+        >
+          See All
+        </Button>
+      </div>
     </div>
   );
 }
 
 function LeaseSpecialCard({
   vehicle,
-  returnUrl
+  returnUrl: _returnUrl
 }: {
   vehicle: Vehicle;
   returnUrl?: string;
 }) {
   const router = useRouter();
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const primaryPrice = vehicle.discounted ?? vehicle.msrp ?? vehicle.listed_price ?? undefined;
+  const monthlyDisplay = displayPrice(vehicle.monthly);
+  const downDisplay = displayPrice(vehicle.down);
+  const downForBadge = downDisplay ?? 0;
   const detailsHref = `/vehicles/${encodeURIComponent(vehicle.vin)}`;
   const detailsActionHref = detailsHref;
   const fullName = `${vehicle.year ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""} ${vehicle.trim ?? ""}`.trim();
   const imageUrl = pickVehicleImage(vehicle);
+  const msrpDisplay = displayPrice(vehicle.msrp);
   const checkAvailabilityHref = `/credit-application?vin=${encodeURIComponent(vehicle.vin)}&make=${encodeURIComponent(vehicle.make ?? "")}&model=${encodeURIComponent(vehicle.model ?? "")}&trim=${encodeURIComponent(vehicle.trim ?? "")}`;
   const leaseMeta: string[] = [];
   if (vehicle.term_months && vehicle.term_months > 0) leaseMeta.push(`${vehicle.term_months} mo`);
   if (vehicle.miles_per_year && vehicle.miles_per_year > 0) leaseMeta.push(`${vehicle.miles_per_year.toLocaleString()} mi/yr`);
-  const leaseBase = vehicle.discounted ?? vehicle.msrp;
-  const leasePaymentDisclosure =
-    vehicle.monthly !== undefined
-      ? leaseBase !== undefined
-        ? `Lease payment is based on offer-sheet MSRP $${leaseBase.toLocaleString()}, not discounted price.`
-        : "Lease payment is based on offer-sheet MSRP and lease structure, not discounted price."
-      : null;
 
-  const handleCheckAvailability = () => {
-    if (!user) {
-      toast({
-        variant: "error",
-        title: "Login to continue",
-        description: "Please sign in to check availability."
-      });
-      const nextReturnUrl = returnUrl || "/lease-specials";
-      router.push(`/login?returnUrl=${encodeURIComponent(nextReturnUrl)}`);
-      return;
-    }
+  const handleApplyForFinancing = () => {
     router.push(checkAvailabilityHref);
   };
 
@@ -999,9 +1141,9 @@ function LeaseSpecialCard({
               }}
             />
           </Link>
-          {vehicle.monthly !== undefined && vehicle.monthly !== null && (
+          {monthlyDisplay !== undefined && (
             <div className="absolute bottom-2 left-2 rounded-full bg-emerald-600/95 px-2.5 py-1 text-[11px] font-semibold text-white shadow sm:bottom-3 sm:left-3 sm:text-xs">
-              ${vehicle.monthly.toLocaleString()}/mo
+              ${downForBadge.toLocaleString()} down, ${monthlyDisplay.toLocaleString()}/mo
             </div>
           )}
         </div>
@@ -1014,18 +1156,16 @@ function LeaseSpecialCard({
           </h3>
 
           <div className="border-t border-ink-300 pt-2">
-            <div className="flex items-end justify-between gap-3">
-              <p className="text-[22px] font-bold leading-none text-ink-900 max-[420px]:text-xl sm:text-xl">
-                {primaryPrice !== undefined ? `$${primaryPrice.toLocaleString()}` : "Call for price"}
+            {msrpDisplay !== undefined && (
+              <p className="text-2xl font-semibold tracking-tight text-ink-900">
+                ${msrpDisplay.toLocaleString()} <span className="text-sm font-medium text-ink-600">MSRP</span>
               </p>
-              {vehicle.msrp !== undefined && <p className="hidden text-xs text-ink-700 sm:block">MSRP ${vehicle.msrp.toLocaleString()}</p>}
-            </div>
+            )}
             <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 sm:text-xs">
-              {vehicle.monthly !== undefined ? `$${vehicle.monthly.toLocaleString()}/mo lease` : "Monthly offer coming soon"}
+              {monthlyDisplay !== undefined ? `$${downForBadge.toLocaleString()} down, $${monthlyDisplay.toLocaleString()}/mo lease` : "Monthly offer coming soon"}
               <Info className="h-4 w-4 text-ink-500" />
             </p>
-            {leasePaymentDisclosure && <p className="mt-1 text-[11px] leading-snug text-ink-600">{leasePaymentDisclosure}</p>}
-            {vehicle.down !== undefined && <p className="mt-1 text-xs text-ink-700">Down ${vehicle.down.toLocaleString()}</p>}
+            {downDisplay !== undefined && <p className="mt-1 text-xs text-ink-700">Down ${downDisplay.toLocaleString()}</p>}
             {leaseMeta.length > 0 && <p className="mt-1 text-xs text-ink-700">{leaseMeta.join(" | ")}</p>}
           </div>
 
@@ -1043,7 +1183,7 @@ function LeaseSpecialCard({
               <span className="max-[420px]:hidden">Check Availability</span>
               <span className="hidden max-[420px]:inline">Check</span>
             </LeadFormButton>
-            <Button size="sm" variant="outline" className="rounded-full" onClick={handleCheckAvailability}>
+            <Button size="sm" variant="outline" className="rounded-full" onClick={handleApplyForFinancing}>
               <span className="max-[420px]:hidden">Apply for financing</span>
               <span className="hidden max-[420px]:inline">Apply</span>
             </Button>

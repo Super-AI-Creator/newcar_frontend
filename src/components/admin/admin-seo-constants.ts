@@ -5,6 +5,9 @@ export const SEO_PRESET_PAGE_KEYS = [
   "lease_specials",
   "reviews",
   "credit_application",
+  "contact_us",
+  "why_us",
+  "about_us",
 ] as const;
 
 export type SeoJsonLdStarter = { id: string; label: string; template: string };
@@ -35,7 +38,7 @@ export const SEO_JSON_LD_STARTERS: SeoJsonLdStarter[] = [
     "addressLocality": "Oxnard",
     "addressRegion": "CA",
     "postalCode": "93036",
-    "streetAddress": "2671 Ventura Blvd Suite"
+    "streetAddress": "2671 Ventura Blvd"
   }
 }`,
   },

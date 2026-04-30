@@ -5,10 +5,10 @@ import Image from "next/image";
 import { normalizeLegacyPublicImageUrl } from "@/lib/landing-hero-slides";
 
 const LANDING_SLIDES = [
-  { src: "/images/landing-1.jpg", alt: "New car delivery", focus: "center" },
-  { src: "/images/landing-2.jpg", alt: "New car ready for delivery", focus: "center" },
-  { src: "/images/landing-3.jpg", alt: "Car with red bow", focus: "center" },
-  { src: "/images/landing-4.jpg", alt: "Home delivery", focus: "center" },
+  { src: "/images/landing-1.jpg", alt: "A happy woman leans against a new red Subaru.", focus: "center" },
+  { src: "/images/landing-2.jpg", alt: "A happy family posing with their new Honda Civic.", focus: "center" },
+  { src: "/images/landing-3.jpg", alt: "Four people posing with thumbs up beside three cars.", focus: "center" },
+  { src: "/images/landing-4.jpg", alt: "Two men shaking hands in front of a BMW.", focus: "center" },
 ];
 
 const ROTATE_MS = 5000;
@@ -115,7 +115,7 @@ export default function LandingHeroCarousel({
                   priority={priority && i === 0}
                   className={`object-contain object-center ${imageClassName}`}
                   style={{ objectPosition: focusToCss(slide.focus) }}
-                  sizes="100vw"
+                  sizes="(max-width: 767px) 100vw, 50vw"
                   onLoadingComplete={() => markLoaded(i)}
                   onError={() => markLoaded(i)}
                 />

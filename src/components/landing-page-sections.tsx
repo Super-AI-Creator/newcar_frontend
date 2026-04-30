@@ -6,13 +6,17 @@ import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle } from "lucide-react";
-import { api, type LandingHeroFallingPhrases } from "@/lib/api";
+import { api, type LandingHeroFallingPhrases, type LandingPageContentRecord, type Vehicle } from "@/lib/api";
 import { normalizeLegacyPublicImageUrl } from "@/lib/landing-hero-slides";
 import LandingHeroCarousel from "@/components/landing-hero-carousel";
 import HeroFallingPhrases from "@/components/hero-falling-phrases";
 import LeaseSpecials from "@/components/lease-specials";
 import HomeShopOptions from "@/components/home-shop-options";
 import HomeTestimonials from "@/components/home-testimonials";
+import TradeInValueDialog from "@/components/trade-in-value-dialog";
+import { HomeSeoIntroSection } from "@/components/marketing-seo-sections";
+import { MarketingFaqSection } from "@/components/marketing-faq-section";
+import { HOME_FAQ_ITEMS } from "@/content/marketing-faq";
 import { BadgeDollarSign, Building2, ChevronRight, MapPin, Gauge, ShieldCheck } from "lucide-react";
 
 const DEFAULT_HERO: {
@@ -38,6 +42,20 @@ const DEFAULT_HOW = [
   { image_url: "/images/deal-1.jpg", label: "Get Your Best Rate", image_focus: "center" },
   { image_url: "/images/panel-cars.jpg", label: "Home Delivery With a Bow", image_focus: "center" },
 ];
+
+/** SEO / accessibility copy for default hero photography (matches /images/landing-*.jpg). */
+const LANDING_HERO_ALT_BY_FILE: Record<string, string> = {
+  "landing-1.jpg": "A happy woman leans against a new red Subaru.",
+  "landing-2.jpg": "A happy family posing with their new Honda Civic.",
+  "landing-3.jpg": "Four people posing with thumbs up beside three cars.",
+  "landing-4.jpg": "Two men shaking hands in front of a BMW."
+};
+
+function landingHeroSlideAlt(src: string, index: number): string {
+  const path = normalizeLegacyPublicImageUrl(typeof src === "string" ? src : "");
+  const file = path.split("/").pop()?.split("?")[0] ?? "";
+  return LANDING_HERO_ALT_BY_FILE[file] ?? `Hero slide ${index + 1}`;
+}
 
 function SectionShimmerLine({ className }: { className: string }) {
   return (
@@ -118,7 +136,35 @@ function FeaturedOffersSkeleton() {
   );
 }
 
-export default function LandingPageSections() {
+type FiltersPayload = {
+  makes?: string[];
+  models?: string[];
+  trims?: string[];
+  models_by_make?: Record<string, string[]>;
+  trims_by_make_model?: Record<string, string[]>;
+};
+
+type SearchPayload = { results: Vehicle[]; total: number };
+
+type Props = {
+  initialLandingData?: LandingPageContentRecord;
+  initialFilters?: FiltersPayload;
+  initialSpecials?: SearchPayload;
+  initialTestimonials?: Array<{
+    id: string;
+    quote: string;
+    author: string;
+    title?: string | null;
+    image_url?: string | null;
+  }>;
+};
+
+export default function LandingPageSections({
+  initialLandingData,
+  initialFilters,
+  initialSpecials,
+  initialTestimonials,
+}: Props = {}) {
   const [heroImagesReady, setHeroImagesReady] = useState(false);
   const [heroUiMounted, setHeroUiMounted] = useState(false);
   useEffect(() => {
@@ -131,18 +177,30 @@ export default function LandingPageSections() {
   const { data } = useQuery({
     queryKey: ["landing-page"],
     queryFn: () => api.getLandingPage(),
+    initialData: initialLandingData,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
   const filtersQuery = useQuery({
     queryKey: ["home-shop-options-filters"],
     queryFn: () => api.getFilters({ vehicle_type: "new" }),
+    initialData: initialFilters,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
   const specialsQuery = useQuery({
     queryKey: ["homepage-lease-specials"],
     queryFn: () => api.homepageSpecials({ limit: 6 }),
+    initialData: initialSpecials,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
   const testimonialsQuery = useQuery({
     queryKey: ["testimonials"],
     queryFn: () => api.getTestimonials(),
+    initialData: initialTestimonials,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const hero = data?.hero ?? DEFAULT_HERO;
@@ -164,7 +222,7 @@ export default function LandingPageSections() {
   const slideFocusRaw = Array.isArray(heroSlideFocus) && heroSlideFocus.length ? heroSlideFocus : defaultSlideFocus;
   const slides = slideUrls.map((src, i) => ({
     src,
-    alt: `Slide ${i + 1}`,
+    alt: landingHeroSlideAlt(src, i),
     focus: slideFocusRaw[i] ?? "center",
   }));
   const carouselSlides = slides;
@@ -221,14 +279,7 @@ export default function LandingPageSections() {
                   <Button asChild size="lg" className="rounded-xl">
                     <Link href="/lease-specials">Lease Specials</Link>
                   </Button>
-                  <Button
-                    asChild
-                    size="lg"
-                    variant="outline"
-                    className="rounded-xl border-white/60 bg-white/10 text-white shadow-sm hover:border-white hover:bg-white hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900"
-                  >
-                    <a href="https://newcarsuperstore.typeform.com/to/lX0SiNPY" target="_blank" rel="noreferrer noopener">Trade in Value</a>
-                  </Button>
+                  <TradeInValueDialog />
                 </div>
                 <p className="mt-3 text-xs text-zinc-300/90">Most people finish browsing in a few minutes.</p>
               </div>
@@ -238,17 +289,17 @@ export default function LandingPageSections() {
       </section>
 
       <>
-        <HomeShopOptions initialFilters={filtersQuery.data} />
-
-          <section className="border-b border-ink-200/80 bg-white/80 py-8 sm:py-10">
-            <div className="container-wide">
-              <h2 className="font-display text-xl font-semibold text-ink-900 sm:text-2xl">{lease.title}</h2>
-              <p className="mt-1 text-sm text-ink-600">{lease.subtitle}</p>
-              <div className="mt-5">
-                {showSpecialsSkeleton ? <FeaturedOffersSkeleton /> : <LeaseSpecials initialSpecials={specialsQuery.data} />}
-              </div>
+        <section className="border-b border-ink-200/80 bg-white/80 py-8 sm:py-10">
+          <div className="container-wide">
+            <h2 className="font-display text-xl font-semibold text-ink-900 sm:text-2xl">{lease.title}</h2>
+            <p className="mt-1 text-sm text-ink-600">{lease.subtitle}</p>
+            <div className="mt-5">
+              {showSpecialsSkeleton ? <FeaturedOffersSkeleton /> : <LeaseSpecials initialSpecials={specialsQuery.data} />}
             </div>
-          </section>
+          </div>
+        </section>
+
+        <HomeShopOptions initialFilters={filtersQuery.data} />
 
           <HomeTestimonials initialTestimonials={testimonialsQuery.data} />
 
@@ -352,6 +403,16 @@ export default function LandingPageSections() {
               </div>
             </div>
           </section>
+
+        <HomeSeoIntroSection />
+
+        <MarketingFaqSection
+          id="homepage-faq"
+          heading="Frequently asked questions"
+          kicker="Common questions about shopping statewide, leasing, financing, and delivery in California."
+          items={HOME_FAQ_ITEMS}
+          variant="pearl"
+        />
       </>
 
       <style jsx global>{`

@@ -13,11 +13,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { api, type ManualVehicleRecord, type Vehicle } from "@/lib/api";
 import { env } from "@/lib/env";
-import { DEFAULT_CAR_IMAGE, pickVehicleImage } from "@/lib/vehicle-image";
+import { DEFAULT_CAR_IMAGE, isFeedCsvVehicle, pickVehicleImage } from "@/lib/vehicle-image";
+import { displayPrice } from "@/lib/vehicle-pricing";
 import { useToast } from "@/components/toast-provider";
 import { useAuth } from "@/components/auth-provider";
 import LeadFormButton from "@/components/lead-form-button";
-import { CheckCircle2, CreditCard, Heart, MessageSquare, ShieldCheck } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, CreditCard, Heart, MessageSquare, ShieldCheck, X } from "lucide-react";
 
 type SpecItem = {
   label: string;
@@ -40,17 +41,39 @@ function formatSpecValue(value: unknown): string | undefined {
 }
 
 function formatMoney(value: number | null | undefined): string | undefined {
-  if (value === null || value === undefined) return undefined;
+  if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) return undefined;
   return `$${value.toLocaleString()}`;
 }
 
+/** Same asset is often repeated with different query params; dedupe so we do not render dozens of identical thumbs. */
+function canonicalPhotoDedupeKey(url: string): string {
+  const t = url.trim();
+  if (!t) return "";
+  try {
+    if (t.startsWith("http://") || t.startsWith("https://") || t.startsWith("//")) {
+      const href = t.startsWith("//") ? `https:${t}` : t;
+      const u = new URL(href);
+      const path = (u.pathname || "/").replace(/\/+$/, "") || "/";
+      return `${u.hostname.toLowerCase()}${path.toLowerCase()}`;
+    }
+  } catch {
+    /* ignore */
+  }
+  return t
+    .toLowerCase()
+    .split("?")[0]
+    .split("#")[0];
+}
+
 function normalizePhotoUrls(values: Array<string | null | undefined>) {
-  const seen = new Set<string>();
+  const seenKeys = new Set<string>();
   const out: string[] = [];
   for (const value of values) {
     const cleaned = typeof value === "string" ? value.trim() : "";
-    if (!cleaned || seen.has(cleaned)) continue;
-    seen.add(cleaned);
+    if (!cleaned) continue;
+    const key = canonicalPhotoDedupeKey(cleaned);
+    if (!key || seenKeys.has(key)) continue;
+    seenKeys.add(key);
     out.push(cleaned);
   }
   return out;
@@ -83,6 +106,8 @@ export default function VehicleDetailPage() {
   const [dealVerified, setDealVerified] = useState(false);
   const [dealReadyToProceed, setDealReadyToProceed] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(0);
+  const [photoLightboxOpen, setPhotoLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [adminVehicleType, setAdminVehicleType] = useState<"new" | "used">("new");
   const [adminYear, setAdminYear] = useState("");
   const [adminMake, setAdminMake] = useState("");
@@ -104,8 +129,8 @@ export default function VehicleDetailPage() {
   const [adminDiscountedPrice, setAdminDiscountedPrice] = useState("");
   const maskedVin = useMemo(() => {
     const clean = (vin ?? "").trim();
-    if (!clean) return "*****";
-    return `${clean.slice(0, 5)}****`;
+    if (!clean) return "Hidden";
+    return `${clean.slice(0, 3)}*************`;
   }, [vin]);
 
   const vehicleQuery = useQuery({
@@ -389,12 +414,36 @@ export default function VehicleDetailPage() {
     if (base.length === 0 && vehicleQuery.data) {
       base.push(pickVehicleImage(vehicleQuery.data));
     }
-    return base.slice(0, 5);
+    const deduped = normalizePhotoUrls(base);
+    if (isFeedCsvVehicle(vehicleQuery.data)) return deduped;
+    return deduped.slice(0, 5);
   }, [vehicleQuery.data]);
 
   useEffect(() => {
     setSelectedPhoto(0);
   }, [vin, photos.length]);
+
+  useEffect(() => {
+    if (!photoLightboxOpen || photos.length === 0) return;
+    setLightboxIndex((i) => Math.min(Math.max(0, i), photos.length - 1));
+  }, [photoLightboxOpen, photos.length]);
+
+  useEffect(() => {
+    if (!photoLightboxOpen || photos.length === 0) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPhotoLightboxOpen(false);
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setLightboxIndex((i) => (i + 1) % photos.length);
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setLightboxIndex((i) => (i - 1 + photos.length) % photos.length);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [photoLightboxOpen, photos.length]);
 
   const normalizedType = (vehicleQuery.data?.vehicle_type ?? "new").toString().toLowerCase();
   const normalizedCondition = (vehicleQuery.data?.condition ?? "").toString().toLowerCase();
@@ -409,13 +458,12 @@ export default function VehicleDetailPage() {
   const isUsed = inferredType === "used";
   const isCpo = normalizedCondition === "cpo";
   const badgeLabel = isCpo ? "CPO" : isUsed ? "USED" : "NEW";
-  const historyLink = vehicleQuery.data?.vehicle_history_url ?? vehicleQuery.data?.history_url;
   const hasOfferSheetData = useMemo(
     () =>
+      displayPrice(vehicleQuery.data?.monthly) !== undefined ||
+      displayPrice(vehicleQuery.data?.down) !== undefined ||
+      displayPrice(vehicleQuery.data?.discounted) !== undefined ||
       [
-        vehicleQuery.data?.monthly,
-        vehicleQuery.data?.down,
-        vehicleQuery.data?.discounted,
         vehicleQuery.data?.term_months,
         vehicleQuery.data?.miles_per_year
       ].some((value) => value !== undefined && value !== null),
@@ -471,7 +519,9 @@ export default function VehicleDetailPage() {
       "msrp",
       "monthly",
       "down",
-      "discounted"
+      "discounted",
+      "dealerphone",
+      "dealername"
     ]);
 
     const fallback: SpecItem[] = [];
@@ -499,7 +549,9 @@ export default function VehicleDetailPage() {
     };
 
     add("MSRP", formatMoney(vehicleQuery.data?.msrp));
-    add("Listed price", formatMoney(vehicleQuery.data?.listed_price));
+    if (isUsed) {
+      add("Listed price", formatMoney(vehicleQuery.data?.listed_price));
+    }
     add("Down payment", formatMoney(vehicleQuery.data?.down));
     add(
       "Term",
@@ -541,13 +593,14 @@ export default function VehicleDetailPage() {
     isUsed
   ]);
   const leasePaymentDisclosure = useMemo(() => {
-    if (vehicleQuery.data?.monthly === undefined || vehicleQuery.data?.monthly === null) return undefined;
+    if (displayPrice(vehicleQuery.data?.monthly) === undefined) return undefined;
     const msrpForLease = formatMoney(vehicleQuery.data?.discounted ?? vehicleQuery.data?.msrp);
     if (msrpForLease) {
       return `Lease payment is based on a MSRP ${msrpForLease} vehicle , 1st payment, tax and license fees extra, not everyone will qualify.`;
     }
     return "Lease payment is based on vehicle MSRP, 1st payment, tax and license fees extra, not everyone will qualify.";
   }, [vehicleQuery.data?.monthly, vehicleQuery.data?.discounted, vehicleQuery.data?.msrp]);
+  const leaseDownDisplay = displayPrice(vehicleQuery.data?.down) ?? 0;
 
   const parseOptionalNumber = (value: string) => {
     const cleaned = value.trim();
@@ -622,32 +675,45 @@ export default function VehicleDetailPage() {
       <SiteHeader />
       <main className="app-main space-y-6">
         <Card className="tc-fade-up border-ink-200/80 bg-white/95 shadow-luxe-soft">
-          <CardContent className="grid gap-6 py-6 md:grid-cols-[1.4fr_1fr]">
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl bg-ink-100">
+          <CardContent className="grid min-w-0 gap-6 py-6 md:grid-cols-[1.4fr_1fr]">
+            <div className="min-w-0 space-y-4">
+              <div className="min-w-0 space-y-3">
+                <div className="relative aspect-[16/10] w-full max-w-full overflow-hidden rounded-2xl bg-ink-100">
                   {photos[selectedPhoto] ? (
-                    <img
-                      src={photos[selectedPhoto]}
-                      alt={`${vehicleQuery.data?.year ?? ""} ${vehicleQuery.data?.make ?? ""} ${vehicleQuery.data?.model ?? ""}`}
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        if (e.currentTarget.src.endsWith(DEFAULT_CAR_IMAGE)) return;
-                        e.currentTarget.src = DEFAULT_CAR_IMAGE;
+                    <button
+                      type="button"
+                      className="group relative flex h-full min-h-0 w-full cursor-zoom-in items-center justify-center text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                      onClick={() => {
+                        setLightboxIndex(selectedPhoto);
+                        setPhotoLightboxOpen(true);
                       }}
-                    />
+                      aria-label="View photo fullscreen"
+                    >
+                      <img
+                        src={photos[selectedPhoto]}
+                        alt={`${vehicleQuery.data?.year ?? ""} ${vehicleQuery.data?.make ?? ""} ${vehicleQuery.data?.model ?? ""}`}
+                        className="h-full w-full max-h-full max-w-full object-contain transition group-hover:opacity-95"
+                        onError={(e) => {
+                          if (e.currentTarget.src.endsWith(DEFAULT_CAR_IMAGE)) return;
+                          e.currentTarget.src = DEFAULT_CAR_IMAGE;
+                        }}
+                      />
+                      <span className="pointer-events-none absolute bottom-2 right-2 rounded-md bg-black/55 px-2 py-1 text-xs font-medium text-white opacity-0 transition group-hover:opacity-100">
+                        Full screen
+                      </span>
+                    </button>
                   ) : (
                     <div className="flex h-full items-center justify-center text-sm text-ink-400">No image available</div>
                   )}
                 </div>
                 {photos.length > 1 && (
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="flex max-w-full gap-2 overflow-x-auto overflow-y-hidden pb-1 [-webkit-overflow-scrolling:touch]">
                     {photos.map((photo, index) => (
                       <button
-                        key={photo}
+                        key={canonicalPhotoDedupeKey(photo) || `photo-${index}`}
                         type="button"
                         onClick={() => setSelectedPhoto(index)}
-                        className={`overflow-hidden rounded-xl border transition ${
+                        className={`h-16 w-20 shrink-0 overflow-hidden rounded-xl border transition ${
                           selectedPhoto === index ? "border-brand-500 ring-2 ring-brand-200" : "border-ink-200"
                         }`}
                         aria-label={`Show image ${index + 1}`}
@@ -655,7 +721,7 @@ export default function VehicleDetailPage() {
                         <img
                           src={photo}
                           alt=""
-                          className="h-16 w-full object-cover"
+                          className="h-full w-full object-contain"
                           onError={(e) => {
                             if (e.currentTarget.src.endsWith(DEFAULT_CAR_IMAGE)) return;
                             e.currentTarget.src = DEFAULT_CAR_IMAGE;
@@ -665,12 +731,79 @@ export default function VehicleDetailPage() {
                     ))}
                   </div>
                 )}
+                <Dialog open={photoLightboxOpen} onOpenChange={setPhotoLightboxOpen}>
+                  <DialogContent
+                    hideCloseButton
+                    className="fixed inset-0 left-0 top-0 z-50 flex h-[100dvh] max-h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 gap-0 border-0 bg-black/95 p-0 text-white"
+                    aria-describedby={undefined}
+                  >
+                    <DialogTitle className="sr-only">Vehicle photos</DialogTitle>
+                    <div className="relative flex h-[100dvh] w-full flex-col">
+                      <div className="flex shrink-0 items-center justify-between px-3 py-2 sm:px-4">
+                        <p className="text-sm text-white/80">
+                          {photos.length > 0 ? `${lightboxIndex + 1} / ${photos.length}` : ""}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-10 w-10 rounded-full text-white hover:bg-white/10 hover:text-white"
+                          onClick={() => setPhotoLightboxOpen(false)}
+                          aria-label="Close fullscreen"
+                        >
+                          <X className="h-5 w-5" />
+                        </Button>
+                      </div>
+                      <div className="relative flex min-h-0 flex-1 items-center justify-center px-2 pb-6 sm:px-8">
+                        {photos[lightboxIndex] ? (
+                          <img
+                            src={photos[lightboxIndex]}
+                            alt=""
+                            className="max-h-[calc(100dvh-7rem)] max-w-full object-contain"
+                            onError={(e) => {
+                              if (e.currentTarget.src.endsWith(DEFAULT_CAR_IMAGE)) return;
+                              e.currentTarget.src = DEFAULT_CAR_IMAGE;
+                            }}
+                          />
+                        ) : null}
+                        {photos.length > 1 ? (
+                          <>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute left-1 top-1/2 h-12 w-12 -translate-y-1/2 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white sm:left-4"
+                              onClick={() =>
+                                setLightboxIndex((i) => (i - 1 + photos.length) % photos.length)
+                              }
+                              aria-label="Previous photo"
+                            >
+                              <ChevronLeft className="h-8 w-8" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-1 top-1/2 h-12 w-12 -translate-y-1/2 rounded-full bg-black/50 text-white hover:bg-black/70 hover:text-white sm:right-4"
+                              onClick={() => setLightboxIndex((i) => (i + 1) % photos.length)}
+                              aria-label="Next photo"
+                            >
+                              <ChevronRight className="h-8 w-8" />
+                            </Button>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
               <div>
                 <h1 className="text-3xl font-display font-semibold">
                   {vehicleQuery.data?.year} {vehicleQuery.data?.make} {vehicleQuery.data?.model} {vehicleQuery.data?.trim}
                 </h1>
-                <p className="text-sm text-ink-500">VIN {user ? vin : maskedVin}</p>
+                <p className="text-sm text-ink-500">
+                  VIN {user ? vin : `${maskedVin} (sign in to view full VIN)`}
+                </p>
               </div>
               <Badge className="w-fit">{badgeLabel}</Badge>
               <div className="overflow-hidden rounded-2xl border border-ink-200 bg-white">
@@ -681,11 +814,11 @@ export default function VehicleDetailPage() {
                       {hasOfferSheetData ? "Offer-sheet and key vehicle facts" : "Pricing and key vehicle facts"}
                     </p>
                   </div>
-                  {vehicleQuery.data?.monthly !== undefined && vehicleQuery.data?.monthly !== null && (
+                  {displayPrice(vehicleQuery.data?.monthly) !== undefined && (
                     <div className="text-right">
                       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-brand-700">Lease payment</p>
                       <p className="text-2xl font-display font-semibold text-ink-900">
-                        ${vehicleQuery.data.monthly.toLocaleString()}
+                        ${leaseDownDisplay.toLocaleString()} down, ${displayPrice(vehicleQuery.data?.monthly)!.toLocaleString()}
                         <span className="ml-1 text-sm font-medium text-ink-600">/mo</span>
                       </p>
                       {leasePaymentDisclosure && <p className="mt-1 max-w-[20rem] text-[11px] leading-snug text-ink-500">{leasePaymentDisclosure}</p>}
@@ -712,18 +845,6 @@ export default function VehicleDetailPage() {
                       ))}
                     </div>
                   </details>
-                )}
-                {historyLink && (
-                  <div className="border-t border-ink-200 px-4 py-3">
-                    <a
-                      className="inline-flex items-center rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100"
-                      href={historyLink}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      View vehicle history
-                    </a>
-                  </div>
                 )}
               </div>
               {!isBrokerUser && (
@@ -872,7 +993,7 @@ export default function VehicleDetailPage() {
               </div>
               )}
             </div>
-            <div className="space-y-5">
+            <div className="min-w-0 space-y-5">
               <Card className="tc-fade-up-delay border-ink-200 bg-white">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -885,18 +1006,20 @@ export default function VehicleDetailPage() {
                     <>
                       <p className="text-sm text-ink-600">Lease offer available for well qualified buyers.</p>
                       <div className="rounded-xl border border-ink-200 bg-ink-50 p-3.5">
-                        {vehicleQuery.data?.monthly !== undefined && vehicleQuery.data?.monthly !== null ? (
+                        {displayPrice(vehicleQuery.data?.monthly) !== undefined ? (
                           <div className="mb-3 rounded-lg border border-brand-200 bg-white px-3 py-2.5">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-700">Lease payment</p>
-                            <p className="text-xl font-display font-semibold text-ink-900">${vehicleQuery.data.monthly.toLocaleString()} /mo</p>
+                            <p className="text-xl font-display font-semibold text-ink-900">
+                              ${leaseDownDisplay.toLocaleString()} down, ${displayPrice(vehicleQuery.data?.monthly)!.toLocaleString()} /mo
+                            </p>
                             {leasePaymentDisclosure && <p className="mt-1 text-[11px] leading-snug text-ink-500">{leasePaymentDisclosure}</p>}
                           </div>
                         ) : null}
                         <dl className="space-y-2 text-sm">
-                          {vehicleQuery.data?.down !== undefined && vehicleQuery.data?.down !== null && (
+                          {displayPrice(vehicleQuery.data?.down) !== undefined && (
                             <div className="flex items-center justify-between rounded-md bg-white px-3 py-2">
                               <dt className="text-ink-600">Down payment</dt>
-                              <dd className="font-semibold text-ink-900">${vehicleQuery.data.down.toLocaleString()}</dd>
+                              <dd className="font-semibold text-ink-900">${displayPrice(vehicleQuery.data?.down)!.toLocaleString()}</dd>
                             </div>
                           )}
                           {vehicleQuery.data?.term_months !== undefined && vehicleQuery.data?.term_months !== null && (
@@ -911,15 +1034,15 @@ export default function VehicleDetailPage() {
                               <dd className="font-semibold text-ink-900">{vehicleQuery.data.miles_per_year.toLocaleString()}</dd>
                             </div>
                           )}
-                          {vehicleQuery.data?.discounted !== undefined && vehicleQuery.data?.discounted !== null && (
+                          {displayPrice(vehicleQuery.data?.msrp) !== undefined && (
                             <div className="flex items-center justify-between rounded-md bg-white px-3 py-2">
                               <dt className="text-ink-600">MSRP</dt>
-                              <dd className="font-semibold text-ink-900">${vehicleQuery.data.discounted.toLocaleString()}</dd>
+                              <dd className="font-semibold text-ink-900">${displayPrice(vehicleQuery.data?.msrp)!.toLocaleString()}</dd>
                             </div>
                           )}
                         </dl>
                       </div>
-                      {(vehicleQuery.data?.monthly === undefined || vehicleQuery.data?.monthly === null) && (
+                      {displayPrice(vehicleQuery.data?.monthly) === undefined && (
                         <p className="text-sm text-ink-600">Monthly payment is not listed for this offer. Please call for details.</p>
                       )}
                     </>

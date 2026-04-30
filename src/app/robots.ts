@@ -1,12 +1,16 @@
 import type { MetadataRoute } from "next";
+import { getCanonicalSiteOrigin } from "@/lib/site-url";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://newcarsuperstore.com");
-
+/**
+ * SEO baseline:
+ *   User-agent: *
+ *   Allow: /
+ *   Sitemap: {origin}/sitemap.xml
+ */
 export default function robots(): MetadataRoute.Robots {
+  const base = getCanonicalSiteOrigin();
   return {
     rules: { userAgent: "*", allow: "/" },
-    sitemap: `${BASE_URL}/sitemap.xml`,
+    sitemap: `${base}/sitemap.xml`
   };
 }
