@@ -149,6 +149,15 @@ function buildLeaseModelGroups(sorted: Vehicle[]): LeaseModelGroup[] {
   });
 }
 
+/** One row per VIN (used after second "See All" when filters already match the model line). */
+function singletonGroupsFromVehicles(sorted: Vehicle[]): LeaseModelGroup[] {
+  return sorted.map((v) => ({
+    key: `vin:${(v.vin ?? "").toUpperCase()}`,
+    groupLabel: "",
+    vehicles: [v]
+  }));
+}
+
 export default function LeaseSpecialsPage() {
   return (
     <Suspense fallback={<LeaseSpecialsPageFallback />}>
@@ -188,6 +197,8 @@ function LeaseSpecialsPageContent() {
   const [maxPayment, setMaxPayment] = useState(parsePositiveNumber(searchParams.get("max_payment"), defaultMaxPayment));
   const [maxPrice, setMaxPrice] = useState(parsePositiveNumber(searchParams.get("max_price"), defaultMaxPrice));
   const [page, setPage] = useState(parsePositiveNumber(searchParams.get("page"), 1));
+  /** When `flat=1` in the URL, show every matching VIN as its own card (second "See All" on a narrowed model). */
+  const flatVinList = searchParams.get("flat") === "1";
 
   const filtersQuery = useQuery({
     queryKey: ["filters", "lease-specials"],
@@ -372,7 +383,12 @@ function LeaseSpecialsPageContent() {
     return items;
   }, [resultItems, sort]);
 
-  const modelGroups = useMemo(() => buildLeaseModelGroups(sortedResultItems), [sortedResultItems]);
+  const modelGroups = useMemo(() => {
+    if (flatVinList) {
+      return singletonGroupsFromVehicles(sortedResultItems);
+    }
+    return buildLeaseModelGroups(sortedResultItems);
+  }, [sortedResultItems, flatVinList]);
 
   const totalResults = resultsQuery.data?.total ?? sortedResultItems.length;
 
@@ -516,15 +532,25 @@ function LeaseSpecialsPageContent() {
     let normalizedMake = make;
     let normalizedModel = model;
 
-    if (normalizedMake && !makes.includes(normalizedMake)) {
+    // Only validate against loaded option lists. If `models` is still empty (e.g. make just
+    // switched from ""), `includes` would falsely clear a valid model from "See All".
+    if (normalizedMake && makes.length > 0 && !makes.includes(normalizedMake)) {
       normalizedMake = "";
       normalizedModel = "";
-    } else if (normalizedModel && !models.includes(normalizedModel)) {
-      normalizedModel = "";
+    } else if (normalizedModel && models.length > 0) {
+      const modelMatch = models.find(
+        (m) => m.trim().toLowerCase() === (normalizedModel ?? "").trim().toLowerCase()
+      );
+      if (!modelMatch) {
+        normalizedModel = "";
+      } else if (modelMatch !== normalizedModel) {
+        normalizedModel = modelMatch;
+      }
     }
 
     if (normalizedMake === make && normalizedModel === model) return;
-    runSearch(1, { make: normalizedMake, model: normalizedModel, trim: "", year: "" });
+    // Do not pass year: "" here — that wiped year/make/model filters after "See All".
+    runSearch(1, { make: normalizedMake, model: normalizedModel, trim: "" });
   }, [filtersQuery.isLoading, makes, models, make, model]);
 
   useEffect(() => {
@@ -577,7 +603,30 @@ function LeaseSpecialsPageContent() {
     const nextYear =
       typeof first.year === "number" && Number.isFinite(first.year) ? String(Math.trunc(first.year)) : "";
     if (!nextMake || !nextModel) return;
+
+    const makeSame = nextMake.toLowerCase() === make.trim().toLowerCase();
+    const modelSame = nextModel.toLowerCase() === model.trim().toLowerCase();
+    const trimClear = !trim.trim();
+    const yearSame = (yearFilter || "") === (nextYear || "");
+    const alreadyNarrowed = makeSame && modelSame && trimClear && yearSame;
+
+    // First "See All" from the broad page → apply filters. Second click (filters already match) → list each VIN.
+    if (alreadyNarrowed && group.vehicles.length > 1) {
+      const query = new URLSearchParams(searchParams.toString());
+      query.set("flat", "1");
+      query.set("page", "1");
+      router.replace(`${pathname}?${query.toString()}`);
+      return;
+    }
+
     runSearch(1, { make: nextMake, model: nextModel, trim: "", year: nextYear });
+  }
+
+  function collapseFlatVinList() {
+    const query = new URLSearchParams(searchParams.toString());
+    query.delete("flat");
+    query.set("page", "1");
+    router.replace(`${pathname}?${query.toString()}`);
   }
 
   return (
@@ -997,8 +1046,22 @@ function LeaseSpecialsPageContent() {
                 <span>{totalResults.toLocaleString()} matching cars</span>
                 {modelGroups.length > 0 ? (
                   <span className="font-normal text-ink-500">
-                    · {modelGroups.length.toLocaleString()} model{modelGroups.length === 1 ? "" : "s"} (grouped)
+                    · {modelGroups.length.toLocaleString()}{" "}
+                    {flatVinList ? (
+                      <>listing{modelGroups.length === 1 ? "" : "s"} (each car)</>
+                    ) : (
+                      <>model{modelGroups.length === 1 ? "" : "s"} (grouped)</>
+                    )}
                   </span>
+                ) : null}
+                {flatVinList ? (
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-brand-700 underline decoration-brand-600/60 underline-offset-2 hover:text-brand-800"
+                    onClick={collapseFlatVinList}
+                  >
+                    Group by model line
+                  </button>
                 ) : null}
               </p>
               <div className="flex justify-center sm:justify-end">
@@ -1026,7 +1089,10 @@ function LeaseSpecialsPageContent() {
               <p className="text-sm text-ink-500">
                 Page {currentPage} of {totalPages}
                 {pageModelGroups.length > 0 ? (
-                  <span className="text-ink-400"> · {pageModelGroups.length} model lineups on this page</span>
+                  <span className="text-ink-400">
+                    {" "}
+                    · {pageModelGroups.length} {flatVinList ? "cars" : "model lineups"} on this page
+                  </span>
                 ) : null}
               </p>
               <div className="flex gap-2">
@@ -1097,6 +1163,7 @@ function LeaseSpecialModelGroup({
 }) {
   const primary = group.vehicles[0];
   const totalInGroup = group.vehicles.length;
+  const showSeeAll = totalInGroup > 1;
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <LeaseSpecialCard vehicle={primary} returnUrl={returnUrl} />
@@ -1104,15 +1171,17 @@ function LeaseSpecialModelGroup({
         <p className="text-sm font-medium text-ink-900">
           {totalInGroup.toLocaleString()} {totalInGroup === 1 ? "car" : "cars"}
         </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 shrink-0 rounded-full border-ink-200 bg-white px-4 text-sm font-medium text-ink-900 hover:bg-ink-50"
-          onClick={onSeeAll}
-        >
-          See All
-        </Button>
+        {showSeeAll ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 shrink-0 rounded-full border-ink-200 bg-white px-4 text-sm font-medium text-ink-900 hover:bg-ink-50"
+            onClick={onSeeAll}
+          >
+            See All
+          </Button>
+        ) : null}
       </div>
     </div>
   );

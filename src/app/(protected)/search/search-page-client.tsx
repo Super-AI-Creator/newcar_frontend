@@ -193,7 +193,8 @@ function SearchPageContent() {
             ? maxPrice
             : undefined
           : usedMaxPrice,
-      max_payment: vehicleType === "new" && mode === "payment" ? maxPayment : undefined,
+      max_payment:
+        vehicleType === "new" && mode === "payment" && maxPayment < PAYMENT_ANY_VALUE ? maxPayment : undefined,
       down_payment: vehicleType === "new" && mode === "payment" ? downPayment : undefined,
       apr: vehicleType === "new" && mode === "payment" ? apr : undefined,
       term_months: vehicleType === "new" && mode === "payment" ? termMonths : undefined,
@@ -371,7 +372,10 @@ function SearchPageContent() {
             ? nextMaxPrice
             : undefined
           : nextUsedMaxPrice,
-      max_payment: nextVehicleType === "new" && nextMode === "payment" ? nextMaxPayment : undefined,
+      max_payment:
+        nextVehicleType === "new" && nextMode === "payment" && nextMaxPayment < PAYMENT_ANY_VALUE
+          ? nextMaxPayment
+          : undefined,
       down_payment: nextVehicleType === "new" && nextMode === "payment" ? nextDownPayment : undefined,
       term_months: nextVehicleType === "new" && nextMode === "payment" ? nextTermMonths : undefined,
       apr: nextVehicleType === "new" && nextMode === "payment" ? nextApr : undefined,
@@ -495,7 +499,9 @@ function SearchPageContent() {
     if (nextTrim) query.set("trim", nextTrim);
     if (nextSort && nextSort !== sortOptions[0].value) query.set("sort", nextSort);
     if (nextVehicleType === "new" && nextMode === "payment") {
-      query.set("max_payment", String(nextMaxPayment));
+      if (nextMaxPayment < PAYMENT_ANY_VALUE) {
+        query.set("max_payment", String(nextMaxPayment));
+      }
       query.set("down_payment", String(nextDownPayment));
       query.set("term_months", String(nextTermMonths));
       query.set("apr", String(nextApr));
@@ -526,7 +532,10 @@ function SearchPageContent() {
             ? nextMaxPrice
             : undefined
           : nextUsedMaxPrice,
-      max_payment: nextVehicleType === "new" && nextMode === "payment" ? nextMaxPayment : undefined,
+      max_payment:
+        nextVehicleType === "new" && nextMode === "payment" && nextMaxPayment < PAYMENT_ANY_VALUE
+          ? nextMaxPayment
+          : undefined,
       down_payment: nextVehicleType === "new" && nextMode === "payment" ? nextDownPayment : undefined,
       term_months: nextVehicleType === "new" && nextMode === "payment" ? nextTermMonths : undefined,
       apr: nextVehicleType === "new" && nextMode === "payment" ? nextApr : undefined,
