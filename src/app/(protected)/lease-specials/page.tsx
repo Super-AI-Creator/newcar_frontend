@@ -183,6 +183,32 @@ function parseYearParam(value: string | null): string {
   return Number.isFinite(n) && n > 1900 && n < 2100 ? String(n) : "";
 }
 
+function sanitizeFilterOptions(items: string[] | undefined): string[] {
+  return Array.from(new Set((items ?? []).map((item) => item?.trim()).filter((item): item is string => !!item)));
+}
+
+/** `models_by_make` keys often differ in casing from inventory `vehicle.make`. */
+function resolveCandidateModelsForMake(
+  make: string,
+  modelsByMake: Record<string, string[]>,
+  makes: string[]
+): string[] {
+  const trimmed = make.trim();
+  if (!trimmed) return [];
+  if (modelsByMake[trimmed]?.length) {
+    return sanitizeFilterOptions(modelsByMake[trimmed]);
+  }
+  const canonFromList = makes.find((m) => m.trim().toLowerCase() === trimmed.toLowerCase());
+  if (canonFromList && modelsByMake[canonFromList]?.length) {
+    return sanitizeFilterOptions(modelsByMake[canonFromList]);
+  }
+  const key = Object.keys(modelsByMake).find((k) => k.trim().toLowerCase() === trimmed.toLowerCase());
+  if (key && modelsByMake[key]?.length) {
+    return sanitizeFilterOptions(modelsByMake[key]);
+  }
+  return [];
+}
+
 function LeaseSpecialsPageContent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -207,14 +233,11 @@ function LeaseSpecialsPageContent() {
     refetchOnWindowFocus: true
   });
 
-  const sanitizeOptions = (items: string[] | undefined) =>
-    Array.from(new Set((items ?? []).map((item) => item?.trim()).filter((item): item is string => !!item)));
-
-  const makes = sanitizeOptions(filtersQuery.data?.makes);
+  const makes = sanitizeFilterOptions(filtersQuery.data?.makes);
   const modelsByMake = filtersQuery.data?.models_by_make ?? {};
   const models = useMemo(() => {
-    if (!make) return [];
-    const candidateModels = sanitizeOptions(modelsByMake[make]);
+    if (!make.trim()) return [];
+    const candidateModels = resolveCandidateModelsForMake(make, modelsByMake, makes);
     if (candidateModels.length === 0) return candidateModels;
     const makeNames = new Set(makes.map((item) => item.trim().toLowerCase()));
     const selectedMake = make.trim().toLowerCase();
@@ -534,10 +557,18 @@ function LeaseSpecialsPageContent() {
 
     // Only validate against loaded option lists. If `models` is still empty (e.g. make just
     // switched from ""), `includes` would falsely clear a valid model from "See All".
-    if (normalizedMake && makes.length > 0 && !makes.includes(normalizedMake)) {
-      normalizedMake = "";
-      normalizedModel = "";
-    } else if (normalizedModel && models.length > 0) {
+    if (normalizedMake && makes.length > 0) {
+      const makeMatch = makes.find(
+        (m) => m.trim().toLowerCase() === (normalizedMake ?? "").trim().toLowerCase()
+      );
+      if (!makeMatch) {
+        normalizedMake = "";
+        normalizedModel = "";
+      } else if (makeMatch !== normalizedMake) {
+        normalizedMake = makeMatch;
+      }
+    }
+    if (normalizedModel && models.length > 0) {
       const modelMatch = models.find(
         (m) => m.trim().toLowerCase() === (normalizedModel ?? "").trim().toLowerCase()
       );
@@ -598,11 +629,21 @@ function LeaseSpecialsPageContent() {
 
   function narrowDownToGroup(group: LeaseModelGroup) {
     const first = group.vehicles[0];
-    const nextMake = (first.make ?? "").trim();
-    const nextModel = (first.model ?? "").trim();
+    let nextMake = (first.make ?? "").trim();
+    let nextModel = (first.model ?? "").trim();
     const nextYear =
       typeof first.year === "number" && Number.isFinite(first.year) ? String(Math.trunc(first.year)) : "";
     if (!nextMake || !nextModel) return;
+
+    if (makes.length > 0) {
+      const makeCanon = makes.find((m) => m.trim().toLowerCase() === nextMake.toLowerCase());
+      if (makeCanon) nextMake = makeCanon;
+    }
+    const modelCandidates = resolveCandidateModelsForMake(nextMake, modelsByMake, makes);
+    if (nextModel && modelCandidates.length > 0) {
+      const modelCanon = modelCandidates.find((m) => m.trim().toLowerCase() === nextModel.toLowerCase());
+      if (modelCanon) nextModel = modelCanon;
+    }
 
     const makeSame = nextMake.toLowerCase() === make.trim().toLowerCase();
     const modelSame = nextModel.toLowerCase() === model.trim().toLowerCase();

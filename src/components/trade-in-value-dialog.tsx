@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Lock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button, type ButtonProps } from "@/components/ui/button";
@@ -44,6 +45,10 @@ type TradeInValueDialogProps = Pick<ButtonProps, "variant" | "size" | "className
   leadSource?: string;
   /** When set, VIN is prefilled when the dialog opens (user can edit). */
   prefillVin?: string;
+  /** `page` = full embedded form (e.g. `/trade-in-value`); no trigger button. */
+  presentation?: "dialog" | "page";
+  /** When set, opens this URL in a modal (or full page) instead of the internal trade-in wizard. */
+  appraisalEmbedUrl?: string;
 };
 
 function TypeformFieldImage({ src, alt }: { src: string; alt: string }) {
@@ -92,14 +97,18 @@ export default function TradeInValueDialog({
   variant = "outline",
   size = "lg",
   className,
-  triggerLabel = "Trade in Value",
+  triggerLabel,
   triggerTone = "hero",
   leadSource = "trade_in_hero",
-  prefillVin
+  prefillVin,
+  presentation = "dialog",
+  appraisalEmbedUrl
 }: TradeInValueDialogProps) {
+  const embedSrc = (appraisalEmbedUrl ?? "").trim();
+  const useEmbed = embedSrc.length > 0;
   const { user } = useAuth();
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => presentation === "page");
   const [step, setStep] = useState<Step>("intro");
 
   const [year, setYear] = useState("");
@@ -133,7 +142,8 @@ export default function TradeInValueDialog({
   const [turnstileRemount, setTurnstileRemount] = useState(0);
 
   useEffect(() => {
-    if (!open) return;
+    if (useEmbed) return;
+    if (presentation !== "page" && !open) return;
     setStep("intro");
     setYear("");
     setMake("");
@@ -163,7 +173,7 @@ export default function TradeInValueDialog({
     setLeadId(null);
     setTurnstileToken(null);
     setTurnstileRemount((k) => k + 1);
-  }, [open, user?.name, user?.email, prefillVin]);
+  }, [open, presentation, useEmbed, user?.name, user?.email, prefillVin]);
 
   const nameError = useMemo(() => validateLeadName(name), [name]);
   const emailError = useMemo(() => validateLeadEmail(email), [email]);
@@ -278,7 +288,9 @@ export default function TradeInValueDialog({
     const headerLine =
       leadSource === "trade_in_deal_room"
         ? "Trade-in value request (internal form; opened from member deal room — replaces legacy Typeform flow)."
-        : "Trade-in value request (internal form; replaces legacy Typeform https://newcarsuperstore.typeform.com/to/lX0SiNPY).";
+        : leadSource === "trade_in_value_page"
+          ? "Trade-in value request (internal form; submitted from /trade-in-value — replaces legacy Typeform flow)."
+          : "Trade-in value request (internal form; replaces legacy Typeform https://newcarsuperstore.typeform.com/to/lX0SiNPY).";
     const notes = buildTradeInNotes({
       headerLine,
       yearMakeModelTrim: vehicleLine,
@@ -334,26 +346,73 @@ export default function TradeInValueDialog({
 
   const filledPhotoCount = photoSlots.filter(Boolean).length;
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button type="button" variant={variant} size={size} className={cn(triggerClassName, className)}>
-          {triggerLabel}
-        </Button>
-      </DialogTrigger>
-      <DialogContent
-        className={cn(
-          "w-[min(760px,calc(100vw-1.25rem))] max-w-[min(760px,calc(100vw-1.25rem))] overflow-hidden rounded-[26px] border border-ink-200 p-0 sm:rounded-[28px]",
-          "top-4 translate-y-0 sm:top-1/2 sm:-translate-y-1/2"
-        )}
-      >
+  const triggerText = triggerLabel ?? (useEmbed ? "Instant Cash Appraisal" : "Trade in Value");
+
+  if (useEmbed) {
+    if (presentation === "page") {
+      return (
         <div
           className={cn(
-            "max-h-[calc(100dvh-1.25rem)] overflow-x-hidden overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]",
-            "sm:max-h-[min(90dvh,920px)]",
-            "pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+            "mx-auto w-full max-w-[min(1040px,calc(100vw-1.25rem))] overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm",
+            className
           )}
         >
+          <iframe
+            src={embedSrc}
+            title="Instant cash appraisal"
+            className="block h-[min(88dvh,920px)] w-full border-0 bg-white"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        </div>
+      );
+    }
+
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button type="button" variant={variant} size={size} className={cn(triggerClassName, className)}>
+            {triggerText}
+          </Button>
+        </DialogTrigger>
+        <DialogContent
+          className={cn(
+            "flex h-[min(92dvh,940px)] w-[min(96vw,1040px)] max-w-[1040px] flex-col gap-0 overflow-hidden border border-ink-200 p-0 sm:rounded-[28px]",
+            "top-4 translate-y-0 sm:top-1/2 sm:-translate-y-1/2"
+          )}
+        >
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="shrink-0 border-b border-ink-200 bg-ink-50/90 px-4 py-2.5 pr-12 sm:px-5 sm:pr-14">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">New Car Superstore</p>
+              <p className="text-sm font-semibold text-ink-900">Instant cash appraisal</p>
+            </div>
+            <iframe
+              src={embedSrc}
+              title="Instant cash appraisal"
+              className="min-h-0 w-full flex-1 border-0 bg-white"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  const scrollMaxClass =
+    presentation === "page"
+      ? "max-h-[calc(100dvh-10rem)] sm:max-h-[min(86dvh,900px)]"
+      : "max-h-[calc(100dvh-1.25rem)] sm:max-h-[min(90dvh,920px)]";
+
+  function renderScrollInner() {
+    return (
+      <div
+        className={cn(
+          scrollMaxClass,
+          "overflow-x-hidden overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]",
+          "pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        )}
+      >
           {step === "done" ? (
             <>
               <DialogHeader className="border-b border-ink-200 px-6 py-4 pr-12">
@@ -370,9 +429,15 @@ export default function TradeInValueDialog({
                   </details>
                 ) : null}
                 <div className="flex justify-end">
-                  <Button type="button" onClick={() => setOpen(false)}>
-                    Close
-                  </Button>
+                  {presentation === "page" ? (
+                    <Button type="button" asChild className="rounded-xl">
+                      <Link href="/">Back to home</Link>
+                    </Button>
+                  ) : (
+                    <Button type="button" onClick={() => setOpen(false)}>
+                      Close
+                    </Button>
+                  )}
                 </div>
               </div>
             </>
@@ -755,7 +820,37 @@ export default function TradeInValueDialog({
               )}
             </>
           )}
-        </div>
+      </div>
+    );
+  }
+
+  if (presentation === "page") {
+    return (
+      <div
+        className={cn(
+          "mx-auto w-[min(760px,calc(100vw-1.25rem))] max-w-[min(760px,calc(100vw-1.25rem))] overflow-hidden rounded-[26px] border border-ink-200 bg-white shadow-sm sm:rounded-[28px]",
+          className
+        )}
+      >
+        {renderScrollInner()}
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button type="button" variant={variant} size={size} className={cn(triggerClassName, className)}>
+          {triggerText}
+        </Button>
+      </DialogTrigger>
+      <DialogContent
+        className={cn(
+          "w-[min(760px,calc(100vw-1.25rem))] max-w-[min(760px,calc(100vw-1.25rem))] overflow-hidden rounded-[26px] border border-ink-200 p-0 sm:rounded-[28px]",
+          "top-4 translate-y-0 sm:top-1/2 sm:-translate-y-1/2"
+        )}
+      >
+        {renderScrollInner()}
       </DialogContent>
     </Dialog>
   );

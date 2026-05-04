@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
+import { CUSTOM_QUOTE_FORM_HEADING, CUSTOM_QUOTE_FORM_INTRO } from "@/content/custom-quote-copy";
 import { ChevronRight, Lock } from "lucide-react";
 
 type LeadFormButtonProps = Pick<ButtonProps, "variant" | "size" | "className"> & {
@@ -42,8 +43,8 @@ export default function LeadFormButton({
   year,
   source,
   title = "Get Price",
-  formHeading = "Check Availability & Get a quote",
-  formIntro = "Your information stays 100% private. We do not share your name, phone, or email with any dealers. This helps us verify you're a real buyer and negotiate the best price on your behalf.",
+  formHeading = CUSTOM_QUOTE_FORM_HEADING,
+  formIntro = CUSTOM_QUOTE_FORM_INTRO,
   requireVehicleInput = false,
   vehicleInputLabel = "Make and Model",
   vehicleInputPlaceholder = "Please enter the make and model car you want a custom quote for",
@@ -271,7 +272,7 @@ export default function LeadFormButton({
         ) : (
           <>
             <DialogHeader className="min-w-0 border-b border-ink-200 px-5 py-5 pr-12 sm:px-8 sm:py-6 sm:pr-14">
-              <DialogTitle className="break-words text-2xl font-semibold leading-tight text-ink-900 sm:text-[44px] sm:leading-[1.06]">
+              <DialogTitle className="break-words text-lg font-semibold leading-snug text-ink-900 sm:text-xl sm:leading-snug md:text-2xl md:leading-tight">
                 {formHeading}
               </DialogTitle>
               <p className="break-words pt-2 text-sm leading-relaxed text-ink-700 sm:text-[17px]">
