@@ -361,7 +361,14 @@ export const api = {
           ? raw
           : [];
     const results = rawResults.map((item: any) => normalizeVehicle(item));
-    const total = typeof raw?.total === "number" ? raw.total : results.length;
+    const rawTotal = raw?.total;
+    let total = results.length;
+    if (typeof rawTotal === "number" && Number.isFinite(rawTotal)) {
+      total = rawTotal;
+    } else if (typeof rawTotal === "string" && rawTotal.trim() !== "") {
+      const n = Number(rawTotal);
+      if (Number.isFinite(n)) total = n;
+    }
     return { results, total } as { results: Vehicle[]; total: number };
   },
   homepageSpecials: async (params?: { limit?: number; month?: string }) => {

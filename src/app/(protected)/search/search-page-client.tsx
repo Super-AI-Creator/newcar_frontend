@@ -298,12 +298,6 @@ function SearchPageContent() {
   const totalResults = (() => {
     if (!resultsQuery.data) return 0;
     if (backendTotal == null) return sortedResultItems.length;
-    const hasNarrowFilters = Boolean((make || "").trim() || (model || "").trim() || (trim || "").trim());
-    // Some upstream responses occasionally return an unfiltered/stale total even when filtered
-    // rows are correct. Prefer the concrete filtered rows on first page in that case.
-    if (page === 1 && hasNarrowFilters && sortedResultItems.length > 0 && backendTotal > sortedResultItems.length) {
-      return sortedResultItems.length;
-    }
     // If we're on the first page, have fewer items than the page size,
     // and the backend total is larger than the items we actually received,
     // treat the real total as the items we have (avoid mismatched big counts like 3,497 vs 2 cards).

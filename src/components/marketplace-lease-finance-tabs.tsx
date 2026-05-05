@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Props = {
@@ -15,6 +15,7 @@ function copyParamIfPresent(target: URLSearchParams, source: URLSearchParams, ke
 
 export default function MarketplaceLeaseFinanceTabs({ active }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const leaseUrl = useMemo(() => {
@@ -46,7 +47,10 @@ export default function MarketplaceLeaseFinanceTabs({ active }: Props) {
       copyParamIfPresent(q, searchParams, "max_mileage");
     } else {
       q.set("mode", "payment");
-      const maxPay = searchParams.get("max_payment");
+      // Lease-specials "max payment" is lease $/mo; finance search uses loan estimates. Do not copy a lease
+      // cap into /search or the API uses the payment-filter path and can return ~1 page of wrong matches.
+      const maxPay =
+        pathname === "/lease-specials" ? null : searchParams.get("max_payment");
       q.set("max_payment", maxPay && maxPay.length > 0 ? maxPay : "10000");
       copyParamIfPresent(q, searchParams, "make");
       copyParamIfPresent(q, searchParams, "model");
@@ -60,7 +64,7 @@ export default function MarketplaceLeaseFinanceTabs({ active }: Props) {
     }
 
     return `/search?${q.toString()}`;
-  }, [searchParams]);
+  }, [searchParams, pathname]);
 
   return (
     <Tabs
