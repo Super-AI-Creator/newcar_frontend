@@ -1,9 +1,15 @@
 /**
- * Embedded instant cash appraisal (replaces in-site trade wizard for hero / direct links).
- * Override with `NEXT_PUBLIC_CASH_APPRAISAL_EMBED_URL` (set to empty string to use the in-app trade form locally).
+ * Embedded instant cash appraisal (iframe — customer-facing flows).
+ *
+ * Override with `NEXT_PUBLIC_CASH_APPRAISAL_EMBED_URL` (e.g. staging). **Empty or whitespace**
+ * intentionally falls back to production so `/trade-in` and `/trade-in-value` never lose the iframe
+ * due to `.env.local` mistakes.
  */
-export const CASH_APPRAISAL_EMBED_URL = (
-  process.env.NEXT_PUBLIC_CASH_APPRAISAL_EMBED_URL !== undefined
-    ? process.env.NEXT_PUBLIC_CASH_APPRAISAL_EMBED_URL
-    : "https://appraisal.newcarsuperstore.com/"
-).trim();
+export const STATIC_INSTANT_CASH_APPRAISAL_EMBED_URL = "https://appraisal.newcarsuperstore.com/";
+
+export const CASH_APPRAISAL_EMBED_URL = (() => {
+  const raw = process.env.NEXT_PUBLIC_CASH_APPRAISAL_EMBED_URL;
+  if (raw === undefined) return STATIC_INSTANT_CASH_APPRAISAL_EMBED_URL;
+  const t = raw.trim();
+  return t !== "" ? t : STATIC_INSTANT_CASH_APPRAISAL_EMBED_URL;
+})();
