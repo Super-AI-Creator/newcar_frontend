@@ -404,6 +404,9 @@ export default function TradeInValueDialog({
       ? "max-h-[calc(100dvh-10rem)] sm:max-h-[min(86dvh,900px)]"
       : "max-h-[calc(100dvh-1.25rem)] sm:max-h-[min(90dvh,920px)]";
 
+  /** Radix `DialogTitle` must be inside `Dialog`; full-page mode uses a plain card + `h2` instead. */
+  const pageTitleAsHeading = presentation === "page";
+
   function renderScrollInner() {
     return (
       <div
@@ -416,7 +419,11 @@ export default function TradeInValueDialog({
           {step === "done" ? (
             <>
               <DialogHeader className="border-b border-ink-200 px-6 py-4 pr-12">
-                <DialogTitle className="text-lg">Trade in Form</DialogTitle>
+                {pageTitleAsHeading ? (
+                  <h2 className="text-lg font-semibold text-ink-900">Trade in Form</h2>
+                ) : (
+                  <DialogTitle className="text-lg">Trade in Form</DialogTitle>
+                )}
               </DialogHeader>
               <div className="grid gap-4 p-6">
                 <p className="text-sm text-ink-800">
@@ -448,14 +455,25 @@ export default function TradeInValueDialog({
                   Trade in Form
                   {step !== "intro" ? ` · Step ${Math.max(1, stepIndex)} of 6` : null}
                 </p>
-                <DialogTitle className="break-words pt-1 text-2xl font-semibold leading-tight text-ink-900 sm:text-3xl">
-                  {step === "intro" && "Get your trade-in value"}
-                  {step === "vehicle" && "Tell us about your vehicle"}
-                  {step === "facts" && "VIN, miles & payoff"}
-                  {step === "condition" && "Condition & plans"}
-                  {step === "photos" && "Photos (optional, up to 4)"}
-                  {step === "contact" && "How can we reach you?"}
-                </DialogTitle>
+                {pageTitleAsHeading ? (
+                  <h2 className="break-words pt-1 text-2xl font-semibold leading-tight text-ink-900 sm:text-3xl">
+                    {step === "intro" && "Get your trade-in value"}
+                    {step === "vehicle" && "Tell us about your vehicle"}
+                    {step === "facts" && "VIN, miles & payoff"}
+                    {step === "condition" && "Condition & plans"}
+                    {step === "photos" && "Photos (optional, up to 4)"}
+                    {step === "contact" && "How can we reach you?"}
+                  </h2>
+                ) : (
+                  <DialogTitle className="break-words pt-1 text-2xl font-semibold leading-tight text-ink-900 sm:text-3xl">
+                    {step === "intro" && "Get your trade-in value"}
+                    {step === "vehicle" && "Tell us about your vehicle"}
+                    {step === "facts" && "VIN, miles & payoff"}
+                    {step === "condition" && "Condition & plans"}
+                    {step === "photos" && "Photos (optional, up to 4)"}
+                    {step === "contact" && "How can we reach you?"}
+                  </DialogTitle>
+                )}
                 <p className="break-words pt-2 text-sm leading-relaxed text-ink-700 sm:text-[15px]">
                   {step === "intro" && "Answer a few quick questions to get an accurate trade-in estimate. Your details are handled securely on our site."}
                   {step === "vehicle" && "Year, make, and model are required so we can contextualize your trade (extra context beyond the legacy form)."}
