@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
-import Link from "next/link";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import SiteHeader from "@/components/site-header";
 import { useAuth } from "@/components/auth-provider";
@@ -56,6 +55,11 @@ function LoginPageContent() {
   const [message, setMessage] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileRemount, setTurnstileRemount] = useState(0);
+
+  useEffect(() => {
+    const e = searchParams.get("email")?.trim();
+    if (e) setEmail(e);
+  }, [searchParams]);
 
   const canSubmit = useMemo(() => {
     const credsOk = emailSchema.safeParse(email).success && password.trim().length > 0;
@@ -170,13 +174,7 @@ function LoginPageContent() {
                 </Button>
               </form>
               <div className="rounded-xl border border-ink-200 bg-ink-50 px-4 py-3 text-sm text-ink-600">
-                New user?{" "}
-                <Link
-                  href={returnUrl !== "/lease-specials" ? `/register?returnUrl=${encodeURIComponent(returnUrl)}` : "/register"}
-                  className="font-medium text-brand-700 hover:text-brand-800"
-                >
-                  Create account
-                </Link>
+                New member accounts are created through your credit union&apos;s invitation link, not on this site.
               </div>
             </CardContent>
           </Card>

@@ -183,9 +183,6 @@ export default function SiteHeader() {
             </>
           ) : (
             <div className="hidden items-center gap-2 md:flex">
-              <Button asChild variant="outline" size="sm" className="rounded-full px-5">
-                <Link href="/register">Register</Link>
-              </Button>
               <Button asChild size="sm" className="rounded-full px-5">
                 <Link href="/login">Sign in</Link>
               </Button>
@@ -259,18 +256,11 @@ export default function SiteHeader() {
                     </Button>
                   </>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    <DialogClose asChild>
-                      <Button asChild variant="outline" className="h-10 rounded-full">
-                        <Link href="/register">Register</Link>
-                      </Button>
-                    </DialogClose>
-                    <DialogClose asChild>
-                      <Button asChild className="h-10 rounded-full">
-                        <Link href="/login">Sign in</Link>
-                      </Button>
-                    </DialogClose>
-                  </div>
+                  <DialogClose asChild>
+                    <Button asChild className="h-10 w-full rounded-full">
+                      <Link href="/login">Sign in</Link>
+                    </Button>
+                  </DialogClose>
                 )}
               </div>
             </DialogContent>

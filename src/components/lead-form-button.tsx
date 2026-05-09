@@ -252,15 +252,12 @@ export default function LeadFormButton({
                     className="w-full sm:w-auto"
                     onClick={() => {
                       const params = new URLSearchParams();
-                      if (name.trim()) params.set("name", name.trim());
                       if (email.trim()) params.set("email", email.trim());
-                      if (phone.trim()) params.set("phone", phone.trim());
-                      params.set("from", "lead");
                       if (pathname && pathname !== "/" && pathname.startsWith("/")) params.set("returnUrl", pathname);
-                      router.push(`/register?${params.toString()}`);
+                      router.push(`/login${params.toString() ? `?${params.toString()}` : ""}`);
                     }}
                   >
-                    Continue to create account
+                    Continue to sign in
                   </Button>
                 ) : null}
                 <Button variant={user ? "default" : "outline"} className="w-full sm:w-auto" onClick={() => setOpen(false)}>
