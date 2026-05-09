@@ -14,7 +14,6 @@ import LeaseSpecials from "@/components/lease-specials";
 import HomeShopOptions from "@/components/home-shop-options";
 import HomeTestimonials from "@/components/home-testimonials";
 import TradeInValueDialog from "@/components/trade-in-value-dialog";
-import { CASH_APPRAISAL_EMBED_URL } from "@/lib/cash-appraisal";
 import { HomeSeoIntroSection } from "@/components/marketing-seo-sections";
 import { MarketingFaqSection } from "@/components/marketing-faq-section";
 import { HOME_FAQ_ITEMS } from "@/content/marketing-faq";
@@ -280,7 +279,7 @@ export default function LandingPageSections({
                   <Button asChild size="lg" className="rounded-xl">
                     <Link href="/lease-specials">Lease Specials</Link>
                   </Button>
-                  <TradeInValueDialog appraisalEmbedUrl={CASH_APPRAISAL_EMBED_URL} />
+                  <TradeInValueDialog />
                 </div>
                 <p className="mt-3 text-xs text-zinc-300/90">Most people finish browsing in a few minutes.</p>
               </div>
