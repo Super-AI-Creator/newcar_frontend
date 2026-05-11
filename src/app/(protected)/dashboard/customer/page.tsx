@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { DealCuBadge } from "@/components/deal-cu-badge";
 import TradeInValueDialog from "@/components/trade-in-value-dialog";
+import { CASH_APPRAISAL_EMBED_URL } from "@/lib/cash-appraisal";
 import { api, type Vehicle } from "@/lib/api";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
@@ -967,6 +968,7 @@ export default function CustomerDashboard() {
                                   triggerTone="neutral"
                                   variant="outline"
                                   size="sm"
+                                  appraisalEmbedUrl={CASH_APPRAISAL_EMBED_URL}
                                 />
                                 <Button
                                   type="button"

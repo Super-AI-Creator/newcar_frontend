@@ -5,6 +5,7 @@ import SiteHeader from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import TradeInValueDialog from "@/components/trade-in-value-dialog";
 import DealSearchLoader from "@/components/deal-search-loader";
+import { CASH_APPRAISAL_EMBED_URL } from "@/lib/cash-appraisal";
 
 function TradeInValuePageBody() {
   return (
@@ -18,7 +19,7 @@ function TradeInValuePageBody() {
             Complete the short appraisal flow below. Your information is handled on our secure appraisal experience.
           </p>
         </div>
-        <TradeInValueDialog presentation="page" className="shadow-card" />
+        <TradeInValueDialog presentation="page" appraisalEmbedUrl={CASH_APPRAISAL_EMBED_URL} className="shadow-card" />
       </main>
       <SiteFooter />
     </div>
