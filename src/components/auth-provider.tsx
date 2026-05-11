@@ -26,7 +26,16 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const publicPaths = new Set(["/", "/login", "/register", "/search", "/lease-specials", "/creditunions/join"]);
+const publicPaths = new Set([
+  "/",
+  "/login",
+  "/register",
+  "/search",
+  "/lease-specials",
+  "/creditunions/join",
+  "/trade-in",
+  "/trade-in-value"
+]);
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
