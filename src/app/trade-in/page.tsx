@@ -1,24 +1,24 @@
 import type { Metadata } from "next";
 import { getCanonicalSiteOrigin } from "@/lib/site-url";
-import TradeInValuePageClient from "../trade-in-value/trade-in-value-client";
+import TradeInPageClient from "./trade-in-client";
 
 const origin = getCanonicalSiteOrigin();
 
-/** Short shareable URL (same flow as `/trade-in-value`), parallel to `/credit-application`. */
+/** Short shareable URL — in-site trade-in form only (`/trade-in-value` is instant appraisal). */
 export const metadata: Metadata = {
-  title: "Instant cash appraisal | NewCarSuperstore",
+  title: "Trade-in value | NewCarSuperstore",
   description:
-    "Get an instant cash appraisal from New Car Superstore — California auto broker. Start the secure online appraisal; our team follows up with value guidance.",
+    "Submit your trade-in details with New Car Superstore — California auto broker. Private, secure form; our team follows up with value guidance.",
   alternates: { canonical: `${origin}/trade-in` },
   openGraph: {
     url: `${origin}/trade-in`,
-    title: "Instant cash appraisal | NewCarSuperstore",
-    description: "Secure online appraisal — start your instant cash appraisal in one place.",
+    title: "Trade-in value | NewCarSuperstore",
+    description: "Complete our trade-in form — our team follows up with next steps.",
     type: "website"
   },
   robots: { index: true, follow: true }
 };
 
 export default function TradeInPage() {
-  return <TradeInValuePageClient />;
+  return <TradeInPageClient />;
 }
