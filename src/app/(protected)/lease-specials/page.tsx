@@ -223,7 +223,7 @@ function LeaseSpecialsPageContent() {
   const [maxPayment, setMaxPayment] = useState(parsePositiveNumber(searchParams.get("max_payment"), defaultMaxPayment));
   const [maxPrice, setMaxPrice] = useState(parsePositiveNumber(searchParams.get("max_price"), defaultMaxPrice));
   const [page, setPage] = useState(parsePositiveNumber(searchParams.get("page"), 1));
-  /** When `flat=1` in the URL, show every matching VIN as its own card (second "See All" on a narrowed model). */
+  /** When `flat=1` in the URL, show every matching VIN as its own card (per-VIN list after "See All" on a lineup). */
   const flatVinList = searchParams.get("flat") === "1";
 
   const filtersQuery = useQuery({
@@ -495,7 +495,8 @@ function LeaseSpecialsPageContent() {
       sort: string;
       maxPayment: number;
       maxPrice: number;
-    }>
+    }>,
+    opts?: { flatVinList?: boolean }
   ) {
     const nextMake = overrides?.make ?? make;
     const nextModel = overrides?.model ?? model;
@@ -513,6 +514,7 @@ function LeaseSpecialsPageContent() {
     query.set("max_payment", String(nextMaxPayment));
     query.set("max_price", String(nextMaxPrice));
     query.set("page", String(nextPage));
+    if (opts?.flatVinList) query.set("flat", "1");
     router.replace(`${pathname}?${query.toString()}`);
     setPage(nextPage);
     setMake(nextMake);
@@ -651,7 +653,7 @@ function LeaseSpecialsPageContent() {
     const yearSame = (yearFilter || "") === (nextYear || "");
     const alreadyNarrowed = makeSame && modelSame && trimClear && yearSame;
 
-    // First "See All" from the broad page → apply filters. Second click (filters already match) → list each VIN.
+    // Filters already match → expand to each VIN (preserve other query params).
     if (alreadyNarrowed && group.vehicles.length > 1) {
       const query = new URLSearchParams(searchParams.toString());
       query.set("flat", "1");
@@ -660,7 +662,9 @@ function LeaseSpecialsPageContent() {
       return;
     }
 
-    runSearch(1, { make: nextMake, model: nextModel, trim: "", year: nextYear });
+    // From grouped lineup: one click opens every VIN for this model line (no intermediate grouped-only step).
+    const flatVinList = group.vehicles.length > 1;
+    runSearch(1, { make: nextMake, model: nextModel, trim: "", year: nextYear }, flatVinList ? { flatVinList: true } : undefined);
   }
 
   function collapseFlatVinList() {
