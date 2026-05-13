@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/toast-provider";
 import { CUSTOM_QUOTE_FORM_HEADING, CUSTOM_QUOTE_FORM_INTRO } from "@/content/custom-quote-copy";
-import { ChevronRight, Lock } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 type LeadFormButtonProps = Pick<ButtonProps, "variant" | "size" | "className"> & {
   vin?: string;
@@ -32,6 +32,8 @@ type LeadFormButtonProps = Pick<ButtonProps, "variant" | "size" | "className"> &
   requireVehicleInput?: boolean;
   vehicleInputLabel?: string;
   vehicleInputPlaceholder?: string;
+  /** When false, hides the optional message field (e.g. header Custom Quote). Default true. */
+  showNotesField?: boolean;
   children: ReactNode;
 };
 
@@ -48,6 +50,7 @@ export default function LeadFormButton({
   requireVehicleInput = false,
   vehicleInputLabel = "Make and Model",
   vehicleInputPlaceholder = "Please enter the make and model car you want a custom quote for",
+  showNotesField = true,
   children,
   variant,
   size,
@@ -212,8 +215,8 @@ export default function LeadFormButton({
       </DialogTrigger>
       <DialogContent
         className={cn(
-          "w-[min(760px,calc(100vw-1.25rem))] max-w-[min(760px,calc(100vw-1.25rem))] overflow-hidden rounded-[26px] border border-ink-200 p-0 sm:rounded-[28px]",
-          /* Top-anchored on small screens so tall content isn’t clipped; centered on sm+ */
+          /* Mobile: nearly full width; desktop: compact dialog (was ~760px). */
+          "w-[calc(100vw-1.25rem)] max-w-[calc(100vw-1.25rem)] overflow-hidden rounded-[26px] border border-ink-200 p-0 sm:max-w-md sm:rounded-[28px]",
           "top-4 translate-y-0 sm:top-1/2 sm:-translate-y-1/2"
         )}
       >
@@ -268,16 +271,21 @@ export default function LeadFormButton({
           </>
         ) : (
           <>
-            <DialogHeader className="min-w-0 border-b border-ink-200 px-5 py-5 pr-12 sm:px-8 sm:py-6 sm:pr-14">
-              <DialogTitle className="break-words text-lg font-semibold leading-snug text-ink-900 sm:text-xl sm:leading-snug md:text-2xl md:leading-tight">
+            <DialogHeader
+              className={cn(
+                "min-w-0 border-b border-ink-200 px-5 py-4 pr-12 sm:px-6 sm:py-5 sm:pr-14",
+                !formIntro.trim() && "pb-4"
+              )}
+            >
+              <DialogTitle className="text-lg font-semibold leading-snug text-ink-900 sm:text-xl">
                 {formHeading}
               </DialogTitle>
-              <p className="break-words pt-2 text-sm leading-relaxed text-ink-700 sm:text-[17px]">
-                {formIntro}
-              </p>
+              {formIntro.trim() ? (
+                <p className="break-words pt-2 text-sm leading-relaxed text-ink-700">{formIntro}</p>
+              ) : null}
             </DialogHeader>
             <form
-              className="grid min-w-0 max-w-full gap-4 p-5 sm:p-8"
+              className="grid min-w-0 max-w-full gap-3 p-5 sm:gap-4 sm:p-6"
               onSubmit={(e) => {
                 e.preventDefault();
                 void handleContinue();
@@ -324,16 +332,16 @@ export default function LeadFormButton({
               )}
               <div className="grid min-w-0 gap-4 sm:grid-cols-2">
                 <div className="min-w-0 space-y-1.5">
-                  <Label htmlFor="lead-form-name">Full name</Label>
+                  <Label htmlFor="lead-form-name">First name</Label>
                   <Input
                     id="lead-form-name"
                     name="name"
-                    autoComplete="name"
+                    autoComplete="given-name"
                     maxLength={120}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
-                    placeholder="Enter your full name"
+                    placeholder="First name"
                     aria-invalid={showNameError}
                     aria-describedby={showNameError ? "lead-form-name-err" : undefined}
                     className={cn("h-12", showNameError && "border-red-500 focus-visible:ring-red-500")}
@@ -345,7 +353,7 @@ export default function LeadFormButton({
                   ) : null}
                 </div>
                 <div className="min-w-0 space-y-1.5">
-                  <Label htmlFor="lead-form-email">Email address</Label>
+                  <Label htmlFor="lead-form-email">Email</Label>
                   <Input
                     id="lead-form-email"
                     name="email"
@@ -356,7 +364,7 @@ export default function LeadFormButton({
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
-                    placeholder="Enter your email"
+                    placeholder="Email"
                     aria-invalid={showEmailError}
                     aria-describedby={showEmailError ? "lead-form-email-err" : undefined}
                     className={cn("h-12", showEmailError && "border-red-500 focus-visible:ring-red-500")}
@@ -369,7 +377,7 @@ export default function LeadFormButton({
                 </div>
               </div>
               <div className="min-w-0 space-y-1.5">
-                <Label htmlFor="lead-form-phone">Mobile number</Label>
+                <Label htmlFor="lead-form-phone">Number</Label>
                 <Input
                   id="lead-form-phone"
                   name="phone"
@@ -380,33 +388,30 @@ export default function LeadFormButton({
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
-                  placeholder="Enter your mobile number"
+                  placeholder="Phone number"
                   aria-invalid={showPhoneError}
                   aria-describedby={showPhoneError ? "lead-form-phone-err" : undefined}
                   className={cn("h-12", showPhoneError && "border-red-500 focus-visible:ring-red-500")}
                 />
-                <p className="text-xs text-ink-500">(No dealer spam)</p>
                 {showPhoneError ? (
                   <p id="lead-form-phone-err" className="text-sm text-red-600" role="alert">
                     {phoneError}
                   </p>
                 ) : null}
               </div>
-              <div className="min-w-0 space-y-1.5">
-                <Label htmlFor="lead-form-notes">What would you like to know?</Label>
-                <Textarea
-                  id="lead-form-notes"
-                  name="notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Questions about price, payments, trade-in, delivery, or anything else"
-                  className="min-h-[102px] max-w-full"
-                />
-              </div>
-              <div className="flex min-w-0 items-start gap-2 rounded-lg bg-[#edf2ff] px-3 py-2.5 text-sm font-semibold leading-snug text-ink-700 sm:px-4">
-                <Lock className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" />
-                <span className="min-w-0 break-words">100% private by default. No spam. No pressure.</span>
-              </div>
+              {showNotesField ? (
+                <div className="min-w-0 space-y-1.5">
+                  <Label htmlFor="lead-form-notes">Message (optional)</Label>
+                  <Textarea
+                    id="lead-form-notes"
+                    name="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Optional"
+                    className="min-h-[72px] max-w-full resize-y"
+                  />
+                </div>
+              ) : null}
               <TurnstileWidget
                 action="lead"
                 remountKey={turnstileRemount}

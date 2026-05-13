@@ -10,7 +10,7 @@ export function validateLeadName(value: string): string | null {
   if (t.length < 2) return "Enter at least 2 characters.";
   if (t.length > 120) return "Name must be 120 characters or less.";
   const letterCount = (t.match(/\p{L}/gu) ?? []).length;
-  if (letterCount < 2) return "Use at least two letters (first and last name).";
+  if (letterCount < 2) return "Use at least two letters in your name.";
   if (!/^[\p{L}\s'.-]+$/u.test(t)) {
     return "Use only letters, spaces, hyphens, and apostrophes.";
   }

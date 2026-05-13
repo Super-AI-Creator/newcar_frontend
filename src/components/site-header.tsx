@@ -209,6 +209,7 @@ export default function SiteHeader() {
                     title="Custom Quote"
                     source="mobile_menu_custom_quote"
                     requireVehicleInput
+                    showNotesField={false}
                     vehicleInputLabel="Make and Model"
                     vehicleInputPlaceholder="Please enter the make and model car you want a custom quote for"
                     className="inline-flex h-auto min-h-[44px] w-full items-center justify-start gap-2 rounded-lg border border-ink-200 bg-white px-3 py-3 text-sm font-medium text-ink-700"
@@ -289,6 +290,7 @@ export default function SiteHeader() {
                   title="Custom Quote"
                   source="site_header_custom_quote"
                   requireVehicleInput
+                  showNotesField={false}
                   vehicleInputLabel="Make and Model"
                   vehicleInputPlaceholder="Please enter the make and model car you want a custom quote for"
                   className="hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium lg:inline-flex"
@@ -340,6 +342,7 @@ export default function SiteHeader() {
           title="Custom Quote"
           source="floating_custom_quote"
           requireVehicleInput
+          showNotesField={false}
           vehicleInputLabel="Make and Model"
           vehicleInputPlaceholder="Please enter the make and model car you want a custom quote for"
           size="sm"
