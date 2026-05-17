@@ -36,6 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: apex,
     title: "NewCarSuperstore",
     description: "Modern marketplace for new car deals.",
+        verification: { google: "dfTayXP6rlPN93WVvLGm1aG6ryyp-uoFBlfUXkt8H2E" },
     icons: {
       icon: "/images/logo.png"
     },
