@@ -173,9 +173,6 @@ function LoginPageContent() {
                   {status === "redirecting" ? "Redirecting..." : status === "loading" ? "Signing in..." : "Sign In"}
                 </Button>
               </form>
-              <div className="rounded-xl border border-ink-200 bg-ink-50 px-4 py-3 text-sm text-ink-600">
-                New member accounts are created through your credit union&apos;s invitation link, not on this site.
-              </div>
             </CardContent>
           </Card>
         </div>

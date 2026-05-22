@@ -5,8 +5,8 @@ import SiteHeader from "@/components/site-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
- * Member accounts are created only through a credit union invitation or pre-approval link.
- * This route remains for old bookmarks; there is no public signup form.
+ * New Car Superstore does not offer public self-registration.
+ * Credit union member signup lives at /creditunions/join (CU invitation links only).
  */
 export default function RegisterPage() {
   return (
@@ -16,17 +16,22 @@ export default function RegisterPage() {
         <div className="container-wide flex justify-center">
           <Card className="market-panel lux-overlay w-full max-w-xl bg-white/95">
             <CardHeader>
-              <CardTitle>Member access</CardTitle>
+              <CardTitle>Account registration</CardTitle>
               <p className="text-sm text-ink-600">
-                Accounts are not created on this page. Your credit union sends a personal link or pre-approval link to
-                open the member portal and set your password.
+                New Car Superstore does not create shopper accounts on this page. Submit a quote or contact request on the site and
+                our team will follow up by phone or email.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-ink-600">
-                Already have an account from your credit union?{" "}
+                Already have a broker or staff login?{" "}
                 <Link href="/login" className="font-medium text-brand-700 hover:text-brand-800">
                   Sign in
+                </Link>
+              </p>
+              <p className="text-sm text-ink-600">
+                <Link href="/" className="font-medium text-brand-700 hover:text-brand-800">
+                  Return to homepage
                 </Link>
               </p>
             </CardContent>

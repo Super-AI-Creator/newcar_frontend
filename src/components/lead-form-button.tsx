@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { ReactNode, useEffect, useMemo, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -56,8 +55,6 @@ export default function LeadFormButton({
   size,
   className
 }: LeadFormButtonProps) {
-  const router = useRouter();
-  const pathname = usePathname();
   const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -249,21 +246,8 @@ export default function LeadFormButton({
                   ) : null}
                 </p>
               </details>
-              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                {!user ? (
-                  <Button
-                    className="w-full sm:w-auto"
-                    onClick={() => {
-                      const params = new URLSearchParams();
-                      if (email.trim()) params.set("email", email.trim());
-                      if (pathname && pathname !== "/" && pathname.startsWith("/")) params.set("returnUrl", pathname);
-                      router.push(`/login${params.toString() ? `?${params.toString()}` : ""}`);
-                    }}
-                  >
-                    Continue to sign in
-                  </Button>
-                ) : null}
-                <Button variant={user ? "default" : "outline"} className="w-full sm:w-auto" onClick={() => setOpen(false)}>
+              <div className="flex justify-end">
+                <Button className="w-full sm:w-auto" onClick={() => setOpen(false)}>
                   Close
                 </Button>
               </div>
