@@ -24,6 +24,7 @@ import { CarFront, CreditCard, Info, MessageSquare, MoreVertical, RotateCcw, Sea
 import { useAuth } from "@/components/auth-provider";
 import DealSearchLoader from "@/components/deal-search-loader";
 import MarketplaceLeaseFinanceTabs from "@/components/marketplace-lease-finance-tabs";
+import { inferVehicleListingType } from "@/lib/vehicle-listing-type";
 
 const sortOptions = [
   { value: "best_deal", label: "Best match" },
@@ -72,6 +73,13 @@ const defaultValues = {
 const ANY_MAKE = "__any_make__";
 const ANY_MODEL = "__any_model__";
 const ANY_TRIM = "__any_trim__";
+const ANY_YEAR = "__any_year__";
+
+function parseYearParam(value: string | null): string {
+  if (value == null || !value.trim()) return "";
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? String(Math.trunc(parsed)) : "";
+}
 
 function priceToSliderValue(price: number): number {
   if (price >= PRICE_ANY_VALUE) return PRICE_SLIDER_ANY;
@@ -160,6 +168,7 @@ function SearchPageContent() {
   const [make, setMake] = useState(searchParams.get("make") ?? "");
   const [model, setModel] = useState(searchParams.get("model") ?? "");
   const [trim, setTrim] = useState(searchParams.get("trim") ?? "");
+  const [yearFilter, setYearFilter] = useState(parseYearParam(searchParams.get("year")));
   const [sort, setSort] = useState(searchParams.get("sort") ?? sortOptions[0].value);
   const [submitted, setSubmitted] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -199,10 +208,11 @@ function SearchPageContent() {
       apr: vehicleType === "new" && mode === "payment" ? apr : undefined,
       term_months: vehicleType === "new" && mode === "payment" ? termMonths : undefined,
       max_mileage: vehicleType !== "new" ? maxMileage : undefined,
+      year: vehicleType === "used" && yearFilter ? Number(yearFilter) : undefined,
       page,
       page_size: pageSize
     };
-  }, [vehicleType, make, model, trim, sort, mode, maxPrice, maxPayment, downPayment, termMonths, apr, usedMaxPrice, maxMileage, page]);
+  }, [vehicleType, make, model, trim, yearFilter, sort, mode, maxPrice, maxPayment, downPayment, termMonths, apr, usedMaxPrice, maxMileage, page]);
   const [appliedParams, setAppliedParams] = useState(params);
 
   const resultsQuery = useQuery({
@@ -239,6 +249,15 @@ function SearchPageContent() {
     if (!make || !model) return [];
     return sanitizeOptions(trimsByMakeModel[`${make}|||${model}`]);
   }, [make, model, trimsByMakeModel]);
+  const yearsByMake = filtersQuery.data?.years_by_make ?? {};
+  const years = useMemo(() => {
+    if (vehicleType !== "used") return [];
+    const rawYears =
+      make && yearsByMake[make]?.length ? yearsByMake[make] : (filtersQuery.data?.years ?? []);
+    return Array.from(new Set(rawYears.map((year) => String(year))))
+      .filter((year) => year.trim().length > 0)
+      .sort((a, b) => Number(b) - Number(a));
+  }, [vehicleType, make, yearsByMake, filtersQuery.data?.years]);
   const showUsedFilters = vehicleType === "used";
   const resultItems = resultsQuery.data?.results ?? [];
   const sortedResultItems = useMemo(() => {
@@ -254,16 +273,7 @@ function SearchPageContent() {
       return 0;
     };
     const primaryPrice = (v: Vehicle) => {
-      const normalizedType = (v.vehicle_type ?? "new").toString().toLowerCase();
-      const normalizedCondition = (v.condition ?? "").toString().toLowerCase();
-      const inferredType =
-        normalizedCondition === "new"
-          ? "new"
-          : normalizedCondition === "used" || normalizedCondition === "cpo"
-            ? "used"
-            : normalizedType === "used"
-              ? "used"
-              : "new";
+      const inferredType = inferVehicleListingType(v);
       if (inferredType === "used") {
         return firstDisplayPrice(v.listed_price, v.discounted, v.msrp) ?? null;
       }
@@ -330,6 +340,7 @@ function SearchPageContent() {
     const nextMake = searchParams.get("make") ?? "";
     const nextModel = searchParams.get("model") ?? "";
     const nextTrim = searchParams.get("trim") ?? "";
+    const nextYear = parseYearParam(searchParams.get("year"));
     const nextSort = searchParams.get("sort") ?? sortOptions[0].value;
     const nextMaxMileage = parsePositiveNumber(searchParams.get("max_mileage"), defaultValues.maxMileage);
     const nextMaxPayment = parseMaxPaymentFromSearchParam(searchParams.get("max_payment"), defaultValues.maxPayment);
@@ -344,6 +355,7 @@ function SearchPageContent() {
     setMake(nextMake);
     setModel(nextModel);
     setTrim(nextTrim);
+    setYearFilter(nextYear);
     setSort(nextSort);
     setMaxMileage(nextMaxMileage);
     setMaxPayment(nextMaxPayment);
@@ -374,6 +386,7 @@ function SearchPageContent() {
       term_months: nextVehicleType === "new" && nextMode === "payment" ? nextTermMonths : undefined,
       apr: nextVehicleType === "new" && nextMode === "payment" ? nextApr : undefined,
       max_mileage: nextVehicleType !== "new" ? nextMaxMileage : undefined,
+      year: nextVehicleType === "used" && nextYear ? Number(nextYear) : undefined,
       page: nextPage,
       page_size: pageSize
     });
@@ -385,6 +398,7 @@ function SearchPageContent() {
     setVehicleTypeState(nextType);
     setModel("");
     setTrim("");
+    setYearFilter("");
     setPage(1);
     const nextMode = nextType === "used" ? "price" : mode;
     if (nextMode !== mode) {
@@ -394,7 +408,8 @@ function SearchPageContent() {
       vehicleType: nextType,
       mode: nextMode,
       model: "",
-      trim: ""
+      trim: "",
+      year: ""
     });
   }
 
@@ -410,7 +425,8 @@ function SearchPageContent() {
     setMake(nextMake);
     setModel("");
     setTrim("");
-    runSearch(1, { make: nextMake, model: "", trim: "" });
+    setYearFilter("");
+    runSearch(1, { make: nextMake, model: "", trim: "", year: "" });
   }
 
   function handleModelChange(nextModelValue: string) {
@@ -419,6 +435,13 @@ function SearchPageContent() {
     setModel(nextModel);
     setTrim("");
     runSearch(1, { model: nextModel, trim: "" });
+  }
+
+  function handleYearChange(nextYearValue: string) {
+    const nextYear = nextYearValue === ANY_YEAR ? "" : nextYearValue;
+    if (nextYear === yearFilter) return;
+    setYearFilter(nextYear);
+    runSearch(1, { year: nextYear });
   }
 
   function handleTrimChange(nextTrimValue: string) {
@@ -434,24 +457,41 @@ function SearchPageContent() {
     let normalizedMake = make;
     let normalizedModel = model;
     let normalizedTrim = trim;
+    let normalizedYear = yearFilter;
 
     if (normalizedMake && !makes.includes(normalizedMake)) {
       normalizedMake = "";
       normalizedModel = "";
       normalizedTrim = "";
+      normalizedYear = "";
     } else if (normalizedModel && !models.includes(normalizedModel)) {
       normalizedModel = "";
       normalizedTrim = "";
     } else if (normalizedTrim && !trims.includes(normalizedTrim)) {
       normalizedTrim = "";
+    } else if (vehicleType === "used" && normalizedYear && !years.includes(normalizedYear)) {
+      normalizedYear = "";
     }
 
-    if (normalizedMake === make && normalizedModel === model && normalizedTrim === trim) return;
+    if (
+      normalizedMake === make &&
+      normalizedModel === model &&
+      normalizedTrim === trim &&
+      normalizedYear === yearFilter
+    ) {
+      return;
+    }
     setMake(normalizedMake);
     setModel(normalizedModel);
     setTrim(normalizedTrim);
-    runSearch(1, { make: normalizedMake, model: normalizedModel, trim: normalizedTrim });
-  }, [filtersQuery.isLoading, makes, models, trims, make, model, trim]);
+    setYearFilter(normalizedYear);
+    runSearch(1, {
+      make: normalizedMake,
+      model: normalizedModel,
+      trim: normalizedTrim,
+      year: normalizedYear
+    });
+  }, [filtersQuery.isLoading, makes, models, trims, years, vehicleType, make, model, trim, yearFilter]);
 
   function runSearch(
     nextPage = 1,
@@ -461,6 +501,7 @@ function SearchPageContent() {
       make: string;
       model: string;
       trim: string;
+      year: string;
       sort: string;
       maxPayment: number;
       downPayment: number;
@@ -476,6 +517,7 @@ function SearchPageContent() {
     const nextMake = overrides?.make !== undefined ? overrides.make : make;
     const nextModel = overrides?.model !== undefined ? overrides.model : model;
     const nextTrim = overrides?.trim !== undefined ? overrides.trim : trim;
+    const nextYear = overrides?.year !== undefined ? overrides.year : yearFilter;
     const nextSort = overrides?.sort !== undefined ? overrides.sort : sort;
     const nextMaxPayment = overrides?.maxPayment !== undefined ? overrides.maxPayment : maxPayment;
     const nextDownPayment = overrides?.downPayment !== undefined ? overrides.downPayment : downPayment;
@@ -491,6 +533,7 @@ function SearchPageContent() {
     if (nextMake) query.set("make", nextMake);
     if (nextModel) query.set("model", nextModel);
     if (nextTrim) query.set("trim", nextTrim);
+    if (nextVehicleType === "used" && nextYear) query.set("year", nextYear);
     if (nextSort && nextSort !== sortOptions[0].value) query.set("sort", nextSort);
     if (nextVehicleType === "new" && nextMode === "payment") {
       if (nextMaxPayment < PAYMENT_ANY_VALUE) {
@@ -534,6 +577,7 @@ function SearchPageContent() {
       term_months: nextVehicleType === "new" && nextMode === "payment" ? nextTermMonths : undefined,
       apr: nextVehicleType === "new" && nextMode === "payment" ? nextApr : undefined,
       max_mileage: nextVehicleType !== "new" ? nextMaxMileage : undefined,
+      year: nextVehicleType === "used" && nextYear ? Number(nextYear) : undefined,
       page: nextPage,
       page_size: pageSize
     });
@@ -545,6 +589,7 @@ function SearchPageContent() {
       if (overrides.make !== undefined) setMake(overrides.make);
       if (overrides.model !== undefined) setModel(overrides.model);
       if (overrides.trim !== undefined) setTrim(overrides.trim);
+      if (overrides.year !== undefined) setYearFilter(overrides.year);
       if (overrides.sort !== undefined) setSort(overrides.sort);
       if (overrides.maxPayment !== undefined) setMaxPayment(overrides.maxPayment);
       if (overrides.downPayment !== undefined) setDownPayment(overrides.downPayment);
@@ -560,6 +605,7 @@ function SearchPageContent() {
     setMake("");
     setModel("");
     setTrim("");
+    setYearFilter("");
     setSort(sortOptions[0].value);
     setMaxPrice(defaultValues.maxPrice);
     setMaxPayment(defaultValues.maxPayment);
@@ -577,6 +623,7 @@ function SearchPageContent() {
     if (make) chips.push({ key: "make", label: `Make: ${make}` });
     if (model) chips.push({ key: "model", label: `Model: ${model}` });
     if (trim) chips.push({ key: "trim", label: `Trim: ${trim}` });
+    if (vehicleType === "used" && yearFilter) chips.push({ key: "year", label: `Year: ${yearFilter}` });
     if (sort !== sortOptions[0].value) chips.push({ key: "sort", label: `Sort: ${sortOptions.find((s) => s.value === sort)?.label ?? sort}` });
     if (mode === "payment" && maxPayment !== defaultValues.maxPayment) {
       chips.push({
@@ -609,11 +656,11 @@ function SearchPageContent() {
       chips.push({ key: "maxMileage", label: `Mileage <= ${maxMileage.toLocaleString()}` });
     }
     return chips;
-  }, [make, model, trim, sort, mode, maxPayment, downPayment, termMonths, apr, maxPrice, usedMaxPrice, maxMileage, vehicleType]);
+  }, [make, model, trim, yearFilter, sort, mode, maxPayment, downPayment, termMonths, apr, maxPrice, usedMaxPrice, maxMileage, vehicleType]);
 
   function clearSingleFilter(key: string) {
     if (key === "make") {
-      runSearch(1, { make: "", model: "", trim: "" });
+      runSearch(1, { make: "", model: "", trim: "", year: "" });
       return;
     }
     if (key === "model") {
@@ -622,6 +669,10 @@ function SearchPageContent() {
     }
     if (key === "trim") {
       runSearch(1, { trim: "" });
+      return;
+    }
+    if (key === "year") {
+      runSearch(1, { year: "" });
       return;
     }
     if (key === "sort") {
@@ -840,6 +891,28 @@ function SearchPageContent() {
                     />
                   )}
                 </div>
+                {showUsedFilters && (
+                  <div className="space-y-2">
+                    <Label>Year</Label>
+                    {years.length > 0 ? (
+                      <Select value={yearFilter || ANY_YEAR} onValueChange={handleYearChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Any year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={ANY_YEAR}>Any year</SelectItem>
+                          {years.map((item) => (
+                            <SelectItem key={item} value={item}>
+                              {item}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input value={yearFilter} placeholder="Any year" disabled />
+                    )}
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>Trim</Label>
                   {trims.length > 0 ? (
@@ -1145,6 +1218,29 @@ function SearchPageContent() {
                     />
                   )}
                 </div>
+
+                {showUsedFilters && (
+                  <div className="space-y-2">
+                    <Label>Year</Label>
+                    {years.length > 0 ? (
+                      <Select value={yearFilter || ANY_YEAR} onValueChange={handleYearChange}>
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Any year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={ANY_YEAR}>Any year</SelectItem>
+                          {years.map((item) => (
+                            <SelectItem key={item} value={item}>
+                              {item}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input className="h-10" value={yearFilter} placeholder="Any year" disabled />
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label>Trim</Label>
@@ -1579,22 +1675,15 @@ function VehicleCard({
   paymentMode: boolean;
   selectedDownPayment?: number;
 }) {
-  const normalizedType = (vehicle.vehicle_type ?? "new").toString().toLowerCase();
-  const normalizedCondition = (vehicle.condition ?? "").toString().toLowerCase();
-  const inferredType =
-    normalizedCondition === "new"
-      ? "new"
-      : normalizedCondition === "used" || normalizedCondition === "cpo"
-      ? "used"
-      : normalizedType === "used"
-      ? "used"
-      : "new";
-  const isUsed = inferredType === "used";
+  const isUsed = inferVehicleListingType(vehicle) === "used";
+  const showLeasePricing = !isUsed;
   const primaryPrice = resolveSearchCardPrimaryPrice(vehicle, isUsed);
   const msrpPrice = displayPrice(vehicle.msrp);
-  const monthlyPrice = paymentMode
-    ? firstDisplayPrice(vehicle.estimated_monthly, vehicle.monthly)
-    : firstDisplayPrice(vehicle.monthly, vehicle.estimated_monthly);
+  const monthlyPrice = showLeasePricing
+    ? paymentMode
+      ? firstDisplayPrice(vehicle.estimated_monthly, vehicle.monthly)
+      : firstDisplayPrice(vehicle.monthly, vehicle.estimated_monthly)
+    : undefined;
   const downPrice = displayPrice(vehicle.down);
   const downForBadge = paymentMode
     ? typeof selectedDownPayment === "number" && Number.isFinite(selectedDownPayment)
@@ -1671,16 +1760,18 @@ function VehicleCard({
                 <p className="text-xs text-ink-700 sm:text-right">MSRP ${msrpPrice.toLocaleString()}</p>
               ) : null}
             </div>
-            <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 sm:text-sm">
-              {monthlyPrice !== undefined
-                ? `$${downForBadge.toLocaleString()} down, ${
-                    paymentMode
-                      ? monthlyPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                      : monthlyPrice.toLocaleString()
-                  }/mo est.`
-                : "Payment details on vehicle page"}
-              <Info className="h-4 w-4 text-ink-500" />
-            </p>
+            {showLeasePricing ? (
+              <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 sm:text-sm">
+                {monthlyPrice !== undefined
+                  ? `$${downForBadge.toLocaleString()} down, ${
+                      paymentMode
+                        ? monthlyPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : monthlyPrice.toLocaleString()
+                    }/mo est.`
+                  : "Payment details on vehicle page"}
+                <Info className="h-4 w-4 text-ink-500" />
+              </p>
+            ) : null}
           </div>
 
           <div className="border-t border-ink-300 pt-3">

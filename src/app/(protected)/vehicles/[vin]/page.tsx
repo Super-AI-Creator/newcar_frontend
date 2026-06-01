@@ -15,6 +15,7 @@ import { api, type ManualVehicleRecord, type Vehicle } from "@/lib/api";
 import { env } from "@/lib/env";
 import { DEFAULT_CAR_IMAGE, isFeedCsvVehicle, pickVehicleImage } from "@/lib/vehicle-image";
 import { displayPrice } from "@/lib/vehicle-pricing";
+import { inferVehicleListingType } from "@/lib/vehicle-listing-type";
 import { useToast } from "@/components/toast-provider";
 import { useAuth } from "@/components/auth-provider";
 import LeadFormButton from "@/components/lead-form-button";
@@ -445,29 +446,22 @@ export default function VehicleDetailPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [photoLightboxOpen, photos.length]);
 
-  const normalizedType = (vehicleQuery.data?.vehicle_type ?? "new").toString().toLowerCase();
   const normalizedCondition = (vehicleQuery.data?.condition ?? "").toString().toLowerCase();
-  const inferredType =
-    normalizedCondition === "new"
-      ? "new"
-      : normalizedCondition === "used" || normalizedCondition === "cpo"
-      ? "used"
-      : normalizedType === "used"
-      ? "used"
-      : "new";
-  const isUsed = inferredType === "used";
+  const isUsed = inferVehicleListingType(vehicleQuery.data ?? {}) === "used";
   const isCpo = normalizedCondition === "cpo";
   const badgeLabel = isCpo ? "CPO" : isUsed ? "USED" : "NEW";
   const hasOfferSheetData = useMemo(
     () =>
-      displayPrice(vehicleQuery.data?.monthly) !== undefined ||
+      !isUsed &&
+      (displayPrice(vehicleQuery.data?.monthly) !== undefined ||
       displayPrice(vehicleQuery.data?.down) !== undefined ||
       displayPrice(vehicleQuery.data?.discounted) !== undefined ||
       [
         vehicleQuery.data?.term_months,
         vehicleQuery.data?.miles_per_year
-      ].some((value) => value !== undefined && value !== null),
+      ].some((value) => value !== undefined && value !== null)),
     [
+      isUsed,
       vehicleQuery.data?.monthly,
       vehicleQuery.data?.down,
       vehicleQuery.data?.discounted,
@@ -814,7 +808,7 @@ export default function VehicleDetailPage() {
                       {hasOfferSheetData ? "Offer-sheet and key vehicle facts" : "Pricing and key vehicle facts"}
                     </p>
                   </div>
-                  {displayPrice(vehicleQuery.data?.monthly) !== undefined && (
+                  {!isUsed && displayPrice(vehicleQuery.data?.monthly) !== undefined && (
                     <div className="text-right">
                       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-brand-700">Lease payment</p>
                       <p className="text-2xl font-display font-semibold text-ink-900">

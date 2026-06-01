@@ -209,6 +209,25 @@ function CreditApplicationPageContent() {
     !!firstName?.trim() &&
     !!lastName?.trim() &&
     !!email?.trim() &&
+    !!ssn?.trim() &&
+    !!streetAddress?.trim() &&
+    !!city?.trim() &&
+    !!state?.trim() &&
+    !!zipCode?.trim() &&
+    !!timeAtCurrentAddress?.trim() &&
+    !!employmentStatus?.trim() &&
+    !!employerName?.trim() &&
+    !!workPhone?.trim() &&
+    !!timeAtCurrentJob?.trim() &&
+    grossMonthlyIncome.trim() !== "" &&
+    Number.isFinite(Number(grossMonthlyIncome)) &&
+    Number(grossMonthlyIncome) >= 0 &&
+    !!housingStatus?.trim() &&
+    monthlyHousingPayment.trim() !== "" &&
+    Number.isFinite(Number(monthlyHousingPayment)) &&
+    Number(monthlyHousingPayment) >= 0 &&
+    !!salespersonName?.trim() &&
+    !!electronicSignature?.trim() &&
     agreedToTerms &&
     captchaValid &&
     !loading &&
@@ -269,7 +288,7 @@ function CreditApplicationPageContent() {
             <Field label="Last Name" value={lastName} setValue={setLastName} required />
             <Field label="Email Address" type="email" value={email} setValue={setEmail} required />
             <Field label="Birth Date" type="date" value={birthDate} setValue={setBirthDate} />
-            <Field label="Social Security Number" value={ssn} setValue={setSsn} />
+            <Field label="Social Security Number" value={ssn} setValue={setSsn} required />
             <Field label="Drivers License Number" value={driversLicenseNumber} setValue={setDriversLicenseNumber} />
           </CardContent>
         </Card>
@@ -280,11 +299,11 @@ function CreditApplicationPageContent() {
             <p className="text-sm font-normal text-ink-600">Current mailing address and best phone to reach you.</p>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Field label="Street Address" value={streetAddress} setValue={setStreetAddress} />
-            <Field label="City/Town" value={city} setValue={setCity} />
-            <StateSelect label="State/Province" value={state} setValue={setState} />
-            <Field label="ZIP/Postal Code" value={zipCode} setValue={setZipCode} />
-            <Field label="How long at current address" value={timeAtCurrentAddress} setValue={setTimeAtCurrentAddress} />
+            <Field label="Street Address" value={streetAddress} setValue={setStreetAddress} required />
+            <Field label="City/Town" value={city} setValue={setCity} required />
+            <StateSelect label="State/Province" value={state} setValue={setState} required />
+            <Field label="ZIP/Postal Code" value={zipCode} setValue={setZipCode} required />
+            <Field label="How long at current address" value={timeAtCurrentAddress} setValue={setTimeAtCurrentAddress} required />
             <Field label="Mobile or home phone" value={homePhone} setValue={setHomePhone} />
           </CardContent>
         </Card>
@@ -310,8 +329,8 @@ function CreditApplicationPageContent() {
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Employment status</Label>
-              <Select value={employmentStatus} onValueChange={setEmploymentStatus}>
+              <Label>Employment status *</Label>
+              <Select value={employmentStatus} onValueChange={setEmploymentStatus} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -325,16 +344,16 @@ function CreditApplicationPageContent() {
               </Select>
             </div>
             <Field label="Occupation title" value={occupationTitle} setValue={setOccupationTitle} />
-            <Field label="Present employer" value={employerName} setValue={setEmployerName} />
-            <Field label="Work phone (optional)" value={workPhone} setValue={setWorkPhone} />
-            <Field label="How long" value={timeAtCurrentJob} setValue={setTimeAtCurrentJob} />
+            <Field label="Present employer" value={employerName} setValue={setEmployerName} required />
+            <Field label="Work phone" value={workPhone} setValue={setWorkPhone} required />
+            <Field label="How long" value={timeAtCurrentJob} setValue={setTimeAtCurrentJob} required />
             <Field label="Address" value={workStreetAddress} setValue={setWorkStreetAddress} />
             <Field label="City/Town" value={workCity} setValue={setWorkCity} />
             <StateSelect label="State/Province" value={workState} setValue={setWorkState} />
             <Field label="ZIP/Postal Code" value={workZipCode} setValue={setWorkZipCode} />
             <Field label="Previous Employer to cover 5 years" value={previousEmployer} setValue={setPreviousEmployer} />
             <Field label="How long previous" value={timeAtPreviousEmployer} setValue={setTimeAtPreviousEmployer} />
-            <Field label="Monthly Income" type="number" value={grossMonthlyIncome} setValue={setGrossMonthlyIncome} />
+            <Field label="Monthly Income" type="number" value={grossMonthlyIncome} setValue={setGrossMonthlyIncome} required />
           </CardContent>
         </Card>
 
@@ -345,8 +364,8 @@ function CreditApplicationPageContent() {
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Rent or own your home?</Label>
-              <Select value={housingStatus} onValueChange={setHousingStatus}>
+              <Label>Rent or own your home? *</Label>
+              <Select value={housingStatus} onValueChange={setHousingStatus} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
@@ -359,9 +378,9 @@ function CreditApplicationPageContent() {
                 </SelectContent>
               </Select>
             </div>
-            <Field label="Monthly rent or mortgage" type="number" value={monthlyHousingPayment} setValue={setMonthlyHousingPayment} />
-            <Field label="Salesperson (if someone helped you)" value={salespersonName} setValue={setSalespersonName} />
-            <Field label="Sign with your full legal name" value={electronicSignature} setValue={setElectronicSignature} />
+            <Field label="Monthly rent or mortgage" type="number" value={monthlyHousingPayment} setValue={setMonthlyHousingPayment} required />
+            <Field label="Salesperson" value={salespersonName} setValue={setSalespersonName} required />
+            <Field label="Sign with your full legal name" value={electronicSignature} setValue={setElectronicSignature} required />
             <div className="sm:col-span-2 space-y-2">
               <Label>Vehicle you&apos;re interested in</Label>
               <Input
@@ -474,7 +493,7 @@ function Field({
         {label}
         {required ? " *" : ""}
       </Label>
-      <Input type={type} value={value} onChange={(e) => setValue(e.target.value)} />
+      <Input type={type} value={value} onChange={(e) => setValue(e.target.value)} required={required} />
     </div>
   );
 }
@@ -485,23 +504,29 @@ function StateSelect({
   label,
   value,
   setValue,
+  required = false,
 }: {
   label: string;
   value: string;
   setValue: (next: string) => void;
+  required?: boolean;
 }) {
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
+      <Label>
+        {label}
+        {required ? " *" : ""}
+      </Label>
       <Select
         value={value === "" ? STATE_NONE : value}
         onValueChange={(v) => setValue(v === STATE_NONE ? "" : v)}
+        required={required}
       >
         <SelectTrigger>
-          <SelectValue placeholder="— None —" />
+          <SelectValue placeholder={required ? "Select state" : "— None —"} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={STATE_NONE}>— None —</SelectItem>
+          {!required ? <SelectItem value={STATE_NONE}>— None —</SelectItem> : null}
           {US_STATES.map((s) => (
             <SelectItem key={s} value={s}>
               {s}

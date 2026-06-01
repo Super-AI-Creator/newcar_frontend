@@ -408,6 +408,8 @@ export const api = {
         trims?: string[];
         models_by_make?: Record<string, string[]>;
         trims_by_make_model?: Record<string, string[]>;
+        years?: number[];
+        years_by_make?: Record<string, number[]>;
       }>(`/inventory/filters${qs ? `?${qs}` : ""}`);
     } catch (error) {
       const apiError = error as ApiError;
@@ -430,14 +432,28 @@ export const api = {
       const makesSet = new Set<string>();
       const modelsByMake: Record<string, Set<string>> = {};
       const trimsByMakeModel: Record<string, Set<string>> = {};
+      const yearsSet = new Set<number>();
+      const yearsByMake: Record<string, Set<number>> = {};
       for (const item of items) {
         const make = typeof item?.make === "string" ? item.make.trim() : "";
         const model = typeof item?.model === "string" ? item.model.trim() : "";
         const trim = typeof item?.trim === "string" ? item.trim.trim() : "";
+        const yearRaw = item?.year;
+        const year =
+          typeof yearRaw === "number" && Number.isFinite(yearRaw)
+            ? Math.trunc(yearRaw)
+            : typeof yearRaw === "string" && yearRaw.trim()
+              ? Number(yearRaw)
+              : NaN;
         if (!make || !model) continue;
         makesSet.add(make);
         if (!modelsByMake[make]) modelsByMake[make] = new Set<string>();
         modelsByMake[make].add(model);
+        if (Number.isFinite(year) && year > 0) {
+          yearsSet.add(year);
+          if (!yearsByMake[make]) yearsByMake[make] = new Set<number>();
+          yearsByMake[make].add(year);
+        }
         if (trim) {
           const key = `${make}|||${model}`;
           if (!trimsByMakeModel[key]) trimsByMakeModel[key] = new Set<string>();
@@ -462,7 +478,14 @@ export const api = {
         models,
         trims,
         models_by_make: modelsByMakeSorted,
-        trims_by_make_model: trimsByMakeModelSorted
+        trims_by_make_model: trimsByMakeModelSorted,
+        years: Array.from(yearsSet).sort((a, b) => b - a),
+        years_by_make: Object.fromEntries(
+          Object.entries(yearsByMake).map(([makeKey, values]) => [
+            makeKey,
+            Array.from(values).sort((a, b) => b - a)
+          ])
+        )
       };
     } catch (error) {
       const apiError = error as ApiError;

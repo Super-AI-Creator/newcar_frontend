@@ -485,6 +485,14 @@ function LeaseSpecialsPageContent() {
     });
   }, [searchParams]);
 
+  function goToPage(nextPage: number) {
+    const clamped = Math.max(1, Math.min(nextPage, totalPages));
+    const query = new URLSearchParams(searchParams.toString());
+    query.set("page", String(clamped));
+    router.replace(`${pathname}?${query.toString()}`);
+    setPage(clamped);
+  }
+
   function runSearch(
     nextPage = 1,
     overrides?: Partial<{
@@ -583,12 +591,13 @@ function LeaseSpecialsPageContent() {
 
     if (normalizedMake === make && normalizedModel === model) return;
     // Do not pass year: "" here — that wiped year/make/model filters after "See All".
-    runSearch(1, { make: normalizedMake, model: normalizedModel, trim: "" });
-  }, [filtersQuery.isLoading, makes, models, make, model]);
+    // Preserve current page when only canonicalizing make/model casing from filter options.
+    runSearch(page, { make: normalizedMake, model: normalizedModel, trim: "" });
+  }, [filtersQuery.isLoading, makes, models, make, model, page]);
 
   useEffect(() => {
     if (page <= totalPages) return;
-    runSearch(totalPages);
+    goToPage(totalPages);
   }, [page, totalPages]);
 
   function clearSingleFilter(key: string) {
@@ -1141,10 +1150,10 @@ function LeaseSpecialsPageContent() {
                 ) : null}
               </p>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => runSearch(currentPage - 1)}>
+                <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => goToPage(currentPage - 1)}>
                   Previous
                 </Button>
-                <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => runSearch(currentPage + 1)}>
+                <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => goToPage(currentPage + 1)}>
                   Next
                 </Button>
               </div>
