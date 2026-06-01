@@ -7,6 +7,16 @@ export type ApiError = {
   details?: unknown;
 };
 
+export type InventoryFiltersResponse = {
+  makes?: string[];
+  models?: string[];
+  trims?: string[];
+  models_by_make?: Record<string, string[]>;
+  trims_by_make_model?: Record<string, string[]>;
+  years?: number[];
+  years_by_make?: Record<string, number[]>;
+};
+
 async function parseJson(response: Response) {
   const text = await response.text();
   if (!text) return null;
@@ -395,22 +405,14 @@ export const api = {
       return api.search({ vehicle_type: "new", offers_only: true, page: 1, page_size: params?.limit ?? 6, sort: "best_deal" });
     }
   },
-  getFilters: async (params?: { vehicle_type?: "new" | "used" | "all"; offers_only?: boolean }) => {
+  getFilters: async (params?: { vehicle_type?: "new" | "used" | "all"; offers_only?: boolean }): Promise<InventoryFiltersResponse> => {
     const query = new URLSearchParams();
     if (params?.vehicle_type) query.set("vehicle_type", params.vehicle_type);
     if (params?.offers_only !== undefined) query.set("offers_only", String(params.offers_only));
     const qs = query.toString();
 
     try {
-      return await apiFetch<{
-        makes?: string[];
-        models?: string[];
-        trims?: string[];
-        models_by_make?: Record<string, string[]>;
-        trims_by_make_model?: Record<string, string[]>;
-        years?: number[];
-        years_by_make?: Record<string, number[]>;
-      }>(`/inventory/filters${qs ? `?${qs}` : ""}`);
+      return await apiFetch<InventoryFiltersResponse>(`/inventory/filters${qs ? `?${qs}` : ""}`);
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError?.status !== 404) throw error;
@@ -493,13 +495,7 @@ export const api = {
     }
 
     try {
-      return await apiFetch<{
-        makes?: string[];
-        models?: string[];
-        trims?: string[];
-        models_by_make?: Record<string, string[]>;
-        trims_by_make_model?: Record<string, string[]>;
-      }>("/vehicles/filters");
+      return await apiFetch<InventoryFiltersResponse>("/vehicles/filters");
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError?.status !== 404) throw error;
@@ -508,7 +504,7 @@ export const api = {
       const makes = [...new Set(items.map((i: any) => i?.make).filter((v: unknown) => typeof v === "string"))] as string[];
       const models = [...new Set(items.map((i: any) => i?.model).filter((v: unknown) => typeof v === "string"))] as string[];
       const trims = [...new Set(items.map((i: any) => i?.trim).filter((v: unknown) => typeof v === "string"))] as string[];
-      return { makes, models, trims };
+      return { makes, models, trims, years: [], years_by_make: {} };
     }
   },
   getVehicle: async (vin: string) => {
