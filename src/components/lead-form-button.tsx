@@ -161,6 +161,14 @@ export default function LeadFormButton({
         notes: notes.trim() || undefined
       });
       setSubmittedLeadId(lead.lead_id ?? null);
+      // Fire GA4 conversion event on successful lead submission (quote form completed)
+      if (typeof window !== "undefined" && typeof (window as any).gtag === "function") {
+        (window as any).gtag("event", "generate_lead", {
+          form: "quick_quote",
+          vehicle: vehicleLabel || undefined,
+          source: source || title,
+        });
+      }
 
       if (!user) {
         return;
