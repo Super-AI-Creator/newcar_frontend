@@ -10,7 +10,7 @@ import { getCanonicalSiteOrigin } from "@/lib/site-url";
 /** Google Tag Manager container ID (override with NEXT_PUBLIC_GTM_ID). */
 const GTM_CONTAINER_ID = process.env.NEXT_PUBLIC_GTM_ID ?? "GTM-NXPDHCM6";
 /** GA4 measurement ID (override with NEXT_PUBLIC_GA_MEASUREMENT_ID). */
-const GOOGLE_TAG_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? "G-3CG563JYV9";
+const GOOGLE_TAG_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? "G-5Z13V7V5JW";
 /** Google Search Console HTML tag verification (override with NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION). */
 const GOOGLE_SITE_VERIFICATION =
   process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ?? "BARs5p7wf3-Jpv2lad_nTzjQQHndHyc5E87JWXHMksg";
