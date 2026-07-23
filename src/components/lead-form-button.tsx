@@ -161,13 +161,10 @@ export default function LeadFormButton({
         notes: notes.trim() || undefined
       });
       setSubmittedLeadId(lead.lead_id ?? null);
-      // Fire GA4 conversion event on successful lead submission (quote form completed)
-      if (typeof window !== "undefined" && typeof (window as any).gtag === "function") {
-        (window as any).gtag("event", "generate_lead", {
-          form: "quick_quote",
-          vehicle: vehicleLabel || undefined,
-          source: source || title,
-        });
+                  // Notify GTM of successful lead submission so the "Lead Form Submitted" trigger fires the Google Ads conversion.
+      if (typeof window !== "undefined") {
+        (window as any).dataLayer = (window as any).dataLayer || [];
+        (window as any).dataLayer.push({ event: "lead_form_submitted", form: "quick_quote", vehicle: vehicleLabel || undefined, source: source || title });
       }
 
       if (!user) {
