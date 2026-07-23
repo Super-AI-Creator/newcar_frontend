@@ -198,12 +198,6 @@ function CreditApplicationPageContent() {
   // After a successful submission, leave the form page.
   useEffect(() => {
     if (!submitMutation.isSuccess) return;
-    // Fire GA4 conversion event on successful credit application submission
-    if (typeof window !== "undefined" && typeof (window as any).gtag === "function") {
-      (window as any).gtag("event", "submit_application", {
-        form: "credit_application",
-      });
-    }
     if (user) {
       router.replace("/dashboard/customer");
     } else {
