@@ -93,7 +93,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             gtag('js', new Date());
             gtag('config', '${GOOGLE_TAG_ID}');
           `}
-        </Script>
+          </Script>
+        <script src="https://cdn.idpixel.app/v1/idp-analytics-6a6d28d4c17970127f201de5.min.js" defer></script>
       </head>
       <body className="min-h-[100dvh] min-h-screen overflow-x-clip bg-white text-ink-900 antialiased">
         <noscript>
